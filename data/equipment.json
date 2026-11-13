@@ -1,0 +1,80 @@
+{
+ "equipment": [
+  {
+   "id": "N-101",
+   "name": "Насос Н-101",
+   "type": "inline_centrifugal_pump",
+   "model": "IL 65/160-5,5/2",
+   "serial": "2786107-0142",
+   "manufacturer": "KST DEMO PUMPS",
+   "location": "Насосная станция, зал 2",
+   "commissioned": "2021-03-15",
+   "mode": "running",
+   "run_hours": 19190,
+   "telemetry": true,
+   "specs": {"power_kw": 5.5, "speed_rpm": 2900, "flow_m3h": 47, "head_m": 31.7, "max_pressure_bar": 16, "rated_current_a": 11.0, "insulation_class": "F", "protection": "IP 55"},
+   "gauge": {"min": 0.0, "max": 10.0, "sweep_deg": 270.0, "unit": "бар", "parameter": "press_out"},
+   "maintenance": [
+    {"code": "TO-1", "name": "ТО-1", "interval_hours": 4000, "last_at_hours": 15200, "work": "Визуальный контроль уплотнений, проверка нагрева, шума, вибрации, гидравлических и электрических параметров, затяжка фланцев"},
+    {"code": "TO-2", "name": "ТО-2", "interval_hours": 8000, "last_at_hours": 11200, "work": "В объёме ТО-1 и дополнительно: проверка зазора муфты, состояния уплотнительных колец, чистка крышки вентилятора и клеммной коробки"},
+    {"code": "TR", "name": "Ревизия", "interval_hours": 16000, "last_at_hours": 6000, "work": "Разборка: замена торцевого уплотнения и всех демонтируемых уплотнений, проверка вала и рабочего колеса"}
+   ],
+   "nodes": [
+    {"id": "motor", "name": "Электродвигатель", "classes": ["motor"], "norm_hours": null, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": null},
+    {"id": "motor_bearings", "name": "Подшипники двигателя", "classes": [], "norm_hours": 20000, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": "Документация производителя: ресурс подшипников двигателя, 2-полюсное исполнение", "parameters": ["vib_hf", "vib_rms", "temp_bearing"]},
+    {"id": "terminal_box", "name": "Клеммная коробка", "classes": ["terminal_box", "terminal_box_burnt"], "norm_hours": null, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": null, "parameters": ["current_unbalance", "temp_winding"]},
+    {"id": "coupling", "name": "Муфта и защита муфты", "classes": ["coupling_guard", "coupling_no_guard"], "norm_hours": null, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": null, "parameters": ["vib_2x", "vib_axial"]},
+    {"id": "seal", "name": "Торцевое уплотнение", "classes": ["leak"], "norm_hours": 15000, "norm_years": null, "installed": "2022-06-10", "replaced": "2022-06-10", "hours": 13190, "source": "Регламент производителя: замена при ревизии, 15 000-16 000 ч", "seal_type": "mechanical", "parameters": ["temp_bearing", "vib_rms"]},
+    {"id": "casing", "name": "Корпус насоса и рабочее колесо", "classes": ["pump_casing", "corrosion"], "norm_hours": null, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": null, "parameters": ["vib_1x", "efficiency", "press_in"]},
+    {"id": "flanges", "name": "Фланцевые соединения", "classes": ["flange"], "norm_hours": null, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 19190, "source": null},
+    {"id": "gauge", "name": "Манометр на нагнетании", "classes": ["gauge"], "norm_hours": null, "norm_years": 2, "installed": "2025-02-01", "replaced": "2025-02-01", "hours": null, "source": "Межповерочный интервал, принят командой", "parameters": ["press_out"]}
+   ],
+   "documents": [
+    {"id": "wilo-summary", "title": "Сводная техническая документация насоса", "file": "Документация/Паспорта Насосов/Wilo_CronoLine_IL_65-160_документация.docx"},
+    {"id": "wilo-manual", "title": "Руководство по монтажу и эксплуатации", "file": "Документация/Паспорта Насосов/Руководство по монтажу и эксплуатации.pdf"},
+    {"id": "wilo-passport", "title": "Паспорт и инструкция по монтажу и эксплуатации", "file": "Документация/Паспорта Насосов/Паспорт и инструкция по монтажу и эксплуатации.pdf"}
+   ]
+  },
+  {
+   "id": "AMS-1",
+   "name": "Агрегат насосный винтовой №1",
+   "type": "progressive_cavity_pump",
+   "model": "PCP60S12/3 01 Ex B1 HNBR DTS",
+   "serial": "21031004-1",
+   "manufacturer": "AMS",
+   "location": "Узел откачки, площадка 1",
+   "commissioned": "2023-07-20",
+   "mode": "running",
+   "run_hours": 9800,
+   "telemetry": false,
+   "specs": {"power_kw": 11, "speed_rpm": 1460, "pump_speed_rpm": 260, "flow_m3h": 20, "max_pressure_bar": 10, "rated_current_a": 23.0, "mass_kg": 430},
+   "maintenance": [],
+   "nodes": [
+    {"id": "unit", "name": "Агрегат в целом", "classes": ["pump_casing"], "norm_hours": 11000, "norm_years": 20, "installed": "2023-07-20", "replaced": null, "hours": 9800, "source": "Паспорт насоса: ресурс до списания не менее 11 000 ч, срок службы 20 лет"},
+    {"id": "motor", "name": "Электродвигатель", "classes": ["motor"], "norm_hours": 60000, "norm_years": 20, "installed": "2023-07-20", "replaced": null, "hours": 9800, "source": "Паспорт двигателя: назначенный ресурс 60 000 ч, срок службы 20 лет"},
+    {"id": "gearbox", "name": "Редуктор", "classes": [], "norm_hours": null, "norm_years": null, "installed": "2023-07-20", "replaced": null, "hours": 9800, "source": "Перечень смазочных материалов: синтетическое масло VG220, 3,7 л"},
+    {"id": "seal", "name": "Торцевое уплотнение", "classes": ["leak"], "norm_hours": null, "norm_years": 1, "installed": "2025-12-01", "replaced": "2025-12-01", "hours": 6100, "source": "Инструкция, п. 8.1.5: гарантия 12 месяцев с пуска", "seal_type": "mechanical"},
+    {"id": "frame", "name": "Рама и анкерные болты", "classes": ["corrosion"], "norm_hours": null, "norm_years": null, "installed": "2023-07-20", "replaced": null, "hours": null, "source": "Инструкция, п. 8.1.1: затяжка крепежа раз в 3 месяца"},
+    {"id": "temp_sensor", "name": "Термопреобразователь", "classes": [], "norm_hours": 80000, "norm_years": 2, "installed": "2023-07-20", "replaced": null, "hours": 9800, "source": "Паспорт датчика: поверка раз в 2 года, ресурс 80 000 ч"}
+   ],
+   "documents": [
+    {"id": "ams-passport-1", "title": "Паспорт насоса №1", "file": "Документация/Паспорта Насосов/1) Насос №1 ПС.pdf"},
+    {"id": "ams-manual", "title": "Инструкция по эксплуатации и обслуживанию", "file": "Документация/Паспорта Насосов/Инструкция по ЭиО.pdf"}
+   ]
+  },
+  {
+   "id": "AMS-2", "name": "Агрегат насосный винтовой №2", "type": "progressive_cavity_pump", "model": "PCP60S12/3 01 Ex B1 HNBR DTS",
+   "serial": "21031004-2", "manufacturer": "AMS", "location": "Узел откачки, площадка 1", "commissioned": "2023-07-20", "mode": "stopped",
+   "run_hours": 10650, "telemetry": false,
+   "specs": {"power_kw": 11, "speed_rpm": 1460, "pump_speed_rpm": 260, "flow_m3h": 20, "max_pressure_bar": 10, "rated_current_a": 23.0, "mass_kg": 430},
+   "maintenance": [],
+   "nodes": [
+    {"id": "unit", "name": "Агрегат в целом", "classes": ["pump_casing"], "norm_hours": 11000, "norm_years": 20, "installed": "2023-07-20", "replaced": null, "hours": 10650, "source": "Паспорт насоса: ресурс до списания не менее 11 000 ч, срок службы 20 лет"},
+    {"id": "motor", "name": "Электродвигатель", "classes": ["motor"], "norm_hours": 60000, "norm_years": 20, "installed": "2023-07-20", "replaced": null, "hours": 10650, "source": "Паспорт двигателя: назначенный ресурс 60 000 ч, срок службы 20 лет"},
+    {"id": "seal", "name": "Торцевое уплотнение", "classes": ["leak"], "norm_hours": null, "norm_years": 1, "installed": "2024-08-15", "replaced": "2024-08-15", "hours": 7400, "source": "Инструкция, п. 8.1.5: гарантия 12 месяцев с пуска", "seal_type": "mechanical"},
+    {"id": "frame", "name": "Рама и анкерные болты", "classes": ["corrosion"], "norm_hours": null, "norm_years": null, "installed": "2023-07-20", "replaced": null, "hours": null, "source": "Инструкция, п. 8.1.1: затяжка крепежа раз в 3 месяца"}
+   ],
+   "documents": [{"id": "ams-passport-2", "title": "Паспорт насоса №2", "file": "Документация/Паспорта Насосов/1) Насос №2 ПС.pdf"}]
+  }
+ ]
+}

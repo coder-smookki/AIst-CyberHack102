@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv*/
+venv/
+runs/
+weights/
+*.pt
+*.pt.download.lock
+data/blender/ds/
+data/blender/textures/
+data/web_testset/images/
+data/customer/
+.DS_Store
+data/open/
+.pytest_cache/
+data/runtime/

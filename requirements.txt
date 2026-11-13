@@ -1,0 +1,8 @@
+libreyolo[onnx]==1.7.4
+rapidocr==3.10.0
+opencv-python
+fastapi
+uvicorn[standard]
+websockets
+python-multipart
+pillow
