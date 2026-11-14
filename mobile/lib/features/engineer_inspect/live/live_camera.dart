@@ -305,13 +305,19 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       }
     });
     _debugSwitch?.cancel();
-    _debugSwitch = Timer.periodic(const Duration(seconds: 8), (_) {
-      src.next();
-      debugImage = src.current;
-      boxes = const <LiveBox>[];
-    tracks.clear();
-      tracks.clear();
-      _notify();
+    int ticks = 0;
+    _debugSwitch = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      ticks++;
+      final bool changed = src.controlled ? src.sync() : ticks % 16 == 0;
+      if (!src.controlled && changed) {
+        src.next();
+      }
+      if (changed) {
+        debugImage = src.current;
+        boxes = const <LiveBox>[];
+        tracks.clear();
+        _notify();
+      }
     });
     return true;
   }

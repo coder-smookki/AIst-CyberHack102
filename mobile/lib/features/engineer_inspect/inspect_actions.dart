@@ -7,12 +7,15 @@ import '../../app/routes/engineer_inspect_routes.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/inspection_repository.dart';
+import '../engineer_service/service_common.dart';
 import 'widgets/inspect_camera.dart';
 
 /// Идущий осмотр агрегата [unitId]; если его нет - начинает новый.
 Future<Inspection> ensureInspection(WidgetRef ref, String unitId) async {
   final InspectionRepository repo = ref.read(inspectionRepositoryProvider);
-  return await repo.activeInspection(unitId) ?? await repo.start(unitId);
+  final Inspection insp = await repo.activeInspection(unitId) ?? await repo.start(unitId);
+  ref.read(lastInspectionProvider.notifier).set(insp.id);
+  return insp;
 }
 
 /// Возврат на живое видео: закрывает экраны над сканером, а если сканера в стеке нет - открывает его наплывом.

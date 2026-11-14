@@ -27,6 +27,9 @@ abstract final class ApiMap {
     if (seconds == null) {
       return '';
     }
+    if (seconds < 60) {
+      return '${seconds.round()} с';
+    }
     final int m = (seconds / 60).round();
     return m < 60 ? '$m мин' : '${m ~/ 60} ч ${m % 60} мин';
   }

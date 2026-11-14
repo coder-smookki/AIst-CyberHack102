@@ -12,10 +12,16 @@ const bool kDebugFrames = !kReleaseMode && bool.fromEnvironment('KST_DEBUG_FRAME
 /// Снимки из папки kst_frames во внутренних файлах приложения (adb shell run-as ... cp) или в /sdcard/Android/data (только Android),
 /// уменьшенные до 1280 пикселей по длинной стороне: сканер отправляет их на сервер вместо кадров камеры.
 class DebugFrameSource {
-  DebugFrameSource._(this.frames);
+  DebugFrameSource._(this.frames, this.names, this.dir);
 
   /// Кадры в JPEG.
   final List<Uint8List> frames;
+
+  /// Имена файлов кадров.
+  final List<String> names;
+
+  /// Папка кадров.
+  final Directory dir;
 
   int _index = 0;
 
@@ -24,6 +30,27 @@ class DebugFrameSource {
 
   /// Перейти к следующему снимку.
   void next() => _index = (_index + 1) % frames.length;
+
+  /// Файл управления current.txt с именем нужного снимка: если он есть, снимки не листаются сами.
+  File get _control => File('${dir.path}/current.txt');
+
+  /// Снимок выбирается файлом управления.
+  bool get controlled => _control.existsSync();
+
+  /// Перейти к снимку из файла управления; true - снимок сменился.
+  bool sync() {
+    try {
+      final String want = _control.readAsStringSync().trim();
+      final int i = names.indexOf(want);
+      if (i < 0 || i == _index) {
+        return false;
+      }
+      _index = i;
+      return true;
+    } on FileSystemException {
+      return false;
+    }
+  }
 
   /// Загружает снимки; null - папки нет или в ней нет снимков.
   static Future<DebugFrameSource?> load() async {
@@ -40,14 +67,16 @@ class DebugFrameSource {
     final List<File> files = dir.listSync().whereType<File>().where((File f) => RegExp(r'\.(jpe?g|png)$', caseSensitive: false).hasMatch(f.path)).toList()
       ..sort((File a, File b) => a.path.compareTo(b.path));
     final List<Uint8List> frames = [];
+    final List<String> names = [];
     for (final File f in files) {
       final Uint8List raw = f.readAsBytesSync();
       final Uint8List? jpeg = await Isolate.run(() => shrinkPhoto(raw));
       if (jpeg != null) {
         frames.add(jpeg);
+        names.add(f.uri.pathSegments.last);
       }
     }
-    return frames.isEmpty ? null : DebugFrameSource._(frames);
+    return frames.isEmpty ? null : DebugFrameSource._(frames, names, dir);
   }
 }
 

@@ -48,7 +48,7 @@ class ReportScreen extends ConsumerWidget {
                   : () async {
                       await ref.read(reportRepositoryProvider).inspectionReport(s.inspectionId, 'xlsx');
                       if (context.mounted) {
-                        showKvSnack(context, text: 'Excel сохранён в «Файлы» · 3 листа');
+                        showKvSnack(context, text: 'Excel сохранён в «Файлы»');
                       }
                     },
             ),
@@ -98,7 +98,7 @@ Future<void> showReportShare(BuildContext context, InspectionSummary s) {
           Navigator.of(sheet).pop();
           await ref.read(reportRepositoryProvider).inspectionReport(s.inspectionId, format);
           if (screen.mounted) {
-            showKvSnack(screen, text: format == 'pdf' ? 'PDF сохранён в «Файлы»' : 'Excel сохранён в «Файлы» · 3 листа');
+            showKvSnack(screen, text: format == 'pdf' ? 'PDF сохранён в «Файлы»' : 'Excel сохранён в «Файлы»');
           }
         }
 

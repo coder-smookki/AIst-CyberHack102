@@ -86,7 +86,7 @@ class SavedScreen extends ConsumerWidget {
                         Expanded(
                           child: _Stat(
                             value: next == null ? '' : KvFormat.typo('${KvFormat.num(next.inHours)} ч'),
-                            label: next == null ? '' : 'До ${next.code}',
+                            label: next == null ? '' : 'До ${next.code.startsWith('ТО') ? next.code : 'ТО'}',
                             color: c.warnText,
                           ),
                         ),

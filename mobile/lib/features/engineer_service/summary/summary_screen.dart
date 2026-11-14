@@ -137,7 +137,7 @@ class _Exports extends ConsumerWidget {
       }
       showKvSnack(
         context,
-        text: format == 'pdf' ? 'PDF сохранён в «Файлы»' : 'Excel сохранён в «Файлы» · 3 листа',
+        text: format == 'pdf' ? 'PDF сохранён в «Файлы»' : 'Excel сохранён в «Файлы»',
         actionLabel: 'Открыть',
         onAction: () => context.kvPush(EngineerServicePaths.cReport),
       );

@@ -11,11 +11,27 @@ const String kvAppVersion = '1.4.2 (сборка 412)';
 /// Короткая версия для строки «О приложении».
 const String kvAppVersionShort = '1.4.2';
 
-/// Осмотр, итог которого показывают «Итог осмотра», «Осмотр сохранён» и «Отчёт PDF»: черновик текущего
-/// сотрудника, иначе его последний осмотр.
+/// Номер осмотра, который сейчас ведёт сканер: итоговые экраны показывают именно его.
+class LastInspection extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Запоминает осмотр сканера.
+  void set(String? id) => state = id;
+}
+
+/// Осмотр, начатый или продолженный сканером в этом запуске приложения.
+final NotifierProvider<LastInspection, String?> lastInspectionProvider = NotifierProvider<LastInspection, String?>(LastInspection.new);
+
+/// Осмотр, итог которого показывают «Итог осмотра», «Осмотр сохранён» и «Отчёт PDF»: осмотр сканера, иначе
+/// черновик текущего сотрудника, иначе его последний осмотр.
 final FutureProvider<String?> currentInspectionIdProvider = FutureProvider.autoDispose<String?>((Ref ref) async {
   final String? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.name));
+  final String? last = ref.watch(lastInspectionProvider);
   final List<Inspection> all = await ref.watch(inspectionsProvider(null).future);
+  if (last != null && all.any((Inspection i) => i.id == last)) {
+    return last;
+  }
   final List<Inspection> mine = all.where((Inspection i) => me == null || i.who == me).toList();
   final Inspection? draft = mine.where((Inspection i) => i.status == 'draft').firstOrNull;
   return (draft ?? mine.firstOrNull ?? all.firstOrNull)?.id;

@@ -44,7 +44,7 @@ class _Paper extends ConsumerWidget {
     final List<Inspection> inspections = ref.watch(inspectionsProvider(summary.unitId)).value ?? const <Inspection>[];
     final String who = inspections.where((Inspection i) => i.id == summary.inspectionId).firstOrNull?.who ?? people['engineer']?.name ?? '';
     final String whoTitle = people.values.where((Person p) => p.name == who).firstOrNull?.title ?? 'Инженер';
-    final List<SummaryFinding> page = summary.findings.where((SummaryFinding f) => f.frame != null).take(2).toList();
+    final List<SummaryFinding> page = summary.findings;
     final int pages = summary.reportPages == 0 ? 1 : summary.reportPages;
     final double gap = narrow ? 8 : 9;
     final TextStyle base = TextStyle(fontFamily: KvTextStyles.kvFontFamily, fontSize: 10, height: 1.35, color: c.text);
@@ -63,6 +63,8 @@ class _Paper extends ConsumerWidget {
                 children: [
                   _Top(summary: summary),
                   SizedBox(height: gap),
+                  _Facts(summary: summary),
+                  SizedBox(height: gap),
                   if (u != null) _Unit(unit: u, site: site),
                   SizedBox(height: gap),
                   if (u != null) _Resource(unit: u, narrow: narrow),
@@ -74,6 +76,10 @@ class _Paper extends ConsumerWidget {
                       style: base.copyWith(fontWeight: FontWeight.w600, color: c.text2, letterSpacing: 0.2),
                     ),
                   ),
+                  if (page.isEmpty) ...[
+                    SizedBox(height: gap),
+                    Text('Находок нет: дефекты на камере не подтверждены, правила не сработали.', style: base.copyWith(color: c.text2)),
+                  ],
                   for (int i = 0; i < page.length; i++) ...[
                     SizedBox(height: gap),
                     _Finding(
@@ -513,6 +519,46 @@ class _Sign extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Сводка осмотра в акте: время, охват узлов, сработавшие правила и дефекты камеры.
+class _Facts extends StatelessWidget {
+  const _Facts({required this.summary});
+
+  final InspectionSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final KvColors c = context.kv;
+    final TextStyle base = DefaultTextStyle.of(context).style;
+    final List<(String, String)> rows = [
+      ('Время', KvFormat.typo('${summary.date}, ${summary.start}${summary.end.isEmpty ? '' : '-${summary.end}'}${summary.duration.isEmpty ? '' : ' · ${summary.duration}'}')),
+      ('Узлы', '${summary.nodesChecked} из ${summary.nodesTotal} осмотрено'),
+      ('Находки', '${summary.findings.length} · дефектов на камере ${summary.cameraDefects}'),
+      ('Правила', 'сработало ${summary.rulesFired}'),
+      ('Снимки', '${summary.photos}'),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(6)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (String k, String v) in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Row(
+                children: [
+                  SizedBox(width: 62, child: Text(k, style: base.copyWith(fontSize: 9, color: c.text3))),
+                  Expanded(child: Text(v, style: base.copyWith(fontSize: 9.5, fontWeight: FontWeight.w500))),
+                ],
+              ),
+            ),
         ],
       ),
     );
