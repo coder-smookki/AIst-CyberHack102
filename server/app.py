@@ -22,7 +22,7 @@ import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import admin, assistant, auth, db, equipment, inspections, recognition, telemetry_api, workflow
+from server import admin, assistant, auth, db, equipment, inspections, recognition, telemetry_api, webadmin_api, workflow
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -33,6 +33,7 @@ from server.rules import gauge_difference_percent
 from server.seed import seed
 
 PANEL_DIR = Path(__file__).resolve().parent / "panel"
+WEBADMIN_DIR = Path(__file__).resolve().parent / "webadmin"
 TITLE = "КСТ Визор"
 GAUGE_LIMIT_PERCENT = 15.0
 GAUGE_RULE = "R05"
@@ -265,6 +266,7 @@ def create_app(detector=None) -> FastAPI:
     app.include_router(workflow.router)
     app.include_router(admin.router)
     app.include_router(admin.system_router)
+    app.include_router(webadmin_api.router)
 
     @app.get("/health")
     def health(session: Annotated[Session, Depends(get_session)]) -> dict:
@@ -425,6 +427,13 @@ def create_app(detector=None) -> FastAPI:
         """Добавляет косую черту к адресу пульта, чтобы относительные ссылки на стили и скрипт работали."""
         return RedirectResponse("/panel/")
 
+    @app.get("/web", include_in_schema=False)
+    def web_root() -> RedirectResponse:
+        """Добавляет косую черту к адресу веб-панели администратора."""
+        return RedirectResponse("/web/")
+
     if PANEL_DIR.is_dir():
         app.mount("/panel", StaticFiles(directory=PANEL_DIR, html=True), name="panel")
+    if WEBADMIN_DIR.is_dir():
+        app.mount("/web", StaticFiles(directory=WEBADMIN_DIR, html=True), name="webadmin")
     return app
