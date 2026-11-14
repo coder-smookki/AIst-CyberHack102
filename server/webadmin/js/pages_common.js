@@ -277,10 +277,16 @@
         return { cells: ['<div class="wcell"><div><span class="t-main">' + esc(u.id) + ' · ' + esc(u.name) + '</span><span class="t-sub">' + esc(u.model) + '</span></div></div>', esc(u.location),
           A.chip(u.mode === 'running' ? 'В работе' : 'Остановлен', u.mode === 'running' ? 'ok' : 'unk'), KV.num(u.run_hours, 0) + ' ч', u.open_findings ? A.chip(String(u.open_findings), 'warn') : '<span class="wt-3">нет</span>', A.dt(u.last_inspection_at, { date: true })] };
       });
+      /** Неполный осмотр: отметка и узлы, которые не осмотрены. */
+      var incomplete = function (sm) {
+        if (sm.status !== 'incomplete') return '';
+        var nodes = (sm.uninspected || []).map(function (n) { return n.name || n.code; }).join(', ');
+        return A.chip(sm.status_title || 'Осмотр неполный', 'warn') + (nodes ? '<span class="t-sub" style="display:block">не осмотрены: ' + esc(nodes) + '</span>' : '') + ' ';
+      };
       var irows = ins.slice(0, 10).map(function (i) {
         var sm = i.summary || {};
         return { cells: ['<span class="wmono">' + esc(i.id) + '</span>', esc(i.equipment_id), esc(i.user ? i.user.name : ''), A.chip(i.status_title, i.status === 'active' ? 'info' : 'ok'),
-          A.dt(i.started_at), i.status === 'active' ? '<span class="wt-3">идёт</span>' : esc((sm.findings != null ? 'записей ' + sm.findings : '') + (sm.rejected ? ' · отклонено ' + sm.rejected : ''))] };
+          A.dt(i.started_at), i.status === 'active' ? '<span class="wt-3">идёт</span>' : incomplete(sm) + esc((sm.findings != null ? 'записей ' + sm.findings : '') + (sm.rejected ? ' · отклонено ' + sm.rejected : ''))] };
       });
       var site = d.site;
       return { title: 'Сводка смены', sub: (site ? site.name + ' · ' + site.shift_title.toLowerCase() + ' ' + site.shift + ' · ' : '') + 'подтверждение находок и план ТО - в приложении на телефоне',

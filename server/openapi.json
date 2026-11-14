@@ -1,0 +1,7833 @@
+{
+ "components": {
+  "schemas": {
+   "AskBody": {
+    "description": "Вопрос помощнику; equipment_id - агрегат, открытый в приложении, если он есть.",
+    "properties": {
+     "equipment_id": {
+      "anyOf": [
+       {
+        "maxLength": 32,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Equipment Id"
+     },
+     "question": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "AskBody",
+    "type": "object"
+   },
+   "BlockBody": {
+    "description": "Блокировка учётной записи: причина обязательна, комментарий - по желанию.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     },
+     "reason": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "BlockBody",
+    "type": "object"
+   },
+   "Body_add_finding_inspections__inspection_id__findings_post": {
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     },
+     "frame": {
+      "anyOf": [
+       {
+        "contentMediaType": "application/octet-stream",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Frame"
+     },
+     "kind": {
+      "enum": [
+       "checked",
+       "defect",
+       "maintenance",
+       "replacement"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "maintenance_code": {
+      "anyOf": [
+       {
+        "maxLength": 32,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Maintenance Code"
+     },
+     "node": {
+      "anyOf": [
+       {
+        "maxLength": 64,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Node"
+     },
+     "rule_id": {
+      "anyOf": [
+       {
+        "maxLength": 16,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rule Id"
+     },
+     "severity": {
+      "anyOf": [
+       {
+        "maximum": 3.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Severity"
+     },
+     "sign": {
+      "anyOf": [
+       {
+        "maxLength": 64,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sign"
+     }
+    },
+    "required": [
+     "kind"
+    ],
+    "title": "Body_add_finding_inspections__inspection_id__findings_post",
+    "type": "object"
+   },
+   "Body_add_sound_inspections__inspection_id__sound_post": {
+    "properties": {
+     "audio": {
+      "contentMediaType": "application/octet-stream",
+      "title": "Audio",
+      "type": "string"
+     },
+     "normal": {
+      "default": false,
+      "title": "Normal",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "audio"
+    ],
+    "title": "Body_add_sound_inspections__inspection_id__sound_post",
+    "type": "object"
+   },
+   "Body_recognize_gauge_recognize_gauge_post": {
+    "properties": {
+     "equipment_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "frame": {
+      "contentMediaType": "application/octet-stream",
+      "title": "Frame",
+      "type": "string"
+     },
+     "inspection_id": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Inspection Id"
+     }
+    },
+    "required": [
+     "frame",
+     "equipment_id"
+    ],
+    "title": "Body_recognize_gauge_recognize_gauge_post",
+    "type": "object"
+   },
+   "Body_recognize_nameplate_recognize_nameplate_post": {
+    "properties": {
+     "frame": {
+      "contentMediaType": "application/octet-stream",
+      "title": "Frame",
+      "type": "string"
+     }
+    },
+    "required": [
+     "frame"
+    ],
+    "title": "Body_recognize_nameplate_recognize_nameplate_post",
+    "type": "object"
+   },
+   "CancelBody": {
+    "description": "Отмена задания с необязательной причиной.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     }
+    },
+    "title": "CancelBody",
+    "type": "object"
+   },
+   "CommentBody": {
+    "description": "Комментарий сотрудника к замечанию.",
+    "properties": {
+     "text": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "CommentBody",
+    "type": "object"
+   },
+   "CursorBody": {
+    "description": "Запрос перестановки текущего момента ленты телеметрии.",
+    "properties": {
+     "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "at"
+    ],
+    "title": "CursorBody",
+    "type": "object"
+   },
+   "Diagnosis": {
+    "additionalProperties": true,
+    "description": "Диагноз агрегата: общий статус, находки и состояние каждого узла.",
+    "properties": {
+     "at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "At"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "findings": {
+      "items": {
+       "$ref": "#/components/schemas/DiagnosisFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+     },
+     "inspection_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Inspection Id"
+     },
+     "nodes": {
+      "additionalProperties": true,
+      "title": "Nodes",
+      "type": "object"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "status_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Status Note"
+     },
+     "status_title": {
+      "title": "Status Title",
+      "type": "string"
+     },
+     "telemetry": {
+      "title": "Telemetry",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "telemetry",
+     "status",
+     "status_title",
+     "findings",
+     "nodes"
+    ],
+    "title": "Diagnosis",
+    "type": "object"
+   },
+   "DiagnosisFinding": {
+    "additionalProperties": true,
+    "description": "Находка диагностики по правилу с основаниями.",
+    "properties": {
+     "confidence": {
+      "title": "Confidence",
+      "type": "number"
+     },
+     "diagnosis": {
+      "title": "Diagnosis",
+      "type": "string"
+     },
+     "evidence": {
+      "items": {
+       "$ref": "#/components/schemas/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+     },
+     "missing": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Missing",
+      "type": "array"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "node_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Node Name"
+     },
+     "recommendation": {
+      "title": "Recommendation",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "integer"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "rule_id",
+     "title",
+     "node_id",
+     "status",
+     "severity",
+     "diagnosis",
+     "recommendation",
+     "confidence",
+     "evidence",
+     "missing"
+    ],
+    "title": "DiagnosisFinding",
+    "type": "object"
+   },
+   "EquipmentBrief": {
+    "additionalProperties": true,
+    "description": "Единица оборудования в списке.",
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_inspection_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Last Inspection At"
+     },
+     "location": {
+      "title": "Location",
+      "type": "string"
+     },
+     "manufacturer": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Manufacturer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "open_findings": {
+      "title": "Open Findings",
+      "type": "integer"
+     },
+     "run_hours": {
+      "title": "Run Hours",
+      "type": "number"
+     },
+     "serial": {
+      "title": "Serial",
+      "type": "string"
+     },
+     "telemetry": {
+      "title": "Telemetry",
+      "type": "boolean"
+     },
+     "type": {
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "type",
+     "model",
+     "serial",
+     "location",
+     "mode",
+     "run_hours",
+     "telemetry",
+     "open_findings"
+    ],
+    "title": "EquipmentBrief",
+    "type": "object"
+   },
+   "EquipmentCard": {
+    "additionalProperties": true,
+    "description": "Цифровая карточка оборудования с узлами, характеристиками, регламентом и документами.",
+    "properties": {
+     "commissioned": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Commissioned"
+     },
+     "documents": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Documents"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_inspection_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Last Inspection At"
+     },
+     "location": {
+      "title": "Location",
+      "type": "string"
+     },
+     "maintenance": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Maintenance"
+     },
+     "manufacturer": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Manufacturer"
+     },
+     "mode": {
+      "title": "Mode",
+      "type": "string"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "nodes": {
+      "items": {
+       "$ref": "#/components/schemas/NodeCard"
+      },
+      "title": "Nodes",
+      "type": "array"
+     },
+     "open_findings": {
+      "title": "Open Findings",
+      "type": "integer"
+     },
+     "run_hours": {
+      "title": "Run Hours",
+      "type": "number"
+     },
+     "serial": {
+      "title": "Serial",
+      "type": "string"
+     },
+     "specs": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Specs"
+     },
+     "telemetry": {
+      "title": "Telemetry",
+      "type": "boolean"
+     },
+     "type": {
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "type",
+     "model",
+     "serial",
+     "location",
+     "mode",
+     "run_hours",
+     "telemetry",
+     "open_findings",
+     "nodes"
+    ],
+    "title": "EquipmentCard",
+    "type": "object"
+   },
+   "Evidence": {
+    "additionalProperties": true,
+    "description": "Основание находки: источник, условие, значение, уставка и выполнено ли условие.",
+    "properties": {
+     "met": {
+      "title": "Met",
+      "type": "boolean"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "threshold": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Threshold"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Value"
+     },
+     "what": {
+      "title": "What",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source",
+     "what",
+     "met"
+    ],
+    "title": "Evidence",
+    "type": "object"
+   },
+   "FaultBody": {
+    "description": "Сообщение о неисправности: агрегат, признаки из перечня (код или название) и комментарий.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     },
+     "equipment_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "signs": {
+      "items": {
+       "type": "string"
+      },
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Signs",
+      "type": "array"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "signs"
+    ],
+    "title": "FaultBody",
+    "type": "object"
+   },
+   "FindingView": {
+    "additionalProperties": true,
+    "description": "Запись осмотра: замечание, проверка или работа; состояние устранения, отклонение и комментарии.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Comment"
+     },
+     "confidence": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confidence"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "diagnosis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Diagnosis"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "evidence": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Evidence",
+      "type": "array"
+     },
+     "has_photo": {
+      "title": "Has Photo",
+      "type": "boolean"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "inspection_id": {
+      "title": "Inspection Id",
+      "type": "integer"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "node_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Node Code"
+     },
+     "node_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Node Name"
+     },
+     "notes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "photo_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Photo Url"
+     },
+     "recommendation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Recommendation"
+     },
+     "reject_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Reject Reason"
+     },
+     "rejected": {
+      "title": "Rejected",
+      "type": "boolean"
+     },
+     "rejected_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Rejected At"
+     },
+     "rejected_by": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Rejected By"
+     },
+     "rule_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Rule Id"
+     },
+     "severity": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Severity"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "state_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "State Title"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "status_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Status Title"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "inspection_id",
+     "equipment_id",
+     "kind",
+     "source",
+     "status",
+     "title",
+     "evidence",
+     "has_photo",
+     "state",
+     "created_at",
+     "rejected",
+     "notes"
+    ],
+    "title": "FindingView",
+    "type": "object"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "title": "Detail",
+      "type": "array"
+     }
+    },
+    "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "Health": {
+    "additionalProperties": true,
+    "description": "Готовность сервера: база, число единиц оборудования, детектор.",
+    "properties": {
+     "channels": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Channels"
+     },
+     "database": {
+      "title": "Database",
+      "type": "string"
+     },
+     "detector": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Detector"
+     },
+     "equipment": {
+      "title": "Equipment",
+      "type": "integer"
+     },
+     "models_fingerprint": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Models Fingerprint"
+     },
+     "ok": {
+      "title": "Ok",
+      "type": "boolean"
+     },
+     "service": {
+      "title": "Service",
+      "type": "string"
+     },
+     "time": {
+      "title": "Time",
+      "type": "string"
+     }
+    },
+    "required": [
+     "ok",
+     "service",
+     "time",
+     "database",
+     "equipment"
+    ],
+    "title": "Health",
+    "type": "object"
+   },
+   "InspectionBrief": {
+    "additionalProperties": true,
+    "description": "Осмотр в списке: кто, когда, какой агрегат и с каким итогом.",
+    "properties": {
+     "equipment": {
+      "additionalProperties": true,
+      "title": "Equipment",
+      "type": "object"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Finished At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "identified_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Identified By"
+     },
+     "identified_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Identified Title"
+     },
+     "started_at": {
+      "title": "Started At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "status_title": {
+      "title": "Status Title",
+      "type": "string"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Summary"
+     },
+     "user": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "id",
+     "equipment_id",
+     "equipment",
+     "started_at",
+     "status",
+     "status_title"
+    ],
+    "title": "InspectionBrief",
+    "type": "object"
+   },
+   "InspectionView": {
+    "additionalProperties": true,
+    "description": "Осмотр с записями и полнотой обхода.",
+    "properties": {
+     "coverage": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Coverage"
+     },
+     "equipment": {
+      "additionalProperties": true,
+      "title": "Equipment",
+      "type": "object"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "findings": {
+      "items": {
+       "$ref": "#/components/schemas/FindingView"
+      },
+      "title": "Findings",
+      "type": "array"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Finished At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "identified_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Identified By"
+     },
+     "identified_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Identified Title"
+     },
+     "resumed": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Resumed"
+     },
+     "started_at": {
+      "title": "Started At",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "status_title": {
+      "title": "Status Title",
+      "type": "string"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Summary"
+     },
+     "user": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "id",
+     "equipment_id",
+     "equipment",
+     "started_at",
+     "status",
+     "status_title",
+     "findings"
+    ],
+    "title": "InspectionView",
+    "type": "object"
+   },
+   "LoginBody": {
+    "description": "Запрос входа: почта, пароль и необязательное название устройства для списка сеансов.",
+    "properties": {
+     "device": {
+      "anyOf": [
+       {
+        "maxLength": 120,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Device"
+     },
+     "email": {
+      "maxLength": 254,
+      "minLength": 3,
+      "title": "Email",
+      "type": "string"
+     },
+     "password": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Password",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "password"
+    ],
+    "title": "LoginBody",
+    "type": "object"
+   },
+   "Metrics": {
+    "additionalProperties": true,
+    "description": "Метрики сервера для веб-панели.",
+    "properties": {
+     "cpu": {
+      "additionalProperties": true,
+      "title": "Cpu",
+      "type": "object"
+     },
+     "database": {
+      "additionalProperties": true,
+      "title": "Database",
+      "type": "object"
+     },
+     "disk": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Disk"
+     },
+     "host": {
+      "title": "Host",
+      "type": "string"
+     },
+     "memory": {
+      "additionalProperties": true,
+      "title": "Memory",
+      "type": "object"
+     },
+     "platform": {
+      "title": "Platform",
+      "type": "string"
+     },
+     "python": {
+      "title": "Python",
+      "type": "string"
+     },
+     "time": {
+      "title": "Time",
+      "type": "string"
+     },
+     "uptime_s": {
+      "title": "Uptime S",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "time",
+     "uptime_s",
+     "cpu",
+     "memory",
+     "database",
+     "host",
+     "platform",
+     "python"
+    ],
+    "title": "Metrics",
+    "type": "object"
+   },
+   "ModeBody": {
+    "description": "Запрос смены режима: агрегат в работе или остановлен.",
+    "properties": {
+     "mode": {
+      "enum": [
+       "running",
+       "stopped"
+      ],
+      "title": "Mode",
+      "type": "string"
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "title": "ModeBody",
+    "type": "object"
+   },
+   "NameplateResult": {
+    "additionalProperties": true,
+    "description": "Результат чтения шильдика: найденный агрегат, кандидаты той же модели, способ опознания (шильдик или QR).",
+    "properties": {
+     "candidates": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "fields": {
+      "additionalProperties": true,
+      "title": "Fields",
+      "type": "object"
+     },
+     "found": {
+      "title": "Found",
+      "type": "boolean"
+     },
+     "identified_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Identified By"
+     },
+     "lines": {
+      "items": {},
+      "title": "Lines",
+      "type": "array"
+     },
+     "match": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Match"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "qr": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Qr"
+     }
+    },
+    "required": [
+     "found",
+     "candidates",
+     "fields",
+     "lines",
+     "message"
+    ],
+    "title": "NameplateResult",
+    "type": "object"
+   },
+   "NodeCard": {
+    "additionalProperties": true,
+    "description": "Узел оборудования: наработка, нормативы, классы детектора.",
+    "properties": {
+     "classes": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Classes"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "hours": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Hours"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "installed": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Installed"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "norm_hours": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Norm Hours"
+     },
+     "norm_years": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Norm Years"
+     },
+     "parameters": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Parameters"
+     },
+     "replaced": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Replaced"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source"
+     }
+    },
+    "required": [
+     "id",
+     "code",
+     "name"
+    ],
+    "title": "NodeCard",
+    "type": "object"
+   },
+   "Notification": {
+    "additionalProperties": true,
+    "description": "Уведомление ленты сотрудника.",
+    "properties": {
+     "at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "kind",
+     "title",
+     "text"
+    ],
+    "title": "Notification",
+    "type": "object"
+   },
+   "Parameter": {
+    "additionalProperties": true,
+    "description": "Параметр телеметрии: значение, уставки, уровень и тренд.",
+    "properties": {
+     "alarm": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Alarm"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "direction": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Direction"
+     },
+     "level": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Level"
+     },
+     "level_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Level Title"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source"
+     },
+     "trend": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Trend"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Unit"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Value"
+     },
+     "warn": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Warn"
+     }
+    },
+    "required": [
+     "code",
+     "name"
+    ],
+    "title": "Parameter",
+    "type": "object"
+   },
+   "PasswordBody": {
+    "description": "Запрос смены пароля: действующий (или временный) пароль и новый.",
+    "properties": {
+     "current_password": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Current Password",
+      "type": "string"
+     },
+     "new_password": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "New Password",
+      "type": "string"
+     }
+    },
+    "required": [
+     "current_password",
+     "new_password"
+    ],
+    "title": "PasswordBody",
+    "type": "object"
+   },
+   "Person": {
+    "additionalProperties": true,
+    "description": "Сотрудник в записях осмотров и журналов.",
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Role"
+     },
+     "role_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Role Title"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "Person",
+    "type": "object"
+   },
+   "PolicyBody": {
+    "description": "Правка политики безопасности: переданные поля заменяются, остальные остаются прежними.",
+    "properties": {
+     "biometrics_allowed": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Biometrics Allowed"
+     },
+     "lockout_attempts": {
+      "anyOf": [
+       {
+        "maximum": 100.0,
+        "minimum": 3.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lockout Attempts"
+     },
+     "lockout_minutes": {
+      "anyOf": [
+       {
+        "maximum": 1440.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lockout Minutes"
+     },
+     "min_password_length": {
+      "anyOf": [
+       {
+        "maximum": 128.0,
+        "minimum": 6.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min Password Length"
+     },
+     "require_letters_digits": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Require Letters Digits"
+     },
+     "session_hours": {
+      "anyOf": [
+       {
+        "maximum": 8760.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Session Hours"
+     }
+    },
+    "title": "PolicyBody",
+    "type": "object"
+   },
+   "RefreshBody": {
+    "description": "Запрос новой пары токенов по токену обновления; biometric - вход по биометрии на телефоне.",
+    "properties": {
+     "biometric": {
+      "default": false,
+      "title": "Biometric",
+      "type": "boolean"
+     },
+     "refresh_token": {
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Refresh Token",
+      "type": "string"
+     }
+    },
+    "required": [
+     "refresh_token"
+    ],
+    "title": "RefreshBody",
+    "type": "object"
+   },
+   "RejectBody": {
+    "description": "Отклонение сообщения о неисправности с пояснением для оператора.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     }
+    },
+    "title": "RejectBody",
+    "type": "object"
+   },
+   "Resource": {
+    "additionalProperties": true,
+    "description": "Три раздельные оценки по узлам и состояние регламента обслуживания.",
+    "properties": {
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "estimates_on": {
+      "title": "Estimates On",
+      "type": "string"
+     },
+     "maintenance": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Maintenance",
+      "type": "array"
+     },
+     "nodes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Nodes",
+      "type": "array"
+     },
+     "run_hours": {
+      "title": "Run Hours",
+      "type": "number"
+     },
+     "telemetry": {
+      "title": "Telemetry",
+      "type": "boolean"
+     },
+     "telemetry_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Telemetry At"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "run_hours",
+     "estimates_on",
+     "telemetry",
+     "nodes",
+     "maintenance"
+    ],
+    "title": "Resource",
+    "type": "object"
+   },
+   "RoleAssignBody": {
+    "description": "Смена роли сотрудника.",
+    "properties": {
+     "role": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "role"
+    ],
+    "title": "RoleAssignBody",
+    "type": "object"
+   },
+   "RoleCreateBody": {
+    "description": "Новая роль: код латиницей, название, описание, права; copy_from - взять права другой роли.",
+    "properties": {
+     "code": {
+      "pattern": "^[a-z][a-z0-9_]{1,31}$",
+      "title": "Code",
+      "type": "string"
+     },
+     "copy_from": {
+      "anyOf": [
+       {
+        "maxLength": 32,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Copy From"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "permissions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Permissions"
+     },
+     "title": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "title"
+    ],
+    "title": "RoleCreateBody",
+    "type": "object"
+   },
+   "RoleUpdateBody": {
+    "description": "Правка роли: переданные поля заменяются, остальные остаются прежними.",
+    "properties": {
+     "description": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "permissions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 100,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Permissions"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "maxLength": 80,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     }
+    },
+    "title": "RoleUpdateBody",
+    "type": "object"
+   },
+   "RuleCondition": {
+    "additionalProperties": true,
+    "description": "Условие правила: значение, порог, выполнено ли и хватает ли данных.",
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "met": {
+      "title": "Met",
+      "type": "boolean"
+     },
+     "missing": {
+      "title": "Missing",
+      "type": "boolean"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "state": {
+      "title": "State",
+      "type": "string"
+     },
+     "threshold": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Threshold"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Value"
+     },
+     "what": {
+      "title": "What",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "source",
+     "what",
+     "state",
+     "met",
+     "missing"
+    ],
+    "title": "RuleCondition",
+    "type": "object"
+   },
+   "RuleEvaluation": {
+    "additionalProperties": true,
+    "description": "Разбор одного правила для агрегата на текущий момент.",
+    "properties": {
+     "applies": {
+      "title": "Applies",
+      "type": "boolean"
+     },
+     "conditions": {
+      "items": {
+       "$ref": "#/components/schemas/RuleCondition"
+      },
+      "title": "Conditions",
+      "type": "array"
+     },
+     "diagnosis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Diagnosis"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "evidence": {
+      "items": {
+       "$ref": "#/components/schemas/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+     },
+     "missing": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Missing",
+      "type": "array"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "node_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Node Name"
+     },
+     "parts": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Parts",
+      "type": "array"
+     },
+     "recommendation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Recommendation"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "severity": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Severity"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "status_title": {
+      "title": "Status Title",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "rule_id",
+     "title",
+     "applies",
+     "status",
+     "status_title",
+     "node_id",
+     "conditions",
+     "parts",
+     "evidence",
+     "missing"
+    ],
+    "title": "RuleEvaluation",
+    "type": "object"
+   },
+   "RuleItem": {
+    "additionalProperties": true,
+    "description": "Правило диагностики в справочнике.",
+    "properties": {
+     "applies_to": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Applies To",
+      "type": "array"
+     },
+     "camera": {
+      "additionalProperties": true,
+      "title": "Camera",
+      "type": "object"
+     },
+     "group": {
+      "title": "Group",
+      "type": "string"
+     },
+     "group_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Group Title"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "node": {
+      "title": "Node",
+      "type": "string"
+     },
+     "recommendation": {
+      "title": "Recommendation",
+      "type": "string"
+     },
+     "sensor": {
+      "additionalProperties": true,
+      "title": "Sensor",
+      "type": "object"
+     },
+     "severity": {
+      "title": "Severity",
+      "type": "integer"
+     },
+     "sound": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Sound"
+     },
+     "source": {
+      "additionalProperties": true,
+      "title": "Source",
+      "type": "object"
+     },
+     "status": {
+      "additionalProperties": true,
+      "title": "Status",
+      "type": "object"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "group",
+     "applies_to",
+     "node",
+     "camera",
+     "sensor",
+     "status",
+     "severity",
+     "recommendation",
+     "source"
+    ],
+    "title": "RuleItem",
+    "type": "object"
+   },
+   "SecurityEventView": {
+    "additionalProperties": true,
+    "description": "Запись журнала безопасности.",
+    "properties": {
+     "actor": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Actor"
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "details": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Details"
+     },
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Email"
+     },
+     "event": {
+      "title": "Event",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Ip"
+     },
+     "target_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target Role"
+     },
+     "target_user": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Target User"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "at",
+     "event",
+     "title"
+    ],
+    "title": "SecurityEventView",
+    "type": "object"
+   },
+   "ServerEvent": {
+    "additionalProperties": true,
+    "description": "Событие журнала сервера: осмотры, находки, решения по ним, звук.",
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "level": {
+      "title": "Level",
+      "type": "string"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Text"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "at",
+     "level",
+     "kind",
+     "title"
+    ],
+    "title": "ServerEvent",
+    "type": "object"
+   },
+   "Site": {
+    "additionalProperties": true,
+    "description": "Сведения об объекте и текущей смене.",
+    "properties": {
+     "local_time": {
+      "title": "Local Time",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "server_name": {
+      "title": "Server Name",
+      "type": "string"
+     },
+     "shift": {
+      "title": "Shift",
+      "type": "string"
+     },
+     "shift_code": {
+      "title": "Shift Code",
+      "type": "string"
+     },
+     "shift_end": {
+      "title": "Shift End",
+      "type": "string"
+     },
+     "shift_start": {
+      "title": "Shift Start",
+      "type": "string"
+     },
+     "shift_title": {
+      "title": "Shift Title",
+      "type": "string"
+     },
+     "timezone": {
+      "title": "Timezone",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "shift",
+     "shift_code",
+     "shift_title",
+     "shift_start",
+     "shift_end",
+     "server_name",
+     "timezone",
+     "local_time"
+    ],
+    "title": "Site",
+    "type": "object"
+   },
+   "SoundRecordView": {
+    "additionalProperties": true,
+    "description": "Запись звука агрегата с показателями и признаками-кандидатами.",
+    "properties": {
+     "audio_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Audio Url"
+     },
+     "bands": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Bands",
+      "type": "array"
+     },
+     "baseline": {
+      "additionalProperties": true,
+      "title": "Baseline",
+      "type": "object"
+     },
+     "candidates": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "centroid_hz": {
+      "title": "Centroid Hz",
+      "type": "number"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "crest_factor": {
+      "title": "Crest Factor",
+      "type": "number"
+     },
+     "duration_s": {
+      "title": "Duration S",
+      "type": "number"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "inspection_id": {
+      "title": "Inspection Id",
+      "type": "integer"
+     },
+     "kurtosis": {
+      "title": "Kurtosis",
+      "type": "number"
+     },
+     "level_dbfs": {
+      "title": "Level Dbfs",
+      "type": "number"
+     },
+     "normal": {
+      "title": "Normal",
+      "type": "boolean"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Note"
+     },
+     "peak_dbfs": {
+      "title": "Peak Dbfs",
+      "type": "number"
+     },
+     "peaks": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Peaks",
+      "type": "array"
+     },
+     "sample_rate": {
+      "title": "Sample Rate",
+      "type": "integer"
+     },
+     "spectrum": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Spectrum",
+      "type": "array"
+     }
+    },
+    "required": [
+     "id",
+     "inspection_id",
+     "equipment_id",
+     "created_at",
+     "normal",
+     "duration_s",
+     "sample_rate",
+     "level_dbfs",
+     "peak_dbfs",
+     "crest_factor",
+     "kurtosis",
+     "centroid_hz",
+     "bands",
+     "peaks",
+     "spectrum",
+     "baseline",
+     "candidates"
+    ],
+    "title": "SoundRecordView",
+    "type": "object"
+   },
+   "StartBody": {
+    "description": "Запрос начала осмотра: обозначение оборудования и способ его опознания (по шильдику, вручную, по QR).",
+    "properties": {
+     "equipment_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "identified_by": {
+      "anyOf": [
+       {
+        "enum": [
+         "nameplate",
+         "manual",
+         "qr"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identified By"
+     }
+    },
+    "required": [
+     "equipment_id"
+    ],
+    "title": "StartBody",
+    "type": "object"
+   },
+   "StateBody": {
+    "description": "Запрос смены состояния замечания; для отклонения (rejected) комментарий-причина обязателен.",
+    "properties": {
+     "comment": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comment"
+     },
+     "state": {
+      "enum": [
+       "open",
+       "in_work",
+       "resolved",
+       "rejected"
+      ],
+      "title": "State",
+      "type": "string"
+     }
+    },
+    "required": [
+     "state"
+    ],
+    "title": "StateBody",
+    "type": "object"
+   },
+   "TaskBody": {
+    "description": "Задание на осмотр: агрегат, инженер, причина, срочность, срок и необязательное сообщение о неисправности.",
+    "properties": {
+     "assignee_id": {
+      "minimum": 1.0,
+      "title": "Assignee Id",
+      "type": "integer"
+     },
+     "due_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due Date"
+     },
+     "equipment_id": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "fault_report_id": {
+      "anyOf": [
+       {
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fault Report Id"
+     },
+     "priority": {
+      "default": "normal",
+      "enum": [
+       "low",
+       "normal",
+       "high",
+       "urgent"
+      ],
+      "title": "Priority",
+      "type": "string"
+     },
+     "reason": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "assignee_id",
+     "reason"
+    ],
+    "title": "TaskBody",
+    "type": "object"
+   },
+   "Telemetry": {
+    "additionalProperties": true,
+    "description": "Показания агрегата на текущий момент ленты; без телеметрии available = false и причина.",
+    "properties": {
+     "at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "At"
+     },
+     "available": {
+      "title": "Available",
+      "type": "boolean"
+     },
+     "bounds": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Bounds"
+     },
+     "equipment_id": {
+      "title": "Equipment Id",
+      "type": "string"
+     },
+     "labels": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Labels"
+     },
+     "level": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Level"
+     },
+     "level_title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Level Title"
+     },
+     "parameters": {
+      "items": {
+       "$ref": "#/components/schemas/Parameter"
+      },
+      "title": "Parameters",
+      "type": "array"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Reason"
+     }
+    },
+    "required": [
+     "equipment_id",
+     "available",
+     "parameters"
+    ],
+    "title": "Telemetry",
+    "type": "object"
+   },
+   "Tokens": {
+    "additionalProperties": true,
+    "description": "Пара токенов после входа или обновления.",
+    "properties": {
+     "access_token": {
+      "title": "Access Token",
+      "type": "string"
+     },
+     "biometrics_allowed": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Biometrics Allowed"
+     },
+     "expires_in": {
+      "title": "Expires In",
+      "type": "integer"
+     },
+     "must_change_password": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Must Change Password"
+     },
+     "permissions": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Permissions"
+     },
+     "refresh_token": {
+      "title": "Refresh Token",
+      "type": "string"
+     },
+     "token_type": {
+      "title": "Token Type",
+      "type": "string"
+     },
+     "user": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/UserView"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null
+     }
+    },
+    "required": [
+     "access_token",
+     "refresh_token",
+     "token_type",
+     "expires_in"
+    ],
+    "title": "Tokens",
+    "type": "object"
+   },
+   "UserCreateBody": {
+    "description": "Новая учётная запись: почта, имя и код роли.",
+    "properties": {
+     "email": {
+      "maxLength": 254,
+      "minLength": 3,
+      "title": "Email",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "role": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "name",
+     "role"
+    ],
+    "title": "UserCreateBody",
+    "type": "object"
+   },
+   "UserView": {
+    "additionalProperties": true,
+    "description": "Вошедший сотрудник: роль и права.",
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "must_change_password": {
+      "title": "Must Change Password",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "permissions": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Permissions",
+      "type": "array"
+     },
+     "role": {
+      "title": "Role",
+      "type": "string"
+     },
+     "role_title": {
+      "title": "Role Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "email",
+     "name",
+     "role",
+     "role_title",
+     "permissions",
+     "must_change_password"
+    ],
+    "title": "UserView",
+    "type": "object"
+   },
+   "ValidationError": {
+    "properties": {
+     "ctx": {
+      "title": "Context",
+      "type": "object"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "title": "Location",
+      "type": "array"
+     },
+     "msg": {
+      "title": "Message",
+      "type": "string"
+     },
+     "type": {
+      "title": "Error Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError",
+    "type": "object"
+   }
+  },
+  "securitySchemes": {
+   "appKey": {
+    "description": "Ключ приложения: нужен только на демонстрационном стенде вместо пароля площадки",
+    "in": "header",
+    "name": "X-KST-App",
+    "type": "apiKey"
+   },
+   "bearerAuth": {
+    "bearerFormat": "JWT",
+    "description": "Токен доступа из ответа POST /auth/login",
+    "scheme": "bearer",
+    "type": "http"
+   }
+  }
+ },
+ "info": {
+  "description": "Локальный сервер «КСТ Визор»: вход сотрудников, цифровые карточки оборудования, телеметрия и диагностика по правилам, осмотры с находками и записью звука, отчёты PDF и Excel, администрирование.\n\n**Вход.** `POST /auth/login` возвращает `access_token`; нажмите «Authorize» и вставьте его - запросы пойдут с заголовком `Authorization: Bearer ...`. Права определяет роль сотрудника; без нужного права ответ 403.\n\n**Демонстрационный стенд.** Перед сервером стоит пароль площадки; приложение вместо него передаёт заголовок `X-KST-App`. В локальной сети цеха этот заголовок не нужен.\n\n**Правила работы.** Распознавание принимает только кадры камеры. Статусы и диагнозы - подсказка системы: решение принимает инженер. Ответы об ошибках имеют вид `{\"detail\": \"текст по-русски\"}`.",
+  "title": "КСТ Визор - API сервера",
+  "version": "0.1.1"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/admin/permissions": {
+   "get": {
+    "description": "Перечень прав по группам с русскими названиями и пояснениями.",
+    "operationId": "permissions_catalogue_admin_permissions_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Permissions Catalogue Admin Permissions Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Перечень прав по группам с русскими названиями и пояснениями",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/policy": {
+   "get": {
+    "description": "Политика безопасности: длина и состав пароля, блокировка входа, срок сеанса, вход по биометрии.",
+    "operationId": "get_policy_admin_policy_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Policy Admin Policy Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Политика безопасности",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "patch": {
+    "description": "Меняет переданные поля политики; новые значения действуют с ближайшего входа или смены пароля.",
+    "operationId": "update_policy_admin_policy_patch",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PolicyBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Update Policy Admin Policy Patch",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Меняет переданные поля политики",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/roles": {
+   "get": {
+    "description": "Роли: сначала системные, затем созданные администратором ИБ, с числом сотрудников.",
+    "operationId": "list_roles_admin_roles_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Roles Admin Roles Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Роли",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "post": {
+    "description": "Создаёт роль; права берутся из permissions, а без них - из роли copy_from.",
+    "operationId": "create_role_admin_roles_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoleCreateBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Role Admin Roles Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Создаёт роль",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/roles/{code}": {
+   "delete": {
+    "description": "Удаляет роль, созданную администратором ИБ, если она никому не назначена; системные роли не удаляются.",
+    "operationId": "delete_role_admin_roles__code__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Удаляет роль, созданную администратором ИБ, если она никому не назначена",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "get": {
+    "description": "Одна роль.",
+    "operationId": "get_role_admin_roles__code__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Role Admin Roles  Code  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Одна роль",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "patch": {
+    "description": "Меняет название, описание или права роли, в том числе системной; права действуют сразу.",
+    "operationId": "update_role_admin_roles__code__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoleUpdateBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Update Role Admin Roles  Code  Patch",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Меняет название, описание или права роли, в том числе системной",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/security-log": {
+   "get": {
+    "description": "Журнал безопасности, сначала новые записи; user_id отбирает записи, где сотрудник действовал или был целью.",
+    "operationId": "security_log_admin_security_log_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "event",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Event"
+      }
+     },
+     {
+      "in": "query",
+      "name": "user_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "User Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "since",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "in": "query",
+      "name": "until",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Until"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 200,
+       "maximum": 1000,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SecurityEventView"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Журнал безопасности, сначала новые записи",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/security-log/events": {
+   "get": {
+    "description": "Виды событий журнала безопасности с русскими названиями.",
+    "operationId": "log_events_admin_security_log_events_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Log Events Admin Security Log Events Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Виды событий журнала безопасности с русскими названиями",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users": {
+   "get": {
+    "description": "Учётные записи по алфавиту имён: поиск по имени и почте, отбор по роли и состоянию.",
+    "operationId": "list_users_admin_users_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "role",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Role"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "active",
+          "blocked"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Users Admin Users Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Учётные записи по алфавиту имён",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "post": {
+    "description": "Заводит учётную запись с временным паролем; пароль возвращается один раз, при входе его нужно сменить.",
+    "operationId": "create_user_admin_users_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserCreateBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create User Admin Users Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Заводит учётную запись с временным паролем",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}": {
+   "get": {
+    "description": "Одна учётная запись.",
+    "operationId": "get_user_admin_users__user_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get User Admin Users  User Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Одна учётная запись",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/block": {
+   "post": {
+    "description": "Блокирует учётную запись и сразу закрывает все её сеансы.",
+    "operationId": "block_user_admin_users__user_id__block_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Block User Admin Users  User Id  Block Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Блокирует учётную запись и сразу закрывает все её сеансы",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/reset-password": {
+   "post": {
+    "description": "Выдаёт новый временный пароль (возвращается один раз) и закрывает все сеансы сотрудника.",
+    "operationId": "reset_password_admin_users__user_id__reset_password_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Reset Password Admin Users  User Id  Reset Password Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Выдаёт новый временный пароль (возвращается один раз) и закрывает все сеансы сотрудника",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/role": {
+   "post": {
+    "description": "Меняет роль сотрудника; новые права действуют с его следующего запроса.",
+    "operationId": "change_role_admin_users__user_id__role_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RoleAssignBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Change Role Admin Users  User Id  Role Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Меняет роль сотрудника",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/sessions": {
+   "delete": {
+    "description": "Закрывает все сеансы сотрудника; возвращает число закрытых сеансов.",
+    "operationId": "revoke_all_sessions_admin_users__user_id__sessions_delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Revoke All Sessions Admin Users  User Id  Sessions Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Закрывает все сеансы сотрудника",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   },
+   "get": {
+    "description": "Открытые сеансы сотрудника: устройство, начало сеанса и последнее обновление токена, сначала свежие.",
+    "operationId": "user_sessions_admin_users__user_id__sessions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response User Sessions Admin Users  User Id  Sessions Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Открытые сеансы сотрудника",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/sessions/{family}": {
+   "delete": {
+    "description": "Закрывает один сеанс сотрудника.",
+    "operationId": "revoke_session_admin_users__user_id__sessions__family__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "family",
+      "required": true,
+      "schema": {
+       "title": "Family",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Revoke Session Admin Users  User Id  Sessions  Family  Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Закрывает один сеанс сотрудника",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/admin/users/{user_id}/unblock": {
+   "post": {
+    "description": "Снимает блокировку учётной записи.",
+    "operationId": "unblock_user_admin_users__user_id__unblock_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Unblock User Admin Users  User Id  Unblock Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Снимает блокировку учётной записи",
+    "tags": [
+     "Учётные записи и безопасность"
+    ]
+   }
+  },
+  "/assistant/ask": {
+   "post": {
+    "description": "Отвечает на вопрос: текст, ссылки для приложения и способ получения ответа.\n\nmode \"search\" - ответ собран поиском по данным; \"llm\" - те же факты связаны в текст локальной моделью.\nСсылки в обоих случаях одни и те же. Неизвестный equipment_id - ошибка 404.",
+    "operationId": "ask_assistant_ask_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AskBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Ask Assistant Ask Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Отвечает на вопрос",
+    "tags": [
+     "Помощник"
+    ]
+   }
+  },
+  "/auth/login": {
+   "post": {
+    "description": "Вход по почте и паролю: токены, данные сотрудника, его права и признак обязательной смены пароля.\n\nЗаблокированная учётная запись с верным паролем получает отказ 403; с неверным - тот же 401, что и все,\nчтобы по ответу нельзя было узнать, существует ли почта.",
+    "operationId": "login_auth_login_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LoginBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Tokens"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Вход по почте и паролю",
+    "tags": [
+     "Вход и сеанс"
+    ]
+   }
+  },
+  "/auth/logout": {
+   "post": {
+    "description": "Завершает сеанс: его токен обновления и выданные токены доступа перестают действовать сразу.",
+    "operationId": "logout_auth_logout_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Logout Auth Logout Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Завершает сеанс",
+    "tags": [
+     "Вход и сеанс"
+    ]
+   }
+  },
+  "/auth/me": {
+   "get": {
+    "description": "Возвращает данные вошедшего сотрудника для личного кабинета: роль, права, нужна ли смена пароля.",
+    "operationId": "me_auth_me_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UserView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Возвращает данные вошедшего сотрудника для личного кабинета",
+    "tags": [
+     "Вход и сеанс"
+    ]
+   }
+  },
+  "/auth/password": {
+   "post": {
+    "description": "Меняет пароль: проверяет действующий пароль и соответствие нового политике, закрывает прочие сеансы.\n\nНеверный действующий пароль считается неудачной попыткой входа - так пароль не подобрать перебором.",
+    "operationId": "change_password_auth_password_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PasswordBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Change Password Auth Password Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Меняет пароль",
+    "tags": [
+     "Вход и сеанс"
+    ]
+   }
+  },
+  "/auth/refresh": {
+   "post": {
+    "description": "Меняет токен обновления на новую пару токенов; старый токен после этого больше не действует.\n\nСеанс старше срока из политики закрывается; вход по биометрии отклоняется, если политика его запрещает,\nа успешный вход по биометрии записывается в журнал безопасности.",
+    "operationId": "refresh_auth_refresh_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RefreshBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Tokens"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Меняет токен обновления на новую пару токенов",
+    "tags": [
+     "Вход и сеанс"
+    ]
+   }
+  },
+  "/equipment": {
+   "get": {
+    "description": "Список оборудования: поиск по словам запроса q, отбор по типу (параметр type) и режиму работы.",
+    "operationId": "list_equipment_equipment_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 64,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "mode",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "running",
+          "stopped"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Mode"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/EquipmentBrief"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Список оборудования",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/by-serial/{serial}": {
+   "get": {
+    "description": "Карточка по серийному номеру с шильдика; разделители и регистр при вводе не важны.",
+    "operationId": "by_serial_equipment_by_serial__serial__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "serial",
+      "required": true,
+      "schema": {
+       "title": "Serial",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EquipmentCard"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Карточка по серийному номеру с шильдика",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}": {
+   "get": {
+    "description": "Цифровая карточка оборудования с узлами, характеристиками, регламентом и документами.",
+    "operationId": "card_equipment__equipment_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/EquipmentCard"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Цифровая карточка оборудования с узлами, характеристиками, регламентом и документами",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/cursor": {
+   "post": {
+    "description": "Переставляет текущий момент ленты телеметрии; нужно право управления лентой.\n\nМомент вне записи отклоняется с кодом 422 и указанием доступного интервала.",
+    "operationId": "set_cursor_equipment__equipment_id__cursor_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CursorBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Set Cursor Equipment  Equipment Id  Cursor Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Переставляет текущий момент ленты телеметрии",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/diagnosis": {
+   "get": {
+    "description": "Диагноз агрегата по правилам на текущий момент ленты с основаниями по каждой находке.\n\nБез inspection_id учитываются только датчики и ресурс. С номером идущего осмотра этого агрегата в диагноз\nвходят также признаки, увиденные камерой, показание манометра и отметки инженера. Узел, который камера\nраспознаёт, но при обходе не осмотрела, показывается серым «не осмотрен», а не зелёным.",
+    "operationId": "diagnosis_equipment__equipment_id__diagnosis_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "inspection_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Inspection Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Diagnosis"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Диагноз агрегата по правилам на текущий момент ленты с основаниями по каждой находке",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/forecast/{code}": {
+   "get": {
+    "description": "Прогноз времени до уставок параметра по линейному тренду последних hours часов.\n\nstate: \"no_thresholds\" - уставок у параметра нет; \"insufficient_data\" - в окне меньше четырёх точек;\n\"reached\" - уставка уже достигнута; \"approaching\" - тренд ведёт к уставке; \"steady\" - достижение не\nпрогнозируется. Прогноз - оценка по прямой, решение о действиях принимает инженер.",
+    "operationId": "forecast_equipment__equipment_id__forecast__code__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "hours",
+      "required": false,
+      "schema": {
+       "default": 12,
+       "maximum": 168,
+       "minimum": 4,
+       "title": "Hours",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Forecast Equipment  Equipment Id  Forecast  Code  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Прогноз времени до уставок параметра по линейному тренду последних hours часов",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/history": {
+   "get": {
+    "description": "История агрегата или одного его узла: осмотры с находками и записи о работах, сначала новые.",
+    "operationId": "history_equipment__equipment_id__history_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "node",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 64,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Node"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 200,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response History Equipment  Equipment Id  History Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "История агрегата или одного его узла",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/mode": {
+   "post": {
+    "description": "Переводит агрегат в режим «в работе» или «остановлен»; нужно право «Смена режима агрегата».",
+    "operationId": "set_mode_equipment__equipment_id__mode_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ModeBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Set Mode Equipment  Equipment Id  Mode Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Переводит агрегат в режим «в работе» или «остановлен»",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/nodes": {
+   "get": {
+    "description": "Узлы оборудования с текущей наработкой и датами установки и замены.",
+    "operationId": "nodes_equipment__equipment_id__nodes_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Nodes Equipment  Equipment Id  Nodes Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Узлы оборудования с текущей наработкой и датами установки и замены",
+    "tags": [
+     "Оборудование"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/resource": {
+   "get": {
+    "description": "Три раздельные оценки по каждому узлу и состояние регламента обслуживания.\n\nnormative - срок службы по документам, calculated - расчётный остаток ресурса, actual - фактическое\nсостояние по диагностике на текущий момент. Оценки не объединяются в одну. Днём расчёта служит момент\nленты телеметрии, а без телеметрии - сегодняшняя дата.",
+    "operationId": "resource_equipment__equipment_id__resource_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Resource"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Три раздельные оценки по каждому узлу и состояние регламента обслуживания",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/route": {
+   "get": {
+    "description": "Маршрут осмотра: узлы в порядке приоритета с причиной места каждого.\n\nПорядок групп: незакрытое замечание прошлого осмотра, отклонение по датчикам, ресурс на исходе,\nплановый осмотр. Запись: {code, name, rank, group, reason}.",
+    "operationId": "route_equipment__equipment_id__route_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Route Equipment  Equipment Id  Route Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Маршрут осмотра",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/rules/{rule_id}": {
+   "get": {
+    "description": "Проверка одного правила для агрегата сейчас - сработало оно или нет - с разбором по условиям.\n\nБез inspection_id учитываются датчики и ресурс на текущий момент ленты. С номером осмотра этого агрегата -\nещё отметки инженера (подтверждённые признаки, проверенные узлы), а у идущего осмотра также показание\nманометра и узлы, увиденные камерой. Отклонённые находки не учитываются. Неизвестный агрегат или правило - 404.",
+    "operationId": "evaluate_equipment__equipment_id__rules__rule_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "inspection_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Inspection Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RuleEvaluation"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Проверка одного правила для агрегата сейчас - сработало оно или нет - с разбором по условиям",
+    "tags": [
+     "Правила диагностики"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/scenarios": {
+   "get": {
+    "description": "Сценарии демонстрации: эпизоды неисправностей и опорные точки, с ожидаемыми правилами диагностики.",
+    "operationId": "scenarios_equipment__equipment_id__scenarios_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Scenarios Equipment  Equipment Id  Scenarios Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Сценарии демонстрации",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/scenarios/{scenario_id}": {
+   "post": {
+    "description": "Ставит текущий момент ленты на час наибольшего отклонения сценария; нужно право управления лентой.",
+    "operationId": "select_scenario_equipment__equipment_id__scenarios__scenario_id__post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "scenario_id",
+      "required": true,
+      "schema": {
+       "title": "Scenario Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Select Scenario Equipment  Equipment Id  Scenarios  Scenario Id  Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Ставит текущий момент ленты на час наибольшего отклонения сценария",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/telemetry": {
+   "get": {
+    "description": "Показания агрегата на текущий момент ленты: значения, уставки, уровни, тренды и диагнозы заказчика.\n\nУ каждого параметра source показывает происхождение значения: \"customer\" - из баз заказчика, \"model\" -\nрассчитано моделью. Для агрегата без телеметрии возвращается available = false с причиной.",
+    "operationId": "telemetry_equipment__equipment_id__telemetry_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Telemetry"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Показания агрегата на текущий момент ленты",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/equipment/{equipment_id}/telemetry/{code}": {
+   "get": {
+    "description": "Ряд значений параметра за последние hours часов до текущего момента ленты - для графика с линиями уставок.\n\nmodel_since - время первой точки окна, рассчитанной моделью; None, если все точки из баз заказчика.",
+    "operationId": "series_equipment__equipment_id__telemetry__code__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "equipment_id",
+      "required": true,
+      "schema": {
+       "title": "Equipment Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "hours",
+      "required": false,
+      "schema": {
+       "default": 24,
+       "maximum": 720,
+       "minimum": 1,
+       "title": "Hours",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Series Equipment  Equipment Id  Telemetry  Code  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Ряд значений параметра за последние hours часов до текущего момента ленты - для графика с линиями уставок",
+    "tags": [
+     "Телеметрия и диагностика"
+    ]
+   }
+  },
+  "/fault-reports": {
+   "get": {
+    "description": "Все сообщения о неисправностях для мастера, сначала новые; отбор по состоянию и агрегату.",
+    "operationId": "list_fault_reports_fault_reports_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "new",
+          "assigned",
+          "inspected",
+          "rejected"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "equipment_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Equipment Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Fault Reports Fault Reports Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Все сообщения о неисправностях для мастера, сначала новые",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   },
+   "post": {
+    "description": "Принимает сообщение оператора о неисправности; признак «другое» требует комментария.",
+    "operationId": "create_fault_report_fault_reports_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FaultBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Fault Report Fault Reports Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Принимает сообщение оператора о неисправности",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/fault-reports/my": {
+   "get": {
+    "description": "Сообщения о неисправностях, отправленные самим сотрудником, с их текущим состоянием.",
+    "operationId": "my_fault_reports_fault_reports_my_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response My Fault Reports Fault Reports My Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Сообщения о неисправностях, отправленные самим сотрудником, с их текущим состоянием",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/fault-reports/signs": {
+   "get": {
+    "description": "Перечень признаков неисправности для формы оператора.",
+    "operationId": "fault_signs_fault_reports_signs_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Fault Signs Fault Reports Signs Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Перечень признаков неисправности для формы оператора",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/fault-reports/{report_id}": {
+   "get": {
+    "description": "Одно сообщение: его автору или сотруднику с правом назначать осмотры.",
+    "operationId": "fault_report_fault_reports__report_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Fault Report Fault Reports  Report Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Одно сообщение",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/fault-reports/{report_id}/reject": {
+   "post": {
+    "description": "Отклоняет новое сообщение - например, повтор уже известной неисправности; оператор увидит пояснение.",
+    "operationId": "reject_fault_report_fault_reports__report_id__reject_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RejectBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Reject Fault Report Fault Reports  Report Id  Reject Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Отклоняет новое сообщение - например, повтор уже известной неисправности",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/health": {
+   "get": {
+    "description": "Готовность сервера: база данных, число агрегатов и состояние детектора; вход не нужен.\n\nВ channels - состояние каналов (база данных, модели, распознавание текста, телеметрия, звук), у каждого\nstate, title и detail; models_fingerprint - короткий отпечаток файлов моделей распознавания.",
+    "operationId": "health_health_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Health"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Готовность сервера",
+    "tags": [
+     "Распознавание"
+    ]
+   }
+  },
+  "/inspections": {
+   "get": {
+    "description": "Список осмотров, сначала новые; отбор по оборудованию и состоянию.",
+    "operationId": "list_inspections_inspections_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "equipment_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Equipment Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "active",
+          "finished"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 200,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/InspectionBrief"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Список осмотров, сначала новые",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   },
+   "post": {
+    "description": "Начинает осмотр; если у сотрудника уже идёт осмотр этого агрегата, возвращает его с кодом 200.",
+    "operationId": "start_inspections_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StartBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InspectionView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Начинает осмотр",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/findings": {
+   "get": {
+    "description": "Замечания по всем осмотрам для доски «открыто - в работе - устранено»; отклонённые - только по запросу.",
+    "operationId": "list_findings_inspections_findings_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "state",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "open",
+          "in_work",
+          "resolved",
+          "rejected"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "State"
+      }
+     },
+     {
+      "in": "query",
+      "name": "equipment_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Equipment Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "include_ok",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Include Ok",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "include_rejected",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Include Rejected",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 200,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FindingView"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Замечания по всем осмотрам для доски «открыто - в работе - устранено»",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/findings/{finding_id}": {
+   "get": {
+    "description": "Одно замечание с основаниями.",
+    "operationId": "finding_inspections_findings__finding_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "title": "Finding Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Одно замечание с основаниями",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/findings/{finding_id}/comment": {
+   "post": {
+    "description": "Дописывает к замечанию комментарий с временем и автором: право «Просмотр замечаний» или автор осмотра.",
+    "operationId": "comment_inspections_findings__finding_id__comment_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "title": "Finding Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CommentBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Дописывает к замечанию комментарий с временем и автором",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/findings/{finding_id}/photo": {
+   "get": {
+    "description": "Стоп-кадр камеры, приложенный к замечанию.",
+    "operationId": "finding_photo_inspections_findings__finding_id__photo_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "title": "Finding Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "image/jpeg": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       }
+      },
+      "description": "Стоп-кадр камеры к замечанию"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Стоп-кадр камеры, приложенный к замечанию",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/findings/{finding_id}/state": {
+   "post": {
+    "description": "Переводит замечание в следующее состояние или отклоняет его; нужно право «Подтверждение замечаний».",
+    "operationId": "set_state_inspections_findings__finding_id__state_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "finding_id",
+      "required": true,
+      "schema": {
+       "title": "Finding Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StateBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Переводит замечание в следующее состояние или отклоняет его",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/sound/recent": {
+   "get": {
+    "description": "Последние записи звука по всем осмотрам, сначала новые: для панели мастера.",
+    "operationId": "recent_sounds_inspections_sound_recent_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SoundRecordView"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Последние записи звука по всем осмотрам, сначала новые",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/sound/{record_id}/audio": {
+   "get": {
+    "description": "Файл записи звука в формате WAV.",
+    "operationId": "sound_audio_inspections_sound__record_id__audio_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "record_id",
+      "required": true,
+      "schema": {
+       "title": "Record Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "audio/wav": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       }
+      },
+      "description": "Запись звука в формате WAV"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Файл записи звука в формате WAV",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}": {
+   "get": {
+    "description": "Осмотр с находками и полнотой обхода.",
+    "operationId": "inspection_inspections__inspection_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InspectionView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Осмотр с находками и полнотой обхода",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}/findings": {
+   "get": {
+    "description": "Все записи осмотра в порядке их появления.",
+    "operationId": "inspection_findings_inspections__inspection_id__findings_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/FindingView"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Все записи осмотра в порядке их появления",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   },
+   "post": {
+    "description": "Фиксирует результат по узлу: проверено, дефект, обслуживание или замена.\n\nЗапрос - форма multipart; в поле frame можно приложить стоп-кадр камеры в формате JPEG.",
+    "operationId": "add_finding_inspections__inspection_id__findings_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_add_finding_inspections__inspection_id__findings_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FindingView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Фиксирует результат по узлу",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}/finish": {
+   "post": {
+    "description": "Завершает осмотр и возвращает его со сводкой: число записей по статусам, длительность, оценки по узлам.",
+    "operationId": "finish_inspections__inspection_id__finish_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InspectionView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Завершает осмотр и возвращает его со сводкой",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}/report.pdf": {
+   "get": {
+    "description": "Отчёт об осмотре в формате PDF.",
+    "operationId": "report_pdf_inspections__inspection_id__report_pdf_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/pdf": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       }
+      },
+      "description": "Отчёт об осмотре в формате PDF"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Отчёт об осмотре в формате PDF",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}/report.xlsx": {
+   "get": {
+    "description": "Отчёт об осмотре в формате Excel.",
+    "operationId": "report_xlsx_inspections__inspection_id__report_xlsx_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+        "schema": {
+         "format": "binary",
+         "type": "string"
+        }
+       }
+      },
+      "description": "Отчёт об осмотре в формате Excel"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Отчёт об осмотре в формате Excel",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/inspections/{inspection_id}/sound": {
+   "get": {
+    "description": "Записи звука осмотра с итогами анализа в порядке записи.",
+    "operationId": "sounds_inspections__inspection_id__sound_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SoundRecordView"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Записи звука осмотра с итогами анализа в порядке записи",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   },
+   "post": {
+    "description": "Принимает запись звука агрегата (WAV PCM 16 бит, моно, 16-48 кГц, 2-30 с) и возвращает её анализ.\n\nЗапрос - форма multipart с полем audio; normal = true отмечает запись как звучание исправного агрегата\n(такие записи служат нормой уровня). Признаки-кандидаты в ответе замечаниями не являются: подтверждение -\nзапись дефекта с полем sign из кандидата.",
+    "operationId": "add_sound_inspections__inspection_id__sound_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "inspection_id",
+      "required": true,
+      "schema": {
+       "title": "Inspection Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_add_sound_inspections__inspection_id__sound_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SoundRecordView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Принимает запись звука агрегата (WAV PCM 16 бит, моно, 16-48 кГц, 2-30 с) и возвращает её анализ",
+    "tags": [
+     "Осмотры, находки и звук"
+    ]
+   }
+  },
+  "/notifications": {
+   "get": {
+    "description": "Лента уведомлений сотрудника, сначала новые; since - только события позже указанного момента.\n\nВиды: task_assigned и task_cancelled - задания самому сотруднику; task_done - выполнено задание, которое\nон назначил; fault_report_new - новые сообщения о неисправностях (тем, кто назначает осмотры);\nfault_report_status - изменилось состояние его собственного сообщения. Закрытые события старше\nдвух недель в ленту не попадают.",
+    "operationId": "notifications_notifications_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "since",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 50,
+       "maximum": 200,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Notification"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Лента уведомлений сотрудника, сначала новые",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/recognize/gauge": {
+   "post": {
+    "description": "Читает стрелочный манометр по вырезанному кадру прибора и сравнивает с электронным датчиком.\n\nШкала берётся из карточки оборудования. Расхождение больше 15 % - признак правила R05. С номером\nидущего осмотра надёжное показание запоминается в осмотре и входит в его диагноз; ненадёжное\nпоказание (ok = false) в диагностику не передаётся.",
+    "operationId": "recognize_gauge_recognize_gauge_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_recognize_gauge_recognize_gauge_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Recognize Gauge Recognize Gauge Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Читает стрелочный манометр по вырезанному кадру прибора и сравнивает с электронным датчиком",
+    "tags": [
+     "Распознавание"
+    ]
+   }
+  },
+  "/recognize/nameplate": {
+   "post": {
+    "description": "Читает заводской шильдик со стоп-кадра камеры и находит оборудование по серийному номеру или модели.\n\nЕсли однозначного совпадения нет, в candidates перечислены агрегаты той же модели: выбирает инженер.\nЕсли шильдик не прочитан, сервер ищет на кадре QR-код агрегата: тогда identified_by = \"qr\", а в поле qr -\nпрочитанный код; при найденном шильдике identified_by = \"nameplate\".",
+    "operationId": "recognize_nameplate_recognize_nameplate_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_recognize_nameplate_recognize_nameplate_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/NameplateResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Читает заводской шильдик со стоп-кадра камеры и находит оборудование по серийному номеру или модели",
+    "tags": [
+     "Распознавание"
+    ]
+   }
+  },
+  "/rules": {
+   "get": {
+    "description": "Справочник правил диагностики: по одной записи на правило из data/rules.json.",
+    "operationId": "rules_rules_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RuleItem"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Справочник правил диагностики",
+    "tags": [
+     "Правила диагностики"
+    ]
+   }
+  },
+  "/site": {
+   "get": {
+    "description": "Название объекта, текущая смена, имя сервера и часовой пояс; нужен только вход.",
+    "operationId": "site_site_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Site"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Название объекта, текущая смена, имя сервера и часовой пояс",
+    "tags": [
+     "Площадка"
+    ]
+   }
+  },
+  "/system/status": {
+   "get": {
+    "description": "Состояние системы для администратора: время работы, база данных, модели распознавания, телеметрия, сеансы.",
+    "operationId": "system_status_system_status_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response System Status System Status Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Состояние системы для администратора",
+    "tags": [
+     "Состояние системы"
+    ]
+   }
+  },
+  "/tasks": {
+   "get": {
+    "description": "Все задания для мастера: открытые по срочности и сроку, затем закрытые.",
+    "operationId": "list_tasks_tasks_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "open",
+          "done",
+          "cancelled"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "assignee_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Assignee Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "equipment_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 32,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Equipment Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 200,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Tasks Tasks Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Все задания для мастера",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   },
+   "post": {
+    "description": "Назначает инженеру осмотр агрегата; связанное сообщение о неисправности получает «назначен осмотр».\n\nИсполнитель должен быть действующим сотрудником с правом «Проведение осмотров».",
+    "operationId": "create_task_tasks_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TaskBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Task Tasks Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Назначает инженеру осмотр агрегата",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/tasks/my": {
+   "get": {
+    "description": "Задания, назначенные самому инженеру; по умолчанию - открытые, срочные и с близким сроком первыми.",
+    "operationId": "my_tasks_tasks_my_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "open",
+          "done",
+          "cancelled"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": "open",
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response My Tasks Tasks My Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Задания, назначенные самому инженеру",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/tasks/{task_id}": {
+   "get": {
+    "description": "Одно задание: исполнителю или сотруднику с правом назначать осмотры.",
+    "operationId": "one_task_tasks__task_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "task_id",
+      "required": true,
+      "schema": {
+       "title": "Task Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response One Task Tasks  Task Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Одно задание",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/tasks/{task_id}/cancel": {
+   "post": {
+    "description": "Отменяет открытое задание; связанное сообщение снова становится новым, если других заданий по нему нет.",
+    "operationId": "cancel_task_tasks__task_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "task_id",
+      "required": true,
+      "schema": {
+       "title": "Task Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CancelBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Cancel Task Tasks  Task Id  Cancel Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Отменяет открытое задание",
+    "tags": [
+     "Задания и уведомления"
+    ]
+   }
+  },
+  "/webadmin/backups": {
+   "get": {
+    "description": "Резервные копии базы, сначала свежие.",
+    "operationId": "list_backups_webadmin_backups_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Backups Webadmin Backups Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Резервные копии базы, сначала свежие",
+    "tags": [
+     "Веб-панель"
+    ]
+   },
+   "post": {
+    "description": "Создаёт резервную копию базы SQLite штатным механизмом копирования без остановки сервера.",
+    "operationId": "create_backup_webadmin_backups_post",
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Backup Webadmin Backups Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Создаёт резервную копию базы SQLite штатным механизмом копирования без остановки сервера",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  },
+  "/webadmin/events": {
+   "get": {
+    "description": "Журнал событий сервера, сначала новые: запуск, осмотры, находки, решения по ним и записи звука.",
+    "operationId": "events_webadmin_events_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ServerEvent"
+         },
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Журнал событий сервера, сначала новые",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  },
+  "/webadmin/metrics": {
+   "get": {
+    "description": "Метрики сервера: загрузка процессора, память, диск под базой, размер базы, время работы и версия Python.",
+    "operationId": "metrics_webadmin_metrics_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Metrics"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Метрики сервера",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  },
+  "/webadmin/models": {
+   "get": {
+    "description": "Модели распознавания: файлы, лицензии, пороги, классы, метрики проверки и состояние загрузки.",
+    "operationId": "models_webadmin_models_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Models Webadmin Models Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Модели распознавания",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  },
+  "/webadmin/models/benchmark": {
+   "post": {
+    "description": "Замер времени распознавания: один кадр через все загруженные модели; возвращает миллисекунды на кадр.",
+    "operationId": "benchmark_webadmin_models_benchmark_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Benchmark Webadmin Models Benchmark Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Замер времени распознавания",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  },
+  "/webadmin/users/{user_id}/block": {
+   "get": {
+    "description": "Последняя блокировка учётной записи: когда, кто и по какой причине; без блокировки - пустые поля.",
+    "operationId": "block_reason_webadmin_users__user_id__block_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Block Reason Webadmin Users  User Id  Block Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Последняя блокировка учётной записи",
+    "tags": [
+     "Веб-панель"
+    ]
+   },
+   "post": {
+    "description": "Блокирует учётную запись с причиной: закрывает все сеансы и пишет причину в журнал безопасности.",
+    "operationId": "block_with_reason_webadmin_users__user_id__block_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BlockBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Block With Reason Webadmin Users  User Id  Block Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Блокирует учётную запись с причиной",
+    "tags": [
+     "Веб-панель"
+    ]
+   }
+  }
+ },
+ "tags": [
+  {
+   "description": "Вход по почте и паролю, обновление токенов (в том числе по биометрии), выход, смена пароля.",
+   "name": "Вход и сеанс"
+  },
+  {
+   "description": "Реестр оборудования, цифровая карточка, узлы, история осмотров и работ, режим агрегата.",
+   "name": "Оборудование"
+  },
+  {
+   "description": "Показания датчиков с уставками, ряды для графиков, прогноз, сценарии стенда, диагноз по правилам, маршрут осмотра и оценки ресурса.",
+   "name": "Телеметрия и диагностика"
+  },
+  {
+   "description": "Справочник правил и разбор одного правила для агрегата на текущий момент.",
+   "name": "Правила диагностики"
+  },
+  {
+   "description": "Осмотр агрегата, записи и замечания, их подтверждение и отклонение, записи звука, отчёты PDF и Excel.",
+   "name": "Осмотры, находки и звук"
+  },
+  {
+   "description": "Готовность сервера, чтение шильдика и стрелочного манометра по кадру камеры.",
+   "name": "Распознавание"
+  },
+  {
+   "description": "OpenAPI не описывает WebSocket, поэтому обмен приведён здесь. Токен доступа передаётся параметром `token`.\n\n**`WS /ws/detect?token=...`** - распознавание без осмотра. Клиент шлёт кадры JPEG двоичными сообщениями; на каждый кадр сервер отвечает JSON с рамками `boxes: [{cls, conf, x1, y1, x2, y2, status, node}]` и размером кадра. Текстовое сообщение `ping` - проверка связи.\n\n**`WS /ws/inspect/{inspection_id}?token=...`** - распознавание в идущем осмотре. После подключения сервер присылает текущее состояние (`type: \"state\"`), затем на каждый кадр JPEG - сообщение `type: \"frame\"` с полями `boxes`, `coverage` (полнота обхода: процент, узлы, подсказка), `diagnosis_changed` и `findings`. Текстовые команды: `ping` и `state` (повторить состояние). Признаки дефектов с камеры становятся замечаниями только после подтверждения инженером.\n\nСервер закрывает соединение с кодом и причиной: неверный или просроченный токен, нет права, осмотр не найден, чужой или завершённый осмотр.",
+   "name": "Распознавание в реальном времени (WebSocket)"
+  },
+  {
+   "description": "Название объекта, текущая смена, имя сервера и часовой пояс.",
+   "name": "Площадка"
+  },
+  {
+   "description": "Сообщения оператора о неисправностях, задания на осмотр, лента уведомлений.",
+   "name": "Задания и уведомления"
+  },
+  {
+   "description": "Вопросы об оборудовании и истории с ссылками для приложения.",
+   "name": "Помощник"
+  },
+  {
+   "description": "Сотрудники, роли и права, журнал безопасности, политика.",
+   "name": "Учётные записи и безопасность"
+  },
+  {
+   "description": "Состояние сервера, базы данных и моделей распознавания.",
+   "name": "Состояние системы"
+  },
+  {
+   "description": "Метрики сервера, журнал событий, резервные копии и блокировка для веб-панели.",
+   "name": "Веб-панель"
+  }
+ ]
+}

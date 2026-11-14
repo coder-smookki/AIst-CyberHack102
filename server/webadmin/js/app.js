@@ -29,14 +29,24 @@
     return 'Ошибка сервера (' + status + ')';
   }
 
+  /** Последние ответы GET с меткой содержимого: при повторном опросе сервер отвечает 304 без тела. */
+  var tagged = {};
+  function parse(text) { try { return text ? JSON.parse(text) : null; } catch (e) { return null; } }
   function raw(method, path, body, token) {
     var h = { 'Accept': 'application/json' };
     if (body !== undefined) h['Content-Type'] = 'application/json';
     if (token) h.Authorization = 'Bearer ' + token;
+    var kept = method === 'GET' ? tagged[path] : null;
+    if (method === 'GET') h['If-None-Match'] = kept && kept.token === token ? kept.tag : '"0"';
     return fetch(path, { method: method, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined, cache: 'no-store' })
       .then(function (r) {
         if (r.status === 204) return { status: 204, body: null, headers: r.headers };
-        return r.json().catch(function () { return null; }).then(function (b) { return { status: r.status, body: b, headers: r.headers }; });
+        if (r.status === 304 && kept) return { status: 200, body: parse(kept.text), headers: r.headers };
+        return r.text().catch(function () { return ''; }).then(function (text) {
+          var tag = r.headers.get('ETag');
+          if (method === 'GET' && r.status === 200 && tag) tagged[path] = { tag: tag, text: text, token: token };
+          return { status: r.status, body: parse(text), headers: r.headers };
+        });
       }, function () { return { status: 0, body: null }; });
   }
 
@@ -54,7 +64,7 @@
     return refreshing;
   }
   A.saveTokens = function (t) { store.set('access', t.access_token); store.set('refresh', t.refresh_token); };
-  A.clearTokens = function () { store.set('access', null); store.set('refresh', null); };
+  A.clearTokens = function () { store.set('access', null); store.set('refresh', null); tagged = {}; };
 
   /** Обращение к API: токен доступа, повтор после обновления при ответе 401, ошибка ApiError при отказе. */
   A.api = function (method, path, body) {
@@ -145,7 +155,8 @@
 
   /** Окна поверх страницы: боковая панель (drawer), диалог (modal) и уведомление (toast). */
   var stack = [];
-  function anim(el, frames, ms) { if (el && el.animate) return el.animate(frames, { duration: ms, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'both' }); return null; }
+  A.still = function () { return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); };
+  function anim(el, frames, ms) { if (el && el.animate && !A.still()) return el.animate(frames, { duration: ms, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'both' }); return null; }
   A.open = function (html, o) {
     o = o || {};
     var ovl = document.createElement('div');
@@ -251,9 +262,12 @@
     var nav = t.closest('[data-route]');
     if (nav) { e.preventDefault(); A.go(nav.getAttribute('data-route')); }
     if (t.closest('[data-theme-toggle]')) A.theme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    if (t.closest('[data-nav-toggle]')) A.nav(!root.classList.contains('nav-open'));
+    else if (t.closest('[data-nav-close]')) A.nav(false);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && stack.length) { e.preventDefault(); A.close(); }
+    else if (e.key === 'Escape' && root.classList.contains('nav-open')) A.nav(false);
   });
 
   KV.layoutSegs = function (scope, animate) {
@@ -296,6 +310,12 @@
   };
 
   A.serverLine = function () { return location.host; };
+  /** Боковое меню на узком экране: выдвигается поверх страницы и закрывается затемнением или выбором раздела. */
+  A.nav = function (open) {
+    root.classList.toggle('nav-open', !!open);
+    var b = root.querySelector('[data-nav-toggle]');
+    if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
 
   function side(navKey) {
     var nav = A.navGroups().map(function (g) {
@@ -309,12 +329,12 @@
     return '<aside class="wside"><div class="wlogo">' + KV.logo('blue', 24).replace('class="logo-img"', 'class="logo-img wlogo-l"') + KV.logo('white', 24).replace('class="logo-img"', 'class="logo-img wlogo-d"') + '<span class="wlogo-sub">КСТ Визор · веб-панель</span></div>' +
       '<div class="wws"><span class="wws-t"><b>Насосная станция № 2</b><span>' + esc(A.serverLine()) + '</span></span>' + icon('server', 16) + '</div>' +
       '<nav class="wnav">' + nav + '</nav><div class="wside-fill"></div>' + card +
-      '<button class="wuser' + (navKey === 'profile' ? ' is-on' : '') + '" data-route="profile" aria-label="Профиль">' + KV.avatar(A.user.name) + '<span class="wuser-t"><b>' + esc(A.user.name) + '</b><span>' + esc(A.roleLabel()) + ' · профиль</span></span>' + icon('chevronRight', 16) + '</button></aside>';
+      '<button class="wuser' + (navKey === 'profile' ? ' is-on' : '') + '" data-route="profile" aria-label="Профиль">' + KV.avatar(A.user.name) + '<span class="wuser-t"><b>' + esc(A.user.name) + '</b><span>' + esc(A.roleLabel()) + ' · профиль</span></span>' + icon('chevronRight', 16) + '</button></aside><div class="wa-navscrim" data-nav-close="1"></div>';
   }
 
   /** Верхняя строка страницы: заголовок, пояснение, действия, переключатель темы. */
   A.top_ = function (o) {
-    return '<header class="wtop"><div class="wtop-t"><h1>' + esc(o.title) + '</h1>' + (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') + '</div><div class="wtop-r">' + (o.actions || '') +
+    return '<header class="wtop"><button class="wbtn ghost icon wa-menu" data-nav-toggle="1" aria-label="Меню разделов" aria-expanded="false">' + icon('menu', 20) + '</button><div class="wtop-t"><h1>' + esc(o.title) + '</h1>' + (o.sub ? '<p>' + esc(o.sub) + '</p>' : '') + '</div><div class="wtop-r">' + (o.actions || '') +
       '<button class="wbtn secondary icon wa-theme" data-theme-toggle="1" aria-label="Сменить тему" title="Светлая или тёмная тема">' + icon(root.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon', 18) + '</button>' +
       W.btn('', { kind: 'secondary', icon: 'refresh', label: 'Обновить', title: 'Обновить данные', attrs: 'data-reload="1"' }) + '</div></header>';
   };
@@ -350,29 +370,95 @@
   function filterKeys(main) {
     return Array.prototype.map.call(main.querySelectorAll('.wfilters'), function (g) { var on = g.querySelector('.wf.is-on'); return on ? on.getAttribute('data-key') : ''; }).join('|');
   }
+  /** Ключ узла для сопоставления при обновлении: строки и карточки с идентификатором. */
+  var KEYS = ['data-key', 'data-user', 'data-eq', 'data-role-open', 'data-log', 'id'];
+  function keyOf(n) {
+    if (n.nodeType !== 1) return null;
+    for (var i = 0; i < KEYS.length; i++) { var v = n.getAttribute(KEYS[i]); if (v) return n.tagName + '|' + KEYS[i] + '|' + v; }
+    return null;
+  }
+  function isRow(n) { return n.nodeType === 1 && (n.tagName === 'TR' || n.classList.contains('wli')); }
+  function sameKind(a, b) { return a.nodeType === b.nodeType && (a.nodeType !== 1 || a.tagName === b.tagName); }
+  /** Приводит атрибуты и потомков узла a к узлу b, не пересоздавая совпадающие узлы. */
+  function patch(a, b) {
+    if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+    if (isRow(b)) a.__h = b.outerHTML;
+    var i, at;
+    for (i = a.attributes.length - 1; i >= 0; i--) { at = a.attributes[i].name; if (!b.hasAttribute(at)) a.removeAttribute(at); }
+    for (i = 0; i < b.attributes.length; i++) { at = b.attributes[i]; if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value); }
+    if ((a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a !== document.activeElement && a.value !== b.value) a.value = b.value;
+    morph(a, b);
+  }
+  /** Обновляет потомков узла from по образцу to: совпавшие по ключу или содержимому строки переставляются, остальные правятся на месте. */
+  function morph(from, to) {
+    var olds = Array.prototype.slice.call(from.childNodes), news = Array.prototype.slice.call(to.childNodes);
+    var keyed = {}, byHtml = {}, pos = 0, ref = from.firstChild;
+    olds.forEach(function (n) {
+      var k = keyOf(n);
+      if (k) (keyed[k] = keyed[k] || []).push(n);
+      else if (isRow(n)) { var h = n.__h || n.outerHTML; (byHtml[h] = byHtml[h] || []).push(n); }
+    });
+    news.forEach(function (nn) {
+      var k = keyOf(nn), match = null, exact = false;
+      if (k) { if (keyed[k] && keyed[k].length) match = keyed[k].shift(); }
+      else {
+        if (isRow(nn)) { var list = byHtml[nn.outerHTML]; while (list && list.length && !match) { var c0 = list.shift(); if (!c0.__used) { match = c0; exact = true; } } }
+        if (!match) {
+          while (pos < olds.length && (olds[pos].__used || keyOf(olds[pos]))) pos++;
+          if (pos < olds.length && sameKind(olds[pos], nn)) match = olds[pos++];
+        }
+      }
+      if (match) {
+        match.__used = true;
+        if (!exact) patch(match, nn);
+        if (match === ref) ref = ref.nextSibling; else from.insertBefore(match, ref);
+      } else {
+        if (isRow(nn)) nn.__h = nn.outerHTML;
+        from.insertBefore(nn, ref);
+      }
+    });
+    olds.forEach(function (n) { if (n.__used) delete n.__used; else if (n.parentNode === from) from.removeChild(n); });
+  }
+  /** Обработчики, назначенные страницей в after: перед повторным назначением прежние снимаются. */
+  var bound = [];
+  function unbind() { bound.forEach(function (b) { b[0].removeEventListener(b[1], b[2], b[3]); }); bound = []; }
+  function runAfter(page, main, data) {
+    unbind();
+    if (!page.after) return;
+    var proto = EventTarget.prototype, orig = proto.addEventListener;
+    proto.addEventListener = function (type, fn, opts) { if (this === main || (this.nodeType === 1 && main.contains(this))) bound.push([this, type, fn, opts]); return orig.call(this, type, fn, opts); };
+    try { page.after(main, data, current.params); } finally { proto.addEventListener = orig; }
+  }
   function signature(page, data) { try { return page.sig ? page.sig(data) : JSON.stringify(data); } catch (e) { return String(Math.random()); } }
-  /** Рисует страницу по данным; при живом обновлении сохраняет прокрутку и не проигрывает появление блоков. */
+  /** Рисует страницу по данным. При живом обновлении новая разметка переносится в существующие узлы:
+   * меняются только отличающиеся строки и значения, прокрутка и фокус остаются на месте. */
   function paint(main, page, key, data, again) {
-    var y = window.scrollY, inner = main.querySelector('.wmain-in'), iy = inner ? inner.scrollTop : 0, my0 = main.scrollTop;
     var before = again ? rowSet(main) : null;
     if (again && A.stopTimers) A.stopTimers();
     var o = page.render(data, current.params);
-    main.innerHTML = A.top_(o) + (o.banner || '') + '<div class="wmain-in">' + (o.body || '') + '</div>';
-    W.typo(main);
+    var box = document.createElement('section');
+    box.innerHTML = A.top_(o) + (o.banner || '') + '<div class="wmain-in">' + (o.body || '') + '</div>';
+    var top = box.querySelector('.wtop-t p');
+    if (top && page.live !== false) top.insertAdjacentHTML('beforeend', ' <span class="wlive" title="Данные обновляются автоматически каждые 1,5 с"><i></i>онлайн</span>');
+    W.typo(box);
+    if (again) morph(main, box);
+    else { main.textContent = ''; while (box.firstChild) main.appendChild(box.firstChild); }
     KV.layoutSegs(main);
     var stg = main.querySelector('.wmain-in'), i = 0;
-    if (!again) Array.prototype.forEach.call(stg.children, function (c) { if (i < 8) { c.classList.add('stg'); c.style.setProperty('--i', i++); } });
-    var rl = main.querySelector('[data-reload]');
-    if (rl) rl.addEventListener('click', function () { A.go(key, current.params); });
-    if (page.after) page.after(main, data, current.params);
-    main.__filters = filterKeys(main);
-    var top = main.querySelector('.wtop-t p');
-    if (top && page.live !== false) top.insertAdjacentHTML('beforeend', ' <span class="wlive" title="Данные обновляются автоматически каждые 1,5 с"><i></i>онлайн</span>');
-    if (again) {
-      markNew(main, before);
-      main.scrollTop = my0; if (stg) stg.scrollTop = iy; window.scrollTo(0, y);
+    if (!again && stg && !A.still()) {
+      Array.prototype.forEach.call(stg.children, function (c) { if (i < 8) { c.classList.add('stg'); c.style.setProperty('--i', i++); } });
+      stg.classList.add('wa-enter');
+      root.classList.add('is-appearing');
+      clearTimeout(root.__appearT);
+      root.__appearT = setTimeout(function () { root.classList.remove('is-appearing'); }, 900);
     }
+    runAfter(page, main, data);
+    var rl = main.querySelector('[data-reload]');
+    if (rl) bound.push([rl, 'click', reloadNow, undefined]), rl.addEventListener('click', reloadNow);
+    main.__filters = filterKeys(main);
+    if (again) markNew(main, before);
   }
+  function reloadNow() { if (current) A.go(current.key, current.params); }
   /** Живое обновление: страница перечитывает данные раз в 1,5 с и перерисовывается, только если они изменились. */
   function startLive(main, page, key, my, data) {
     if (live) clearTimeout(live);
@@ -396,6 +482,8 @@
   /** Показывает страницу: оболочка остаётся на месте, меняется только основная панель. */
   A.go = function (key, params) {
     A.closeAll();
+    A.nav(false);
+    unbind();
     if (A.stopTimers) A.stopTimers();
     if (live) { clearTimeout(live); live = null; }
     fresh = {};

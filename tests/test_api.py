@@ -113,10 +113,12 @@ def test_health_without_login(server):
     assert body["detector"]["ready"] is True
 
 
-def test_docs_are_disabled_and_panel_is_served(server):
-    """Страницы документации отключены (они тянут файлы из интернета), пульт раздаётся по /panel/."""
+def test_docs_are_local_and_panel_is_served(server):
+    """Описание API /docs работает на локальных файлах (без интернета), ReDoc отключён, пульт раздаётся по /panel/."""
     client, _ = server
-    assert client.get("/docs").status_code == 404 and client.get("/redoc").status_code == 404
+    docs = client.get("/docs")
+    assert docs.status_code == 200 and "http://" not in docs.text and "https://" not in docs.text
+    assert client.get("/redoc").status_code == 404
     moved = client.get("/panel", follow_redirects=False)
     assert moved.status_code in (302, 307) and moved.headers["location"] == "/panel/"
     page = client.get("/panel/")

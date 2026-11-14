@@ -25,8 +25,8 @@ import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import (admin, assistant, auth, config, db, equipment, inspections, recognition, rules_api, site, telemetry_api,
-                    webadmin_api, workflow)
+from server import (admin, apidocs, assistant, auth, config, db, equipment, fingerprint, health as channels, inspections,
+                    qr, recognition, rules_api, site, telemetry_api, webadmin_api, webcache, workflow)
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -314,13 +314,15 @@ def create_app(detector=None) -> FastAPI:
         with db.SessionLocal() as session:
             seed(session)
         app.state.started_at = now()
+        await run_in_threadpool(fingerprint.current)
         warm_up = getattr(detector, "warm_up", None)
         if callable(warm_up):
             warm_up()
         yield
         db.engine.dispose()
 
-    app = FastAPI(title=TITLE, docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title=TITLE, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    app.add_middleware(webcache.ConditionalGet)
     origins = config.cors_origin_regex()
     if origins is not None:
         app.add_middleware(CORSMiddleware, allow_origin_regex=origins, allow_methods=["GET", "POST"],
@@ -340,7 +342,11 @@ def create_app(detector=None) -> FastAPI:
 
     @app.get("/health")
     def health(session: Annotated[Session, Depends(get_session)]) -> dict:
-        """Готовность сервера: база данных, число агрегатов и состояние детектора; вход не нужен."""
+        """Готовность сервера: база данных, число агрегатов и состояние детектора; вход не нужен.
+
+        В channels - состояние каналов (база данных, модели, распознавание текста, телеметрия, звук), у каждого
+        state, title и detail; models_fingerprint - короткий отпечаток файлов моделей распознавания.
+        """
         try:
             session.execute(text("SELECT 1"))
             units = session.scalar(select(func.count()).select_from(Equipment))
@@ -351,7 +357,8 @@ def create_app(detector=None) -> FastAPI:
         info = getattr(detector, "info", None)
         state = info() if callable(info) else {"ready": True, "loaded": True, "models": [], "missing": [], "note": None}
         return {"ok": database == "ok", "service": TITLE, "time": now().isoformat(timespec="seconds"),
-                "database": database, "equipment": units, "detector": state}
+                "database": database, "equipment": units, "detector": state,
+                "channels": channels.channels(detector, database), "models_fingerprint": fingerprint.short()}
 
     @app.post("/recognize/nameplate", dependencies=[Depends(require_permission("equipment.view"))])
     async def recognize_nameplate(frame: Annotated[UploadFile, File()],
@@ -359,15 +366,25 @@ def create_app(detector=None) -> FastAPI:
         """Читает заводской шильдик со стоп-кадра камеры и находит оборудование по серийному номеру или модели.
 
         Если однозначного совпадения нет, в candidates перечислены агрегаты той же модели: выбирает инженер.
+        Если шильдик не прочитан, сервер ищет на кадре QR-код агрегата: тогда identified_by = "qr", а в поле qr -
+        прочитанный код; при найденном шильдике identified_by = "nameplate".
         """
         image = await _read_image(frame)
         items = list(session.scalars(select(Equipment).order_by(Equipment.id)))
         cards = [equipment_card(item) for item in items]
+        unavailable = False
         try:
             found = await run_in_threadpool(recognition.read_nameplate, image, cards)
         except (ImportError, OSError) as error:
             logger.warning("Распознавание текста недоступно: %s", type(error).__name__)
-            raise HTTPException(status_code=503, detail="Распознавание текста недоступно на сервере") from None
+            found, unavailable = {"match": None, "candidates": [], "fields": {}, "lines": []}, True
+        code = None
+        if not found["match"]:
+            by_qr, _ = await run_in_threadpool(qr.read_and_match, image, cards)
+            if by_qr:
+                found, code = {**found, "match": by_qr}, by_qr["code"]
+        if unavailable and not code:
+            raise HTTPException(status_code=503, detail="Распознавание текста недоступно на сервере")
         by_id = {item.id: item for item in items}
         match = found["match"]
         matched = None
@@ -377,13 +394,15 @@ def create_app(detector=None) -> FastAPI:
         candidates = [_summary(by_id[card["id"]]) for card in found["candidates"]]
         if matched:
             message = f"Найдено оборудование {matched['equipment']['id']} - {matched['equipment']['name']}"
+            message += " (по QR-коду)" if code else ""
         elif candidates:
             message = "Однозначно определить агрегат не удалось - выберите его из списка"
         else:
             message = "Оборудование по шильдику не найдено - снимите табличку ближе или введите номер вручную"
         return {"found": matched is not None, "match": matched, "candidates": candidates,
                 "fields": {"serial": found["fields"].get("serial"), "model": found["fields"].get("model")},
-                "lines": found["lines"], "message": message}
+                "lines": found["lines"], "message": message,
+                "identified_by": ("qr" if code else "nameplate") if matched else None, "qr": code}
 
     @app.post("/recognize/gauge")
     async def recognize_gauge(frame: Annotated[UploadFile, File()],
@@ -521,5 +540,6 @@ def create_app(detector=None) -> FastAPI:
     if PANEL_DIR.is_dir():
         app.mount("/panel", StaticFiles(directory=PANEL_DIR, html=True), name="panel")
     if WEBADMIN_DIR.is_dir():
-        app.mount("/web", StaticFiles(directory=WEBADMIN_DIR, html=True), name="webadmin")
+        webcache.mount_panel(app, "/web", WEBADMIN_DIR)
+    apidocs.install(app)
     return app

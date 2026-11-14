@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from server import config, recognition, security
+from server import config, fingerprint, recognition, security
 from server.admin import _user_response
 from server.auth import current_user, require_permission
 from server.db import get_session
@@ -129,7 +129,7 @@ def models(request: Request) -> dict:
         view.update(present=path.is_file(), size_bytes=path.stat().st_size if path.is_file() else None,
                     loaded=entry["file"] in loaded)
         items.append(view)
-    return {"manifest": MODELS_FILE.name, "detector": state, "models": items}
+    return {"manifest": MODELS_FILE.name, "detector": state, "models": items, "fingerprint": fingerprint.current()}
 
 
 def _test_frame() -> bytes:

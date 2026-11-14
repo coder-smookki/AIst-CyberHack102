@@ -307,7 +307,8 @@ def test_reject_after_finish_updates_summary(client, readings):
     client.post(f"/inspections/findings/{finding['id']}/state", json={"state": "rejected", "comment": "грязь"},
                 headers=master)
     summary = client.get(f"/inspections/{inspection_id}", headers=engineer).json()["summary"]
-    assert summary["rejected"] == 1 and summary["by_status"]["defect"] == 0 and summary["status"] == "ok"
+    assert summary["rejected"] == 1 and summary["by_status"]["defect"] == 0
+    assert summary["status"] == "incomplete" and summary["status_title"] == "Осмотр неполный" and summary["uninspected"]
 
 
 def test_resolved_finding_cannot_be_rejected(client):

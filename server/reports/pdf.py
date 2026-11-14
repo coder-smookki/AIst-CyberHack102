@@ -44,6 +44,7 @@ from server.reports.xlsx import (
     sound_rows,
     source_title,
     summary_rows,
+    uninspected_text,
 )
 
 FONT = "KstSans"
@@ -187,6 +188,8 @@ def _summary(data: dict, styles: dict) -> list:
     verdict = f"<b>Итог осмотра:</b> {_coloured(overall['title'], overall['status'])}"
     if overall["status"] == "ok":
         verdict += f" ({_markup(ok_tail(data))})"
+    elif overall["status"] == "incomplete" and uninspected_text(data):
+        verdict += f": не осмотрены - {_markup(uninspected_text(data))}"
     return [
         Paragraph(f"Отчёт об осмотре оборудования № {data['inspection']['id']}", styles["title"]),
         table, Spacer(1, 6), Paragraph(verdict, styles["base"]),

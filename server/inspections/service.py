@@ -18,7 +18,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from server import config
+from server import config, fingerprint
 from server import workflow
 from server.auth import has_permission, role_title
 from server.equipment import equipment_card, get_equipment
@@ -35,7 +35,9 @@ STATUS_TITLES = {
     "check": "Рекомендуется проверка",
     "defect": "Обнаружены признаки возможного дефекта",
     "unknown": "Узел не осмотрен / недостаточно данных",
+    "incomplete": "Осмотр неполный",
 }
+INCOMPLETE = "incomplete"
 STATUS_RANK = {"unknown": 0, "ok": 1, "check": 2, "defect": 3}
 STATE_TITLES = {"open": "Открыто", "in_work": "В работе", "resolved": "Устранено", "rejected": "Отклонено"}
 NEXT_STATE = {"open": "in_work", "in_work": "resolved"}
@@ -87,6 +89,15 @@ def _meta(finding: Finding) -> dict:
     return evidence[0] if evidence and isinstance(evidence[0], dict) else {}
 
 
+def _with_models(finding: Finding) -> Finding:
+    """Ставит в служебные пометки новой находки отпечаток набора моделей, которым работал сервер."""
+    evidence = list(finding.evidence or [])
+    if evidence and isinstance(evidence[0], dict):
+        evidence[0] = {**evidence[0], "models": fingerprint.short()}
+        finding.evidence = evidence
+    return finding
+
+
 def finding_kind(finding: Finding) -> str:
     """Определяет вид записи: проверка без замечаний, дефект, обслуживание или замена узла."""
     kind = _meta(finding).get("kind")
@@ -129,7 +140,7 @@ def finding_view(finding: Finding, node_names: dict[str, str]) -> dict:
         "severity": finding.severity, "severity_title": SEVERITY_TITLES.get(finding.severity),
         "title": finding.title, "diagnosis": finding.diagnosis, "recommendation": finding.recommendation,
         "confidence": finding.confidence, "evidence": finding.evidence or [], "missing": list(meta.get("missing") or []),
-        "automatic": bool(meta.get("automatic")), "comment": finding.comment, "has_photo": bool(finding.photo_path),
+        "automatic": bool(meta.get("automatic")), "models_fingerprint": meta.get("models"), "comment": finding.comment, "has_photo": bool(finding.photo_path),
         "photo_url": f"/inspections/findings/{finding.id}/photo" if finding.photo_path else None,
         "state": finding.state, "state_title": STATE_TITLES.get(finding.state, finding.state),
         "created_at": _stamp(finding.created_at),
@@ -398,6 +409,24 @@ def _worst(statuses) -> str:
     return max(statuses, key=STATUS_RANK.__getitem__, default="unknown")
 
 
+def uninspected_nodes(nodes: list[dict] | None) -> list[dict]:
+    """Перечисляет узлы, оставшиеся без осмотра: фактическое состояние «не осмотрен / недостаточно данных»."""
+    return [{"code": row["code"], "name": row["name"]} for row in nodes or ()
+            if (row.get("actual") or {}).get("status") == "unknown"]
+
+
+def verdict(status: str | None, nodes: list[dict] | None) -> str:
+    """Итог осмотра с учётом полноты обхода.
+
+    Найденный признак дефекта или повод для проверки важнее всего. Иначе, если хотя бы один узел остался
+    без осмотра, итог - «Осмотр неполный», а не «видимых проблем не обнаружено».
+    """
+    status = status or "unknown"
+    if status in ("check", "defect"):
+        return status
+    return INCOMPLETE if uninspected_nodes(nodes) else status
+
+
 def _not_walked(coverage: dict | None, code: str) -> bool:
     """Сообщает, что узел камера распознаёт, но при обходе он не осмотрен и инженер его не отметил."""
     node = ((coverage or {}).get("nodes") or {}).get(code)
@@ -635,6 +664,7 @@ def add_finding(session: Session, inspection: Inspection, user: User, *, kind: s
     else:
         finding, record = _work_finding(inspection, user, kind, node, comment, maintenance_code)
     finding.comment = comment
+    _with_models(finding)
     saved = None
     try:
         session.add(finding)
@@ -676,7 +706,7 @@ def _record_automatic(session: Session, inspection: Inspection, diagnosis: dict)
             ).order_by(Finding.id.desc())).first()
         if earlier:
             finding.comment = f"Повторно: замечание № {earlier.id} от {earlier.created_at:%d.%m.%Y} не устранено"
-        inspection.findings.append(finding)
+        inspection.findings.append(_with_models(finding))
         known.add((finding.rule_id, finding.node_code))
 
 
@@ -706,13 +736,16 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
         kept = counted(inspection.findings)
         statuses = [finding.status for finding in kept]
         nodes = _node_estimates(card, assessment["run_hours"], assessment["today"], diagnosis["nodes"], kept, coverage)
+        overall = verdict(_worst([diagnosis["status"], *statuses]), nodes)
         inspection.status, inspection.finished_at = "finished", finished
         inspection.summary = {
             "findings": len(statuses),
             "by_status": {status: statuses.count(status) for status in ("ok", "check", "defect")},
             "rejected": len(inspection.findings) - len(kept),
             "duration_s": max(int((finished - inspection.started_at).total_seconds()), 0),
-            "status": _worst([diagnosis["status"], *statuses]),
+            "status": overall,
+            "status_title": STATUS_TITLES[overall],
+            "uninspected": uninspected_nodes(nodes),
             "coverage": _coverage_brief(coverage),
             "nodes": nodes,
             "maintenance": maintenance_intervals(card, assessment["run_hours"]),
@@ -793,7 +826,8 @@ def _summary_after_reject(session: Session, finding: Finding) -> None:
     """Пересчитывает счётчики сводки завершённого осмотра после отклонения находки.
 
     Итоговый статус становится наихудшим из оставшихся находок; если замечаний не осталось, а прежний итог
-    был «проверка» или «дефект», итог - «видимых проблем не обнаружено».
+    был «проверка» или «дефект», итог - «видимых проблем не обнаружено», а при неосмотренных узлах -
+    «Осмотр неполный».
     """
     inspection = session.get(Inspection, finding.inspection_id)
     summary = dict(inspection.summary or {}) if inspection else {}
@@ -806,6 +840,10 @@ def _summary_after_reject(session: Session, finding: Finding) -> None:
     summary["rejected"] = len(rows) - len(statuses)
     if summary.get("status") in ("check", "defect"):
         summary["status"] = _worst([*statuses, "ok"])
+        if summary["status"] == "ok" and (summary.get("uninspected") or uninspected_nodes(summary.get("nodes"))):
+            summary["status"] = INCOMPLETE
+        if "status_title" in summary:
+            summary["status_title"] = STATUS_TITLES[summary["status"]]
     inspection.summary = summary
 
 
@@ -882,15 +920,16 @@ def _report_nodes(session: Session, inspection: Inspection) -> tuple[list[dict],
         nodes = _node_estimates(assessment["card"], assessment["run_hours"], assessment["today"],
                                 assessment["diagnosis"]["nodes"], kept, coverage)
         return nodes, {
-            "status": _worst([assessment["diagnosis"]["status"], *(finding.status for finding in kept)]),
-            "coverage": coverage, "maintenance": maintenance_intervals(assessment["card"], assessment["run_hours"]),
+            "status": verdict(_worst([assessment["diagnosis"]["status"], *(finding.status for finding in kept)]), nodes),
+            "uninspected": uninspected_nodes(nodes), "coverage": coverage, "maintenance": maintenance_intervals(assessment["card"], assessment["run_hours"]),
             "run_hours": assessment["run_hours"], "telemetry_at": _stamp(assessment["moment"]),
             "estimates_on": assessment["today"].isoformat(),
             "basis": "Осмотр не завершён: оценки рассчитаны на момент формирования отчёта",
         }
     if summary.get("nodes"):
         return summary["nodes"], {
-            **{key: summary.get(key) for key in ("status", "coverage", "maintenance", "run_hours", "telemetry_at", "estimates_on")},
+            **{key: summary.get(key) for key in ("coverage", "maintenance", "run_hours", "telemetry_at", "estimates_on")},
+            "status": verdict(summary.get("status"), summary["nodes"]), "uninspected": uninspected_nodes(summary["nodes"]),
             "basis": "Оценки сохранены на момент завершения осмотра",
         }
     card = equipment_card(item)
@@ -900,7 +939,7 @@ def _report_nodes(session: Session, inspection: Inspection) -> tuple[list[dict],
         if row["actual"]["status"] == "unknown":
             row["actual"]["reasons"] = ["В этом осмотре по узлу записей нет"]
     return nodes, {
-        "status": _worst(finding.status for finding in kept), "coverage": None,
+        "status": _worst(finding.status for finding in kept), "uninspected": [], "coverage": None,
         "maintenance": maintenance_intervals(card, item.run_hours), "run_hours": item.run_hours, "telemetry_at": None,
         "estimates_on": date.today().isoformat(),
         "basis": "Оценки ресурса рассчитаны на дату формирования отчёта: на момент осмотра они не сохранялись",
@@ -943,6 +982,7 @@ def report_data(session: Session, inspection: Inspection) -> dict:
             "run_hours": context["run_hours"] if context["run_hours"] is not None else item.run_hours,
         },
         "overall": {"status": context["status"] or "unknown", "title": STATUS_TITLES[context["status"] or "unknown"]},
+        "uninspected": context["uninspected"],
         "coverage": context["coverage"],
         "telemetry_at": context["telemetry_at"],
         "estimates_on": context["estimates_on"],
@@ -953,6 +993,8 @@ def report_data(session: Session, inspection: Inspection) -> dict:
         "checked": [view for view in views if view["kind"] == "checked"],
         "works": [view for view in views if view["kind"] in ("maintenance", "replacement")],
         "rejected": [view for view in views if view["rejected"]],
+        "models": {"current": fingerprint.short(),
+                   "findings": sorted({view["models_fingerprint"] for view in views if view["models_fingerprint"]})},
         "identified": {"code": inspection.identified_by,
                        "title": IDENTIFIED_TITLES.get(inspection.identified_by, "Не указано")},
         "walk": extra.walk_section(nodes, context["coverage"], counted(inspection.findings)),

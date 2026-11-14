@@ -169,3 +169,53 @@ def test_block_with_reason(client):
     assert client.post(f"/webadmin/users/{me['id']}/block", headers=security, json={"reason": "x"}).status_code == 409
     assert client.post(f"/webadmin/users/{operator['id']}/block", headers=security, json={"reason": ""}).status_code == 422
     assert client.get("/webadmin/users/9999/block", headers=security).json()["reason"] is None
+
+
+def local_links(text):
+    """Адреса файлов, на которые ссылается страница: атрибуты href и src."""
+    return re.findall(r'(?:href|src)="([^"]+)"', text)
+
+
+def test_served_pages_work_offline(client):
+    """Отдаваемые страницы /web/, /panel/ и /docs и все их файлы не ссылаются на внешние адреса."""
+    for page_url in ("/web/", "/panel/", "/docs"):
+        page = client.get(page_url)
+        assert page.status_code == 200, page_url
+        assert not EXTERNAL.search(page.text) and "https://" not in page.text and "http://" not in page.text, page_url
+        links = local_links(page.text)
+        assert links, page_url
+        for link in links:
+            assert not link.startswith(("http:", "https:", "//")), (page_url, link)
+            if link.startswith("data:"):
+                continue
+            target = link if link.startswith("/") else page_url.rsplit("/", 1)[0] + "/" + link
+            response = client.get(target)
+            assert response.status_code == 200, (page_url, target)
+            if target.split("?")[0].endswith((".css", ".js", ".html")) and not target.startswith("/docs-assets/"):
+                text = response.text.replace("http://www.w3.org/2000/svg", "")
+                assert not EXTERNAL.search(text), target
+                for url in re.findall(r"url\(\"?([^\")]+)\"?\)", text):
+                    assert url.startswith(("data:", "../", "#")) or not re.match(r"[a-z]+:", url), (target, url)
+
+
+def test_panel_cache_rules(client):
+    """Стили и сценарии с меткой версии хранятся год, страница перепроверяется, шрифты WOFF2 хранятся месяц."""
+    page = client.get("/web/")
+    assert page.headers["cache-control"] == "no-cache"
+    versioned = re.findall(r'(?:href|src)="((?:css|js)/[^"]+\?v=[0-9a-f]+)"', page.text)
+    assert len(versioned) >= 10 and all("defer" in tag for tag in re.findall(r"<script[^>]*>", page.text))
+    for link in versioned:
+        response = client.get("/web/" + link)
+        assert response.status_code == 200 and "immutable" in response.headers["cache-control"], link
+    font = client.get("/web/assets/fonts/Geologica-Regular.woff2")
+    assert font.status_code == 200 and font.headers["cache-control"] == "public, max-age=2592000"
+    assert "Geologica-Regular.woff2" in client.get("/web/" + next(v for v in versioned if "app.css" in v)).text
+
+
+def test_polling_gets_not_modified(client):
+    """Повторный опрос панели с меткой содержимого получает 304 без тела."""
+    admin = headers(client, "admin@kst.demo")
+    first = client.get("/webadmin/events?limit=5", headers={**admin, "If-None-Match": '"0"'})
+    assert first.status_code == 200 and first.headers["etag"]
+    again = client.get("/webadmin/events?limit=5", headers={**admin, "If-None-Match": first.headers["etag"]})
+    assert again.status_code == 304 and again.content == b""

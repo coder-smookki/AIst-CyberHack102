@@ -55,7 +55,7 @@
     load: overviewLoad,
     sig: function (d) {
       var s = d.status || {};
-      return JSON.stringify([d.equipment, d.events, d.diags, s.users, s.open_sessions, s.database && s.database.equipment, (s.detector || {}).loaded, d.health && d.health.ok]);
+      return JSON.stringify([d.equipment, d.events, d.diags, s.users, s.open_sessions, s.database && s.database.equipment, (s.detector || {}).loaded, d.health && d.health.ok, d.health && d.health.channels, d.health && d.health.models_fingerprint]);
     },
     render: function (d) {
       var s = d.status, h = d.health, m = d.metrics, det = s.detector || h.detector || {};
@@ -75,7 +75,7 @@
         (det.note ? W.li({ tone: 'warn', icon: 'info', title: 'Примечание', text: det.note }) : '');
       var kv = [['Адрес', location.host], ['Ответ /health', h.ok ? 'сервер готов · ' + A.dt(h.time, { sec: true }) : 'есть ошибки'], ['База данных', (s.database.file || '') + ' · ' + A.bytes(s.database.size_bytes) + ' · агрегатов: ' + s.database.equipment],
         ['Учётные записи', s.users.total + ' · активных ' + s.users.active], ['Телеметрия', s.telemetry.map(function (t) { return t.equipment_id + (t.available ? ' - лента есть' : ' - ' + t.reason); }).join('; ') || 'нет агрегатов с лентой'],
-        ['Распознавание', 'ONNX на процессоре · ' + models.length + ' модели']];
+        ['Распознавание', 'ONNX на процессоре · ' + models.length + ' модели' + (h.models_fingerprint ? ' · отпечаток ' + h.models_fingerprint : '')]];
       if (m) kv.push(['Система', m.platform + ' · Python ' + m.python + ' · узел ' + m.host]);
       return { title: 'Обзор системы', sub: 'Состояние сервера по GET /system/status, /health и /webadmin/metrics · ' + A.dt(s.time, { sec: true }),
         body: W.kpis([
@@ -100,6 +100,7 @@
             W.panel({ title: 'Активные тревоги', sub: 'Диагноз на текущий момент ленты телеметрии', right: W.link('Телеметрия', { arrow: true, attrs: 'data-route="telemetry"' }), body: '<div class="wlist">' + alarmHtml + '</div>' }) +
             W.panel({ title: 'Распознавание', sub: (det.loaded ? models.length : 0) + ' из ' + models.length + ' моделей загружены', right: W.link('Модели', { arrow: true, attrs: 'data-route="models"' }), body: '<div class="wlist">' + modelHtml + '</div>' }) +
           '</div>' +
+          channelsPanel(h) +
           W.panel({ title: 'Последние события', sub: 'Осмотры, находки, решения по ним и записи звука', right: W.link('Журнал', { arrow: true, attrs: 'data-route="log"' }),
             body: d.events.length ? '<div class="wlist">' + d.events.map(function (e) { return W.li({ tone: e.level === 'bad' ? 'bad' : e.level === 'warn' ? 'warn' : e.level === 'ok' ? 'ok' : 'info', icon: e.kind === 'sound' ? 'wave' : e.kind === 'finding' ? 'alert' : e.kind === 'inspection' ? 'clipboard' : 'server', title: e.title, text: e.text || '', right: A.dt(e.at, { time: true, sec: true }) }); }).join('') + '</div>' : '<p class="wlabel">Событий пока нет.</p>' }) +
           W.panel({ title: 'Сервер', sub: 'Ответ GET /health · ' + A.dt(h.time, { sec: true }) + ' · база данных ' + (h.database === 'ok' ? 'в порядке' : 'с ошибкой'), right: W.btn('Скопировать сведения', { kind: 'ghost', size: 'sm', icon: 'copy', attrs: 'data-copy-info="1"' }), body: W.kv(kv, { cols: true }) }) };
@@ -326,6 +327,27 @@
   }
 
   /* ---------- Модели распознавания ---------- */
+  /** Отпечаток файлов моделей: общий и по каждому файлу, чтобы сверить модели на сервере и в описании. */
+  function fingerprintPanel(fp) {
+    if (!fp) return '';
+    var rows = [['Общий отпечаток', '<span class="wa-mono">' + esc(fp.fingerprint || '—') + '</span>', true], ['Алгоритм', fp.algorithm || '—'],
+      ['Описание моделей', fp.manifest ? 'models.json на месте' : 'нет models.json'], ['Вычислен', A.dt(fp.computed_at, { sec: true })]];
+    (fp.models || []).forEach(function (m) { rows.push([m.file, (m.present ? '' : 'нет файла · ') + '<span class="wa-mono">' + esc(m.sha256 || '—') + '</span>', true]); });
+    return W.panel({ title: 'Отпечаток моделей', sub: 'Начало хэша ' + esc(fp.algorithm || '') + ' файлов: совпадает на всех серверах с одинаковыми моделями', body: W.kv(rows) });
+  }
+  var STATE = { ok: 'ok', warn: 'warn', degraded: 'warn', error: 'bad', bad: 'bad', off: 'unk', missing: 'bad' };
+  /** Каналы сервера из GET /health: база, модели, распознавание текста, телеметрия, звук. */
+  function channelsPanel(h) {
+    var ch = h && h.channels;
+    if (!ch) return '';
+    var names = { database: ['База данных', 'database'], ocr: ['Распознавание текста', 'scan'], telemetry: ['Телеметрия', 'activity'], sound: ['Звук', 'wave'] };
+    var item = function (title, ic, c) { return W.li({ tone: STATE[c.state] || 'info', icon: ic, title: title, text: c.detail || '', right: A.chip(c.title || c.state, STATE[c.state] || 'unk') }); };
+    var list = [];
+    ['database', 'ocr', 'telemetry', 'sound'].forEach(function (k) { if (ch[k]) list.push(item(names[k][0], names[k][1], ch[k])); });
+    (ch.models || []).forEach(function (m) { list.push(item('Модель ' + (m.file || ''), 'cpu', Object.assign({}, m, { detail: m.detail || (m.sha256 ? 'sha256 ' + m.sha256 : '') }))); });
+    return W.panel({ title: 'Каналы сервера', sub: 'Ответ GET /health' + (h.models_fingerprint ? ' · отпечаток моделей ' + h.models_fingerprint : ''), right: W.link('Модели', { arrow: true, attrs: 'data-route="models"' }), body: '<div class="wlist">' + list.join('') + '</div>' });
+  }
+
   A.page('models', { title: 'Модели распознавания', guard: function () { return A.isAdmin(); },
     load: function () { return A.get('/webadmin/models'); },
     render: function (d) {
@@ -351,7 +373,7 @@
           { label: 'Нет файлов', icon: 'alert', value: String((det.missing || []).length), status: (det.missing || []).length ? 'bad' : '', note: (det.missing || []).join(', ') || 'все на месте' }]) +
           (det.note ? W.note(esc(det.note), { tone: 'warn', icon: 'alert' }) : '') +
           W.note('Замена и откат моделей, правка порогов из панели недоступны в этой версии: модели обновляются файлами в папке models и описанием models.json.', { icon: 'info' }) +
-          '<div class="wgrid" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start">' + cards + '</div>' };
+          '<div class="wgrid wg-2" style="gap:16px;align-items:start">' + cards + '</div>' + fingerprintPanel(d.fingerprint) };
     },
     after: function (main) {
       main.querySelector('[data-bench]').addEventListener('click', function (e) {

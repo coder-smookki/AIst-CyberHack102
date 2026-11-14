@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 BRAND = "135AA6"
 TEXT = "313132"
 NOT_APPLICABLE = "Не применяется"
-STATUS_COLORS = {"ok": "2E7D4F", "check": "B7791F", "defect": "C53030", "unknown": "6B7280"}
+STATUS_COLORS = {"ok": "2E7D4F", "check": "B7791F", "defect": "C53030", "unknown": "6B7280", "incomplete": "6B7280"}
 RESOURCE_STATES = {
     "ok": "в норме",
     "approaching": "срок приближается",
@@ -121,6 +121,32 @@ def severity_text(view: dict) -> str:
     return f"{view['severity']} - {view['severity_title']}" if view.get("severity_title") else str(view["severity"])
 
 
+def uninspected_text(data: dict) -> str:
+    """Перечень узлов, оставшихся без осмотра, через запятую; пустая строка, если таких нет."""
+    return ", ".join(node["name"] for node in data.get("uninspected") or ())
+
+
+def verdict_text(data: dict) -> str:
+    """Текст итога осмотра для отчётов: оговорка к «видимых проблем не обнаружено», список неосмотренных узлов."""
+    overall = data["overall"]
+    if overall["status"] == "ok":
+        return f"{overall['title']} ({ok_tail(data)})"
+    if overall["status"] == "incomplete" and uninspected_text(data):
+        return f"{overall['title']}: не осмотрены - {uninspected_text(data)}"
+    return overall["title"]
+
+
+def models_text(data: dict) -> str:
+    """Отпечаток набора моделей: каким набором получены находки осмотра и какой работает сейчас."""
+    models = data.get("models") or {}
+    current, found = models.get("current"), list(models.get("findings") or [])
+    if not current and not found:
+        return "-"
+    if not found or found == [current]:
+        return f"{current or found[0]}" + ("" if found else " (находок с отпечатком нет, указан текущий)")
+    return f"в находках {', '.join(found)}; сейчас {current}"
+
+
 def summary_rows(data: dict) -> list[tuple[str, str]]:
     """Строки «название - значение» об оборудовании и осмотре: общая часть отчётов PDF и Excel."""
     equipment, inspection = data["equipment"], data["inspection"]
@@ -141,10 +167,12 @@ def summary_rows(data: dict) -> list[tuple[str, str]]:
         ("Длительность", duration_text(inspection["duration_s"])),
         ("Состояние осмотра", inspection["status_title"]),
         ("Полнота обхода", coverage_text(data.get("coverage"))),
+        *([("Неосмотренные узлы", uninspected_text(data))] if uninspected_text(data) else []),
         ("Показания датчиков на момент", moment_text(data.get("telemetry_at")) if data.get("telemetry_at")
          else "телеметрии по агрегату нет"),
         ("Оценки рассчитаны на дату", date_text(data.get("estimates_on"))),
         ("Отчёт сформирован", moment_text(data["generated_at"])),
+        ("Отпечаток набора моделей", models_text(data)),
     ]
 
 
@@ -199,8 +227,7 @@ def _summary_sheet(sheet, data: dict) -> None:
         row += 1
     overall = data["overall"]
     _put(sheet, row, 1, "Итог осмотра", bold=True)
-    title = f"{overall['title']} ({ok_tail(data)})" if overall["status"] == "ok" else overall["title"]
-    _put(sheet, row, 2, title, bold=True, color=STATUS_COLORS[overall["status"]])
+    _put(sheet, row, 2, verdict_text(data), bold=True, color=STATUS_COLORS[overall["status"]])
     _put(sheet, row + 2, 1, data["decision"], bold=True, color=BRAND)
     _put(sheet, row + 2, 2, SYSTEM_NOTE)
     _put(sheet, row + 3, 2, data["ok_note"])
