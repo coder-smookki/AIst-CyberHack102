@@ -21,6 +21,7 @@
 	@gated {
 		not path /health
 		not header Cookie *kst_gate={$KST_GATE}*
+		not header X-KST-App {$KST_APP_KEY}
 	}
 
 	route {

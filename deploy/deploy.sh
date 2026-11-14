@@ -36,7 +36,7 @@ for folder in "Вибрация" "Температура"; do
 done
 cp -p "$ROOT/deploy/docker-compose.yml" "$ROOT/deploy/Caddyfile" "$STAGE/"
 
-ssh "$HOST" "mkdir -p '$REMOTE' && cd '$REMOTE' && if [ ! -f .env ]; then umask 077; printf 'KST_GATE=%s\n' \"\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')\" > .env; fi"
+ssh "$HOST" "mkdir -p '$REMOTE' && cd '$REMOTE' && umask 077; if ! grep -q '^KST_GATE=' .env 2>/dev/null; then printf 'KST_GATE=%s\n' \"\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')\" >> .env; fi; if ! grep -q '^KST_APP_KEY=' .env; then printf 'KST_APP_KEY=%s\n' \"\$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')\" >> .env; fi"
 rsync -a --delete --exclude '/.env' "$STAGE/" "$HOST:$REMOTE/"
 
 ssh "$HOST" "cd '$REMOTE' && docker compose up -d --build --remove-orphans && docker image prune -f >/dev/null"

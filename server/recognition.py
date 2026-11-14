@@ -10,6 +10,7 @@
 import io
 import json
 import logging
+import os
 import threading
 import time
 from importlib import import_module
@@ -97,10 +98,44 @@ def merge_boxes(boxes: list[dict]) -> list[dict]:
     return kept
 
 
+def ort_threads() -> int:
+    """Возвращает число потоков вычисления ONNX: KST_ORT_THREADS или доступные процессу ядра, не больше 16.
+
+    Без ограничения среда выполнения создаёт поток на каждое ядро машины, и в контейнере с лимитом процессора
+    потоки мешают друг другу.
+    """
+    value = os.environ.get("KST_ORT_THREADS", "").strip()
+    if value.isdigit() and int(value) > 0:
+        return int(value)
+    try:
+        cores = len(os.sched_getaffinity(0))
+    except AttributeError:
+        cores = os.cpu_count() or 4
+    return max(1, min(cores, 16))
+
+
+def _tune_session(model) -> None:
+    """Пересоздаёт сеанс ONNX модели с заданным числом потоков; при ошибке оставляет исходный сеанс."""
+    session = getattr(model, "session", None)
+    path = getattr(session, "_model_path", None)
+    if session is None or not path:
+        return
+    try:
+        import onnxruntime as ort
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = ort_threads()
+        options.inter_op_num_threads = 1
+        model.session = ort.InferenceSession(path, sess_options=options, providers=session.get_providers())
+    except Exception:
+        logger.warning("Не удалось задать число потоков ONNX для %s", path, exc_info=True)
+
+
 def _load_model(path: Path):
     """Загружает модель ONNX; библиотека детектора подключается только здесь, при первом кадре."""
     from libreyolo import LibreYOLO
-    return LibreYOLO(str(path))
+    model = LibreYOLO(str(path))
+    _tune_session(model)
+    return model
 
 
 def _threshold(value, default: float) -> float:

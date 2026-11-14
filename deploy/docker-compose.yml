@@ -17,6 +17,8 @@ services:
     environment:
       KST_DB: /app/data/runtime/kst.db
       FORWARDED_ALLOW_IPS: "*"
+      TZ: Europe/Moscow
+      KST_ORT_THREADS: "12"
     volumes:
       - kst-runtime:/app/data/runtime
     expose:
@@ -45,6 +47,8 @@ services:
         condition: service_healthy
     environment:
       KST_GATE: ${KST_GATE:?KST_GATE is not set in .env}
+      KST_APP_KEY: ${KST_APP_KEY:?KST_APP_KEY is not set in .env}
+      TZ: Europe/Moscow
     ports:
       - "80:80"
     volumes:
