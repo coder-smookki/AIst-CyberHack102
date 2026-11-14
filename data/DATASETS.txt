@@ -79,6 +79,43 @@
   В обучение эти снимки не попадали.
 
 
+СКАЧАНЫ 2026-11-14 (подробности в SOURCE.txt каждой папки; SAFE-Net и Corrosion Condition State
+вошли в третью сборку набора дефектов, RustyMachines не используется, так как у снимков нет разметки)
+SAFE-Net-Dataset (data/open/safenet-coating)
+  Источник: https://figshare.com/articles/dataset/_b_SAFE-Net-Dataset_b_/28190198, Tongji University.
+  Лицензия: GPL (по записи Figshare). Объём: 8193 снимка окрашенных стальных конструкций, рамки YOLO,
+  классы corrosion, crack (трещины краски), flaking (отслоение краски), blistering (вздутие краски).
+Corrosion Condition State (data/open/vt-corrosion-cs)
+  Источник: https://data.lib.vt.edu/articles/dataset/Corrosion_Condition_State_Semantic_Segmentation_Dataset/16624663,
+  Virginia Tech. Лицензия: CC0. Объём: 440 фотографий стальных элементов мостов, полигоны трёх степеней
+  коррозии (Fair, Poor, Severe).
+RustyMachines (data/open/hf-rusty-machines)
+  Источник: https://huggingface.co/datasets/treeshark/RustyMachines. Лицензия: CC BY 4.0.
+  Объём: 50 снимков ржавых машин и арматуры без разметки, происхождение снимков не указано.
+Ни один снимок этих наборов не совпал с тестовым набором из сети и отложенными снимками заказчика
+  по dHash (порог 10).
+
+
+РЕАЛЬНЫЕ СНИМКИ УЗЛОВ (data/open/parts_real, подробности в data/open/parts_real/SOURCE.txt)
+Источники: Roboflow Universe project-3swgf/electric-motor-housing1 v1 (CC BY 4.0, 144 полевых
+  снимка двигателей на качалках, копия в data/open/rf-motor-housing); Wikimedia Commons
+  (насосы, двигатели, манометры, шильдики; только CC0, PD, CC BY, CC BY-SA, автор и лицензия
+  каждого снимка в manifest.csv); снимки заказчика из data/customer.
+Разметка: предварительно OWLv2 google/owlv2-base-patch16-ensemble (Apache-2.0), затем каждая
+  рамка просмотрена вручную, неверные рамки и неуверенные снимки удалены. Разметка неполная по
+  классам: на каждом снимке размечены только классы из столбца classes в manifest.csv.
+Объём: train 136 снимков, test 42 снимка (test в обучение не входит). Рамки train: motor 109,
+  gauge 26, pump_casing 7, flange 6, nameplate 5, valve 1; test: motor 31, gauge 7,
+  pump_casing 3, terminal_box 2, nameplate 1. coupling_guard и coupling_no_guard не размечены.
+Проверка повторов: dHash и pHash против data/web_testset, отложенных снимков заказчика и их
+  копий "с монитора"; удалено 9 совпадений (8 снимков Commons из web_testset и 1 отложенный
+  снимок заказчика), пары до 20 бит просмотрены глазами.
+Просмотрены и НЕ ИСПОЛЬЗУЮТСЯ: Roboflow nozomi-yonesaki/pump-s4hpm (лабораторный стенд, не
+  насосный агрегат), valve-detection-yd1ye/valve-w6flr (схемы P&ID, не фотографии),
+  gabriel-carmo-da-silva-ebas/ebara-pump (каталожные снимки с искажёнными копиями, рамка на весь
+  агрегат). Наборы удалены с диска. На Kaggle наборов с разметкой узлов насосов не найдено.
+
+
 СБОРКИ НАБОРА РЕАЛЬНЫХ ДЕФЕКТОВ (cv/build_defects.py)
 Первая сборка (data/open/defects_ds): обучение 464 кадра (заказчик 30, копии "с монитора" 210,
   Zenodo 64, Roboflow 100, макет 60), проверка 87 (копии "с монитора" обучающих снимков 60,
@@ -94,7 +131,91 @@
   на них не настраивалась.
 
 
+ТРЕТЬЯ СБОРКА НАБОРА ДЕФЕКТОВ (data/open/defects_ds_v3, cv/build_defects_v3.py, 2026-11-14)
+Схема классов дефектов прежняя: corrosion, leak, terminal_box_burnt, damage (трещина, излом,
+  повреждение изоляции). Новые классы не добавлены: для отсутствующего кожуха муфты и для
+  ослабленных или отсутствующих болтов не найдено открытого набора хотя бы со 150 пригодными
+  рамками (набор болтов Mendeley cxnj6cp4rb пересекается с data/web_testset).
+Схема узлов прежняя (11 классов detector.onnx) плюс valve в data/open/parts_real; на реальных
+  снимках достаточно рамок только для motor и gauge.
+Новые источники (все скачаны 2026-11-14, у каждой папки свой SOURCE.txt; данные Roboflow и Kaggle
+  содержат снимки из сети и фотобанков, поэтому годятся только для прототипа, не для продажи):
+  SAFE-Net (GPL, figshare 28190198): только снимки без классов flaking и blistering; corrosion ->
+    corrosion, crack (трещины краски, рамки от 0.4% кадра) -> damage. Обучение 700, проверка 100.
+  Corrosion Condition State (CC0, Virginia Tech): полигоны всех трёх степеней коррозии -> маска ->
+    рамки связных областей, класс corrosion. Обучение 396 (Train), проверка 44 (Test).
+  kaggle wednesday233/corrosion-detect-dataset (MIT): класс 1 -> corrosion, битые строки отброшены.
+    Обучение 229, проверка 28.
+  Roboflow wwj-bjihs/oil-leakage-u9moz v1 (CC BY 4.0): sly_bjbmyw, sly_bjbyw (масло на оборудовании)
+    и sly_dmyw (масло на земле) -> leak, jsxs (ржавчина металла) -> corrosion; снимки только с классом
+    shadow - чистые. Обучение 600, проверка 80.
+  Roboflow kai-bsnlf/water-leakage-bnrzx v5 (CC BY 4.0): liquid_drip_leakage, liquid_jet_leakage,
+    oil_puddle -> leak; снимки с огнём, дымом, искрами, газом и трещинами стен не берутся.
+    Обучение 450, проверка 60.
+  Roboflow chiranjeevi-p2jmx/oil-leak-detection-axcq4 v1 (CC BY 4.0): oil_leak -> leak. 80 / 15.
+  Roboflow electrical-hazard-zcack/electrical-hazards v2 (Public Domain): burned socket ->
+    terminal_box_burnt, damage wire -> damage; повторы внутри набора отсечены по pHash (до 8 бит).
+    Обучение 400, проверка 50. Это бытовые розетки, а не клеммные коробки двигателей.
+  Roboflow datasettocode/burnt-adapters v1 (CC BY 4.0): все 42 снимка в обучение, terminal_box_burnt.
+  Roboflow krum-dala/pipe-defects-ybzjr v5 (CC BY 4.0): crack, hole, rupture -> damage. 72 / 10.
+  Roboflow 1463597570s-workspace/pipe-corrosion-project v4 (CC BY 4.0): только Corrosion -> corrosion,
+    снимки с классом crack (канализационные трубы) не берутся. 150 / 20.
+  Roboflow negar-bmy1z/rusty-3 v3 (CC BY 4.0): rusty -> corrosion. 120 / 15.
+  Roboflow 15502531918-163-com/thermal-insulation-layer-yh7h1 v10 (CC BY 4.0): layer_damaged ->
+    damage (повреждение изоляции), рамки от 0.1% кадра. 150 / 20.
+  Чистые снимки без рамок (трудные отрицательные примеры): Roboflow flying-squirrels/nameplate-
+    detection-v2 v5 (CC BY 4.0, шильдики и двигатели в цехах) 150 / 25; kaggle nguyenhuynhhh/analog-
+    gauge-dataset (CC BY 4.0, манометры и щитовые приборы) 80 / 15; Roboflow project-3swgf/electric-
+    motor-housing1 v1 (CC BY 4.0, только снимки без класса ржавого корпуса) 50 / 10.
+  Не используются: Roboflow burnt-pcb (зелёная плата не похожа на клеммную коробку), RustyMachines
+    (нет разметки), гибридные наборы манометров и шильдиков (нужны для модели узлов, не дефектов).
+Прежние источники: обучающие снимки заказчика и их копии "с монитора" (по 18 копий для снимков с
+  редкими классами, по 6 для снимков только с коррозией), Ostrava 64 / 27, corrosion-bi3q3 40,
+  кадры макета 60. Копии обучающих снимков заказчика в проверочную часть больше не кладутся.
+Отложенные снимки заказчика (8) и их копии (40) перенесены жёсткими ссылками из первой сборки
+  без изменений, поэтому сравнение с прежними моделями идёт на тех же кадрах.
+Проверка повторов: каждый кадр обучения и проверки сравнён с 180 защищёнными снимками (8 отложенных
+  снимков заказчика, 40 их копий, 90 снимков data/web_testset, 42 снимка теста parts_real) по pHash и
+  dHash: целый кадр, пять кадрирований по 70%, отражение, у защищённых ещё три поворота. Совпадением
+  считается пара, где оба хеша отличаются не больше чем на 10 бит. Выброшено 16 кадров, все с
+  расстоянием 0: 14 снимков двигателей Roboflow, входящих в тест parts_real, и 2 обучающих снимка
+  заказчика ("Насосные агрегаты/photo_2026-11-13_12-48-02.jpg" и "...12-48-03.jpg"), которые
+  входят в тест parts_real как cust_05 и cust_06. 32 пары с расстоянием 14-16 бит просмотрены
+  глазами: повторов среди них нет. Журнал - dedup.json, опись кадров с источником и лицензией -
+  manifest.csv в папке набора. Кадрирование меньше 70% тестового снимка такая проверка может
+  пропустить.
+Редкие классы: обучающие кадры открытых наборов с terminal_box_burnt или damage повторены один раз
+  жёсткими ссылками (без копирования файлов). Вставка вырезанных дефектов на чистый фон не
+  делалась: не было времени проверить её реалистичность глазами, а без этого модель могла бы
+  научиться искать края вставки.
+Объём (с повторами): обучение 4908 кадров, из них 293 без рамок; рамки corrosion 5833,
+  leak 2007, terminal_box_burnt 1680, damage 2860. Проверка 519 кадров, из них 50 без рамок;
+  рамки corrosion 764, leak 240, terminal_box_burnt 90, damage 126.
+Известные недостатки: в чистых снимках шильдиков местами видна неразмеченная ржавчина; рамки
+  SAFE-Net и подстанций грубые; среди открытых данных нет настоящих подгоревших клеммных коробок
+  двигателей и трещин металла на насосах; проверочная часть состоит только из открытых данных и
+  не заменяет отложенные снимки заказчика.
+Экранные копии открытых кадров (cv/build_screen_copies.py, 2026-11-14): для половины уникальных
+  обучающих кадров открытых наборов (без кадров заказчика, макета и повторов редких классов, зерно 1)
+  построено по одному кадру "съёмка с монитора" (перспектива, фон, муар, блик, размытие, сдвиг цвета,
+  JPEG) - 1800 кадров в images/train_screen, опись screen_manifest.csv. Рамки corrosion 2395,
+  leak 851, terminal_box_burnt 390, damage 677; 135 кадров без рамок. Это та же имитация, что у копий
+  снимков заказчика; настоящую съёмку экрана телефоном она не заменяет. Проверочная и отложенная
+  части не менялись.
+
+
+ОБУЧЕНИЕ НА KAGGLE (2026-11-14, с разрешения заказчика проекта на загрузку данных)
+Части train, val и train_screen третьей сборки (вместе с обучающими снимками заказчика и их копиями)
+  загружены в ЗАКРЫТЫЙ набор Kaggle shveps/kstv-defects-v3 и обучались в закрытых ноутбуках с
+  видеокартами (cv/kaggle_push.py, cv/kaggle_train.py). Отложенные снимки заказчика, их копии
+  "с монитора" и data/web_testset на Kaggle не загружались; все показатели считались на этом
+  компьютере через cv/protocol.py и cv/tune_defects.py. Эпоха и пороги выбирались только по val.
+
+
 СТАРТОВЫЕ ВЕСА
 LibreYOLO9t, LibreYOLO9s: https://huggingface.co/LibreYOLO, лицензия MIT.
 LibreRFDETRn: https://huggingface.co/LibreYOLO/LibreRFDETRn, лицензия Apache-2.0.
+LibreRFDETRs, LibreRFDETRm: https://huggingface.co/LibreYOLO/LibreRFDETRs и
+  https://huggingface.co/LibreYOLO/LibreRFDETRm, лицензия Apache-2.0 (поле license карточки модели
+  в API Hugging Face, рядом файлы LICENSE и NOTICE).
 Лицензии проверены по страницам моделей 2026-11-14.

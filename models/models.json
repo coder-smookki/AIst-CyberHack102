@@ -71,30 +71,41 @@
   "family": "RF-DETR nano (LibreRFDETRn)",
   "weights_licence": "Apache-2.0 (huggingface.co/LibreYOLO/LibreRFDETRn)",
   "code_licence": "MIT (libreyolo 1.7.4), Apache-2.0 (rfdetr)",
-  "trained_from": "LibreRFDETRn.pt, 5 эпох, вход 384 px, 21.1 мин на mps",
-  "weights_pt": "runs/defects_rfdetr_n/weights/best.pt",
-  "compression": "ONNX 384 px, веса MatMul и Gemm в int8 (cv/quantize.py), 33.6 МБ; float32 версия runs/onnx/defects_rfdetr_n_384.onnx 107.6 МБ",
-  "data": "data/open/defects_ds_v2: 554 кадра обучения (снимки заказчика 30 и их 360 копий с имитацией монитора, Ostrava 64, corrosion-bi3q3 40, макет 60), 4 класса",
+  "trained_from": "LibreRFDETRn.pt, 33 эпохи из 40 (остановлено лимитом сессии Kaggle), вход 384 px, пакет 16, 2 ч 45 мин на GPU Kaggle",
+  "weights_pt": "runs/kaggle/train-b/runs/rfn384s/weights/best.pt",
+  "compression": "ONNX 384 px, веса MatMul и Gemm в int8 (cv/quantize.py), 33.6 МБ; float32 версия runs/onnx/defects_rfn384s_fp32.onnx 107.6 МБ; int8 стоит 0.008 mAP50 на проверочной выборке",
+  "data": "data/open/defects_ds_v3 (cv/build_defects_v3.py): обучение 4908 кадров (снимки заказчика 28 и 324 их копии с имитацией монитора, кадры макета 60, открытые наборы коррозии, утечек, подгоревших контактов и повреждений изоляции, чистые снимки шильдиков, манометров и двигателей), проверка 519 кадров, 4 класса; источники, лицензии и проверка повторов с тестовыми снимками в data/DATASETS.txt",
   "measured": {
    "customer_holdout_8_conf_0.25": {
-    "box_precision": 0.235,
+    "box_precision": 0.667,
     "box_recall": 0.444,
     "image_defect_found": 0.75
    },
+   "customer_holdout_8_conf_0.15": {
+    "box_precision": 0.625,
+    "box_recall": 0.556,
+    "image_defect_found": 0.75
+   },
    "customer_holdout_screen_40_conf_0.25": {
-    "box_precision": 0.214,
-    "box_recall": 0.333,
-    "image_defect_found": 0.85
+    "box_precision": 0.354,
+    "box_recall": 0.378,
+    "image_defect_found": 0.825
    },
    "web_testset_conf_0.25": {
-    "image_recall_any_defect": 0.87,
-    "false_alarm_rate": 0.517
+    "image_recall_any_defect": 0.826,
+    "false_alarm_rate": 0.069
    },
+   "web_testset_conf_0.15": {
+    "image_recall_any_defect": 0.891,
+    "false_alarm_rate": 0.138
+   },
+   "val_519_map50": 0.693,
    "latency_384_ms": {
-    "cpu": 64.8,
-    "coreml": 234.4
+    "cpu": 80.0,
+    "coreml": 271.2
    }
   },
-  "limits": "подгорание клеммной коробки и повреждения (трещины) на отложенных снимках почти не находятся; много ложных рамок коррозии; при пороге 0.5 полнота резко падает, поэтому порог 0.25 для статуса 'проверить' важен; устойчивость к съёмке экрана проверена только на имитации; сервер запускает ONNX на процессоре"
+  "limits": "подгорание клеммной коробки на снимках заказчика не находится: открытых снимков клеммных коробок двигателей нет, в обучении бытовые розетки; на 8 отложенных снимках дефект найден на 6 (прежняя модель находила на всех, но давала ложные рамки на большинстве чистых снимков); выборка заказчика мала, цифры приблизительные; часть открытых наборов (SAFE-Net под GPL, снимки Roboflow и Kaggle из сети) пригодна только для прототипа; задержка измерена на загруженном процессоре; сервер запускает ONNX на процессоре",
+  "previous": "defects_ds_v2, 5 эпох на mps: отложенные 8 снимков при 0.25 точность рамок 0.235, mAP50 0.105; тестовый набор из сети при 0.25 ложные тревоги на чистых снимках 0.517, дефект найден 0.87"
  }
 ]
