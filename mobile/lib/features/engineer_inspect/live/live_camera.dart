@@ -88,6 +88,12 @@ const Map<String, String> kLiveClassLabels = {
   'crack': 'Трещина',
   'anchor_bolt_loose': 'Анкерный болт',
   'oil_dark': 'Тёмное масло',
+  'pump_unit': 'Насосный агрегат',
+  'control_cabinet': 'Шкаф управления',
+  'transformer': 'Трансформатор',
+  'electric_motor': 'Электродвигатель',
+  'compressor': 'Компрессор',
+  'valve': 'Задвижка',
 };
 
 /// Русская подпись класса детектора [cls]; неизвестный класс - как есть.
@@ -161,6 +167,14 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Последний кадр в JPEG.
   Uint8List? lastJpeg;
+
+  /// Кадр, к которому относятся рамки последнего ответа сервера: по нему вырезаются признак и манометр.
+  Uint8List? replyJpeg;
+
+  /// Отправленные кадры по номеру кадра в соединении: ответ сервера несёт тот же номер seq.
+  final Map<int, Uint8List> _sentFrames = {};
+
+  int _sentSeq = 0;
 
   /// Связь потеряна и идёт повторное подключение (тихое состояние до третьей неудачи).
   bool reconnecting = false;
@@ -425,6 +439,11 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
     _pending.add(captured);
+    _sentSeq++;
+    _sentFrames[_sentSeq] = jpeg;
+    while (_sentFrames.length > 8) {
+      _sentFrames.remove(_sentFrames.keys.first);
+    }
     s.sink.add(jpeg);
     _flightTimer?.cancel();
     _flightTimer = Timer(replyTimeout, () => _pending.removeWhere((DateTime t) => DateTime.now().difference(t) >= replyTimeout));
@@ -443,6 +462,8 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       pingInterval: const Duration(seconds: 20),
     );
     _socket = ch;
+    _sentSeq = 0;
+    _sentFrames.clear();
     _sub = ch.stream.listen(
       (dynamic data) {
         if (identical(_socket, ch)) {
@@ -481,6 +502,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       _handle(jsonDecode(data) as Map<String, dynamic>);
     } on Object {
       _pending.clear();
+      _sentFrames.clear();
     }
   }
 
@@ -491,6 +513,14 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (type == 'frame' || type == 'error') {
       final DateTime now = DateTime.now();
+      final int? seq = (j['seq'] as num?)?.toInt();
+      if (type == 'frame' && seq != null) {
+        final Uint8List? sent = _sentFrames[seq];
+        if (sent != null) {
+          replyJpeg = sent;
+        }
+        _sentFrames.removeWhere((int k, Uint8List _) => k <= seq);
+      }
       if (_pending.isNotEmpty) {
         roundTripMs = now.difference(_pending.removeAt(0)).inMilliseconds;
       }
@@ -519,6 +549,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _pingTimer?.cancel();
     connected = false;
     _pending.clear();
+    _sentFrames.clear();
     if (code == 4401) {
       client.refreshNow().then((bool ok) {
         if (ok) {
@@ -551,6 +582,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _pingTimer?.cancel();
     connected = false;
     _pending.clear();
+    _sentFrames.clear();
     _attempts++;
     reconnecting = retry;
     connectionProblem = !retry || _attempts >= 3 ? (lastClose == null ? why : '$why · $lastClose') : null;
@@ -582,6 +614,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _socket = null;
     connected = false;
     _pending.clear();
+    _sentFrames.clear();
   }
 
   void _notify() {

@@ -1,5 +1,28 @@
 import '../models/inspection.dart';
 
+/// Работа, которую инженер записывает с телефона, и её вид на сервере (POST /inspections/{id}/findings, поле kind).
+enum WorkKind {
+  /// Обслужил: техническое обслуживание узла или агрегата.
+  maintenance('maintenance', 'Обслужил'),
+
+  /// Заменил: замена узла, ресурс узла начинается заново.
+  replacement('replacement', 'Заменил'),
+
+  /// Заметка инженера по узлу или агрегату.
+  note('note', 'Заметка');
+
+  const WorkKind(this.server, this.label);
+
+  /// Вид записи на сервере.
+  final String server;
+
+  /// Подпись кнопки.
+  final String label;
+}
+
+/// Вид обслуживания по регламенту агрегата: код сервера «TO-1» и название «ТО-1».
+typedef MaintenanceKind = ({String code, String name});
+
 /// Диагностика, осмотры и находки (GET /equipment/{id}/diagnosis, /route; /inspections; /inspections/findings).
 abstract interface class InspectionRepository {
   /// Все правила диагностики.
@@ -57,6 +80,13 @@ abstract interface class InspectionRepository {
     String? comment,
     List<String> evidence,
   });
+
+  /// Записать работу [kind] по узлу [node] (null - агрегат целиком) в осмотре [inspectionId] агрегата [unitId];
+  /// для обслуживания можно указать вид по регламенту [maintenanceCode]. Вызывается только по «Сохранить».
+  Future<void> addWork(String inspectionId, String unitId, {required WorkKind kind, String? node, String? comment, String? maintenanceCode});
+
+  /// Виды обслуживания по регламенту агрегата [unitId].
+  Future<List<MaintenanceKind>> maintenanceKinds(String unitId);
 
   /// Отметить признак камеры «не дефект».
   Future<void> dismissDetection(String inspectionId, String label);

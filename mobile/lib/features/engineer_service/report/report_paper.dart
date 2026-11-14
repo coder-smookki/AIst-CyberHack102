@@ -63,6 +63,14 @@ class _Paper extends ConsumerWidget {
                 children: [
                   _Top(summary: summary),
                   SizedBox(height: gap),
+                  if (summary.verdict != null && summary.verdict!.title.isNotEmpty) ...[
+                    Text(
+                      KvFormat.typo('Итог: ${summary.verdict!.title}'
+                          '${summary.verdict!.uninspected.isEmpty ? '' : '. Не осмотрены: ${summary.verdict!.uninspectedText}'}'),
+                      style: base.copyWith(fontWeight: FontWeight.w600, color: summary.verdict!.incomplete ? c.warnText : c.text),
+                    ),
+                    SizedBox(height: gap),
+                  ],
                   _Facts(summary: summary),
                   SizedBox(height: gap),
                   if (u != null) _Unit(unit: u, site: site),

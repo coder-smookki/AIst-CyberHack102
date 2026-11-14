@@ -58,7 +58,7 @@ abstract final class EngineerInspectPaths {
   static const String scanner = '/engineer/scanner';
 
   /// Сканер агрегата.
-  static String scannerFor(String unitId, {String? via}) => _q(scanner, {'unit': unitId, 'via': ?via});
+  static String scannerFor(String unitId, {String? via, String? aim}) => _q(scanner, {'unit': unitId, 'via': ?via, 'aim': ?aim});
 
   /// Сканер · поиск шильдика.
   static const String bScanSearch = '/engineer/b-scan-search';
@@ -178,7 +178,12 @@ final List<RouteBase> engineerInspectRootRoutes = <RouteBase>[
     name: 'scanner',
     pageBuilder: (_, GoRouterState s) => KvPage<void>.of(
       s,
-      ScannerScreen(unitId: _unit(s), nameplateFirst: s.uri.queryParameters['unit'] == null, via: s.uri.queryParameters['via']),
+      ScannerScreen(
+        unitId: _unit(s),
+        nameplateFirst: s.uri.queryParameters['unit'] == null,
+        via: s.uri.queryParameters['via'],
+        aim: s.uri.queryParameters['aim'],
+      ),
       transition: KvTransition.up,
     ),
   ),

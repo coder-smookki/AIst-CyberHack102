@@ -13,6 +13,7 @@ import 'inspect_catalog.dart';
 import 'inspect_providers.dart';
 import 'live/live_scanner_screen.dart';
 import 'widgets/inspect_camera.dart';
+import 'works_sheet.dart';
 
 /// Вид кадра основного сканера: лёгкое увеличение, насос поднят над панелью (MAIN_VIEW прототипа).
 const KvCamView kScannerView = KvCamView(k: 1.2, cx: 0.47, cy: 0.6);
@@ -31,7 +32,7 @@ KvArKind arKindOf(String kind) => switch (kind) {
 /// с агрегатом, покрытием обхода и кнопками «Карточка» и «Завершить».
 class ScannerScreen extends ConsumerWidget {
   /// Создаёт сканер агрегата [unitId].
-  const ScannerScreen({super.key, this.unitId = kInspectDefaultUnit, this.nameplateFirst = false, this.via});
+  const ScannerScreen({super.key, this.unitId = kInspectDefaultUnit, this.nameplateFirst = false, this.via, this.aim});
 
   /// Агрегат, распознанный по шильдику.
   final String unitId;
@@ -42,13 +43,16 @@ class ScannerScreen extends ConsumerWidget {
   /// Как выбран агрегат: «nameplate» - по шильдику; null - вручную (из карточки или списка).
   final String? via;
 
+  /// Узел, на который инженер собирается навести камеру (из блока «Сначала проверьте»); null - по маршруту.
+  final String? aim;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(serverModeProvider)) {
-      if (via == 'nameplate' || via == 'manual') {
-        return LiveScannerScreen(unitId: unitId, byNameplate: via == 'nameplate');
+      if (via == 'nameplate' || via == 'manual' || via == 'qr') {
+        return LiveScannerScreen(unitId: unitId, byNameplate: via == 'nameplate', byQr: via == 'qr', aim: aim);
       }
-      return LiveScanSearchScreen(expected: nameplateFirst ? null : unitId);
+      return LiveScanSearchScreen(expected: nameplateFirst ? null : unitId, aim: aim);
     }
     final KvColors c = context.kv;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;
@@ -57,6 +61,7 @@ class ScannerScreen extends ConsumerWidget {
     final List<Detection> ordered = [...found]..sort((Detection a, Detection b) => _rank(a.kind).compareTo(_rank(b.kind)));
     final int defects = found.where((Detection d) => d.kind == 'defect').length;
     final RouteStep? next = route.next;
+    final RouteStep? aimed = route.where((RouteStep r) => r.nodeId == aim && (r.result == null || r.result == 'next')).firstOrNull;
     final List<KvArBoxData> boxes = [
       for (final Detection d in ordered)
         arBoxOf(
@@ -85,7 +90,9 @@ class ScannerScreen extends ConsumerWidget {
           NextNodeCard(
             done: route.checked,
             total: route.length,
-            title: next == null ? 'Все узлы осмотрены' : 'Далее: ${nodeShortName(next.name)}',
+            title: aimed != null
+                ? aimHint(aimed.name)
+                : (next == null ? 'Все узлы осмотрены' : 'Далее: ${nodeShortName(next.name)}'),
             subtitle: 'Осмотрено ${route.checked} из ${route.length} узлов',
             onTap: () => context.kvPush(EngineerInspectPaths.routeFor(unitId)),
           ),
@@ -94,6 +101,8 @@ class ScannerScreen extends ConsumerWidget {
               Expanded(
                 child: KvButton('Карточка', kind: KvButtonKind.secondary, onPressed: () => context.kvPush(EngineerInspectPaths.card(unitId))),
               ),
+              const SizedBox(width: KvSpace.s3),
+              Expanded(child: KvButton('Работы', kind: KvButtonKind.secondary, onPressed: () => showWorksSheet(context, unitId))),
               const SizedBox(width: KvSpace.s3),
               Expanded(child: KvButton('Завершить', onPressed: () => _finish(context, route))),
             ],
@@ -148,6 +157,9 @@ class ScannerScreen extends ConsumerWidget {
     );
   }
 }
+
+/// Подсказка сканера для узла из блока «Сначала проверьте».
+String aimHint(String node) => 'Наведите камеру на: $node';
 
 /// Поиск шильдика (b-scan-search): рамка наведения с бегущей линией, подсказки и кнопки QR-кода, условий съёмки и ввода номера.
 class ScanSearchScreen extends ConsumerWidget {

@@ -15,23 +15,33 @@ import '../../../data/api/api_repositories.dart';
 import '../../../data/providers.dart';
 import '../../../data/repositories/inspection_repository.dart';
 import '../inspect_actions.dart';
+import '../inspect_providers.dart';
 import '../scanner_screen.dart';
 import '../widgets/inspect_camera.dart';
+import '../works_sheet.dart';
 import 'live_camera.dart';
 import 'live_detection.dart';
+import 'live_gauge.dart';
 import 'sound_sheet.dart';
 
 /// Живой сканер на настоящем сервере: камера, поток кадров осмотра на /ws/inspect, рамки узлов и дефектов,
 /// полнота обхода и запись находки с кадром камеры.
 class LiveScannerScreen extends ConsumerStatefulWidget {
   /// Создаёт сканер агрегата [unitId].
-  const LiveScannerScreen({super.key, required this.unitId, this.byNameplate = false});
+  const LiveScannerScreen({super.key, required this.unitId, this.byNameplate = false, this.byQr = false, this.aim});
 
   /// Агрегат.
   final String unitId;
 
   /// Агрегат определён по шильдику; false - выбран вручную.
   final bool byNameplate;
+
+  /// Агрегат определён по QR-коду на агрегате.
+  final bool byQr;
+
+  /// Код узла, на который инженер наводит камеру первым (блок «Сначала проверьте»); подсказка держится,
+  /// пока сервер не отметит узел осмотренным.
+  final String? aim;
 
   @override
   ConsumerState<LiveScannerScreen> createState() => _LiveScannerScreenState();
@@ -51,7 +61,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
 
   Future<void> _openInspection() async {
     try {
-      ApiInspectionRepository.identifiedBy[widget.unitId] = widget.byNameplate ? 'nameplate' : 'manual';
+      ApiInspectionRepository.identifiedBy[widget.unitId] = widget.byQr ? 'qr' : (widget.byNameplate ? 'nameplate' : 'manual');
       final Inspection insp = await ensureInspection(ref, widget.unitId);
       if (!mounted) {
         return;
@@ -117,10 +127,25 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
 
   /// Касание рамки признака открывает решение инженера (b-scan-defect); рамки узлов не нажимаются.
   VoidCallback? _tapOf(LiveBox b) {
+    if (b.cls == 'gauge') {
+      return () => _gauge(b);
+    }
     if (!b.isDefect && !b.isCheck) {
       return null;
     }
     return () => _review(b);
+  }
+
+  /// Касание рамки манометра: стоп-кадр с рамкой уходит на экран чтения шкалы, показание читает сервер.
+  Future<void> _gauge(LiveBox b) async {
+    final Uint8List? frame = _camera.replyJpeg ?? _camera.lastJpeg;
+    if (frame == null) {
+      return;
+    }
+    ref.read(liveGaugeProvider.notifier).open(
+          LiveDetection(unitId: widget.unitId, jpeg: frame, frameSize: _camera.frameSize, box: b, at: DateTime.now()),
+        );
+    await _open(EngineerInspectPaths.scanGaugeFor(widget.unitId));
   }
 
   /// Рамки ответа без признаков, которые инженер отметил «не дефект».
@@ -134,7 +159,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
   Future<void> _review(LiveBox? box) async {
     final List<LiveBox> shown = _visible(_camera.boxes);
     final LiveBox? b = box ?? shown.where((LiveBox x) => x.isDefect).firstOrNull ?? shown.where((LiveBox x) => x.isCheck).firstOrNull;
-    final Uint8List? frame = _camera.lastJpeg;
+    final Uint8List? frame = _camera.replyJpeg ?? _camera.lastJpeg;
     if (b == null || frame == null) {
       showKvToast(context, title: 'Признаков в кадре нет', text: 'Наведите камеру на признак дефекта', kind: KvToastKind.info);
       return;
@@ -143,6 +168,25 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
           LiveDetection(unitId: widget.unitId, jpeg: frame, frameSize: _camera.frameSize, box: b, at: DateTime.now()),
         );
     await _open(EngineerInspectPaths.scanDefectFor(widget.unitId, liveClassLabel(b.cls)));
+  }
+
+  /// Название узла из блока «Сначала проверьте», пока сервер не отметил его осмотренным; null - подсказки нет.
+  String? _aimName() {
+    final String? aim = widget.aim;
+    if (aim == null || aim.isEmpty) {
+      return null;
+    }
+    final Object? nodes = _coverage?['nodes'];
+    final Object? node = nodes is Map ? nodes[aim] : null;
+    if (node is Map && node['inspected'] == true) {
+      return null;
+    }
+    final String named = node is Map ? (node['name']?.toString() ?? '') : '';
+    if (named.isNotEmpty) {
+      return named;
+    }
+    final List<RouteStep> route = ref.read(routeProvider(widget.unitId)).value ?? const <RouteStep>[];
+    return route.where((RouteStep r) => r.nodeId == aim).firstOrNull?.name ?? aim;
   }
 
   /// Запись шума агрегата: камера на это время останавливается, после листа видео продолжается.
@@ -198,6 +242,9 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
     final Equipment? unit = ref.watch(unitProvider(widget.unitId)).value;
+    if (widget.aim != null) {
+      ref.watch(routeProvider(widget.unitId));
+    }
     final double top = MediaQuery.paddingOf(context).top;
     return ListenableBuilder(
       listenable: _camera,
@@ -206,7 +253,8 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
         final int done = (_coverage?['inspected'] as num?)?.toInt() ?? 0;
         final int total = (_coverage?['total'] as num?)?.toInt() ?? 0;
         final int percent = (_coverage?['percent'] as num?)?.round() ?? 0;
-        final String hint = _coverage?['hint']?.toString() ?? '';
+        final String? aimName = _aimName();
+        final String hint = aimName != null ? aimHint(aimName) : (_coverage?['hint']?.toString() ?? '');
         final String pill = _camera.connected
             ? 'Анализ видео · ${KvFormat.num(_camera.fps, 1)} кадр/с · ${_camera.roundTripMs} мс'
             : (_camera.wsPath == null ? 'Подготовка осмотра' : (_camera.reconnecting ? 'Переподключение…' : 'Подключение к серверу'));
@@ -260,7 +308,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
             children: [
               ArPanelTitle(
                 title: unit == null ? ' ' : '${unit.code} · ${unit.modelShort}',
-                caption: unit == null ? ' ' : '${widget.byNameplate ? 'По шильдику' : 'Выбран вручную'} · № ${unit.serial}',
+                caption: unit == null ? ' ' : '${widget.byQr ? 'По QR-коду' : (widget.byNameplate ? 'По шильдику' : 'Выбран вручную')} · № ${unit.serial}',
                 chip: defects == 0 ? null : KvChip('$defects ${KvFormat.plural(defects, 'признак', 'признака', 'признаков')}', status: KvStatus.bad),
                 chipLabel: 'Признаки дефектов',
                 onChip: () => _review(null),
@@ -291,6 +339,10 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
                     ),
                   ),
                   const SizedBox(width: KvSpace.s3),
+                  Expanded(
+                    child: KvButton('Работы', kind: KvButtonKind.secondary, onPressed: () => showWorksSheet(context, widget.unitId)),
+                  ),
+                  const SizedBox(width: KvSpace.s3),
                   Expanded(child: KvButton('Завершить', onPressed: _finish)),
                 ],
               ),
@@ -307,10 +359,13 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
 /// и сам каждые 2,5 с; найденный агрегат открывает карточку, ручной выбор - «Ввести номер».
 class LiveScanSearchScreen extends ConsumerStatefulWidget {
   /// Создаёт экран.
-  const LiveScanSearchScreen({super.key, this.expected});
+  const LiveScanSearchScreen({super.key, this.expected, this.aim});
 
   /// Агрегат, с карточки которого начат осмотр; null - центральная кнопка «Сканер».
   final String? expected;
+
+  /// Узел из блока «Сначала проверьте», который передаётся живому сканеру того же агрегата.
+  final String? aim;
 
   @override
   ConsumerState<LiveScanSearchScreen> createState() => _LiveScanSearchScreenState();
@@ -323,7 +378,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
   bool _busy = false;
   bool _done = false;
   String? _unitId;
-  bool _byNameplate = true;
+  String _via = 'nameplate';
 
   @override
   void initState() {
@@ -362,7 +417,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
       final Map<String, dynamic>? match = j['match'] as Map<String, dynamic>?;
       final String? id = match?['equipment_id']?.toString();
       if (j['found'] == true && id != null) {
-        unawaited(_found(id));
+        unawaited(_found(id, via: j['identified_by'] == 'qr' || match?['by'] == 'qr' ? 'qr' : 'nameplate'));
         return;
       }
       final List<Map<String, dynamic>> cands = [for (final dynamic e in (j['candidates'] as List<dynamic>? ?? const <dynamic>[])) e as Map<String, dynamic>];
@@ -390,21 +445,21 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
 
   /// Агрегат определён: видео останавливается на кадре, снизу - агрегат и выбор «Карточка» или «Начать осмотр».
   /// Если шильдик принадлежит другому агрегату, чем карточка, с которой начат осмотр, инженер подтверждает переход.
-  Future<void> _found(String id, {bool byNameplate = true}) async {
+  Future<void> _found(String id, {String via = 'nameplate'}) async {
     if (_done) {
       return;
     }
     _done = true;
     _auto?.cancel();
     final String? expected = widget.expected;
-    if (byNameplate && expected != null && expected != id) {
+    if (via != 'manual' && expected != null && expected != id) {
       final bool? go = await showKvDialog<bool>(
         context,
         builder: (BuildContext dialog) => KvDialog(
           icon: KvIcons.alert,
           tone: KvStatus.warn,
           title: 'Это другой агрегат',
-          text: 'По шильдику это ${_codeOf(id)}, а осмотр начат с карточки ${_codeOf(expected)}. Перейти к ${_codeOf(id)}?',
+          text: '${via == 'qr' ? 'По QR-коду' : 'По шильдику'} это ${_codeOf(id)}, а осмотр начат с карточки ${_codeOf(expected)}. Перейти к ${_codeOf(id)}?',
           actions: [
             KvButton('Сканировать снова', kind: KvButtonKind.secondary, onPressed: () => Navigator.of(dialog).pop(false)),
             KvButton('Перейти к ${_codeOf(id)}', onPressed: () => Navigator.of(dialog).pop(true)),
@@ -422,7 +477,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
     }
     setState(() {
       _unitId = id;
-      _byNameplate = byNameplate;
+      _via = via;
     });
     await _camera.suspend();
   }
@@ -446,7 +501,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
                   chevron: true,
                   onTap: () {
                     Navigator.of(sheet).pop();
-                    unawaited(_found(u.id, byNameplate: false));
+                    unawaited(_found(u.id, via: 'manual'));
                   },
                 ),
             ],
@@ -473,7 +528,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
                   onTap: () {
                     Navigator.of(sheet).pop();
                     if (screen.mounted) {
-                      unawaited(_found(e['id'].toString(), byNameplate: false));
+                      unawaited(_found(e['id'].toString(), via: 'manual'));
                     }
                   },
                 ),
@@ -486,13 +541,21 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
 
   Widget _identified(String id) {
     final Equipment? unit = ref.watch(unitProvider(id)).value;
-    final String how = _byNameplate ? 'По шильдику' : 'Выбран вручную';
+    final String how = switch (_via) {
+      'qr' => 'По QR-коду',
+      'nameplate' => 'По шильдику',
+      _ => 'Выбран вручную',
+    };
     return ArPanel(
       children: [
         ArPanelTitle(
           title: unit == null ? id : '${unit.code} · ${unit.modelShort}',
           caption: unit == null ? how : '$how · № ${unit.serial}',
-          chip: _byNameplate ? const KvChip('Шильдик', status: KvStatus.ok) : null,
+          chip: switch (_via) {
+            'qr' => const KvChip('QR-код', status: KvStatus.ok),
+            'nameplate' => const KvChip('Шильдик', status: KvStatus.ok),
+            _ => null,
+          },
         ),
         Row(
           children: [
@@ -501,7 +564,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
             Expanded(
               child: KvButton(
                 widget.expected == null ? 'Начать осмотр' : 'Продолжить',
-                onPressed: () => context.kvFade(EngineerInspectPaths.scannerFor(id, via: _byNameplate ? 'nameplate' : 'manual')),
+                onPressed: () => context.kvFade(EngineerInspectPaths.scannerFor(id, via: _via, aim: id == widget.expected ? widget.aim : null)),
               ),
             ),
           ],
@@ -567,7 +630,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 290),
                     child: Text(
-                      'Коснитесь рамки, чтобы прочитать заводскую табличку. Номер и серийный номер сверяются с сервером.',
+                      'Коснитесь рамки, чтобы прочитать заводскую табличку. Номер и серийный номер сверяются с сервером. QR-код на агрегате тоже читается.',
                       textAlign: TextAlign.center,
                       style: context.kvText.caption.copyWith(color: c.arText, shadows: [Shadow(color: c.arGlass, offset: const Offset(0, 1), blurRadius: 3)]),
                     ),

@@ -12,6 +12,7 @@ import 'inspect_actions.dart';
 import 'inspect_catalog.dart';
 import 'inspect_providers.dart';
 import 'live/live_detection.dart';
+import 'live/live_gauge.dart';
 import 'scanner_screen.dart';
 import 'widgets/inspect_camera.dart';
 
@@ -28,9 +29,22 @@ class ScanDefectScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final LiveDetection? live = ref.watch(serverModeProvider) ? ref.watch(liveReviewProvider).shown : null;
+    final bool server = ref.watch(serverModeProvider);
+    final LiveDetection? live = server ? ref.watch(liveReviewProvider).shown : null;
     if (live != null) {
       return LiveScanDefectScreen(d: live);
+    }
+    if (server) {
+      return ArCameraScreen(
+        stage: const ColoredBox(color: Color(0xFF0E141C)),
+        top: ArTopBar(pill: 'Признак не выбран', backIcon: KvIcons.back, onBack: () => context.kvBack(EngineerInspectPaths.scannerFor(unitId))),
+        panel: ArPanel(
+          children: [
+            const KvNote(text: 'Наведите камеру на признак и коснитесь его рамки на видео - решение принимается по стоп-кадру.', tone: KvStatus.info),
+            KvButton('К сканеру', icon: KvIcons.scan, onPressed: () => backToScanner(context, unitId)),
+          ],
+        ),
+      );
     }
     final DefectClass cls = kDefectClasses[label] ?? kDefectClasses.values.first;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;
@@ -115,6 +129,10 @@ class ScanGaugeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(serverModeProvider)) {
+      final LiveDetection? live = ref.watch(liveGaugeProvider);
+      return LiveScanGaugeScreen(unitId: unitId, d: live?.unitId == unitId ? live : null);
+    }
     final KvColors c = context.kv;
     final KvTextStyles t = context.kvText;
     final bool narrow = MediaQuery.sizeOf(context).width <= 370;
@@ -185,10 +203,10 @@ class ScanGaugeScreen extends ConsumerWidget {
           ),
           Row(
             children: [
-              Expanded(child: _CompareBox(label: 'Датчик давления', value: sensor == null ? '-' : KvFormat.withUnit(sensor.value, sensor.unit, 1), style: cmp)),
+              Expanded(child: GaugeCompareBox(label: 'Датчик давления', value: sensor == null ? '-' : KvFormat.withUnit(sensor.value, sensor.unit, 1), style: cmp)),
               const SizedBox(width: KvSpace.s2),
               Expanded(
-                child: _CompareBox(
+                child: GaugeCompareBox(
                   label: 'Расхождение · R05',
                   value: KvFormat.typo('${KvFormat.num(diff, 0)} % из ${KvFormat.num(allowedDiff, 0)} %'),
                   style: cmp.copyWith(color: diffOk ? c.ok : c.warnText),
@@ -204,11 +222,17 @@ class ScanGaugeScreen extends ConsumerWidget {
 }
 
 /// Плашка сверки (.b-cmp): подпись и значение.
-class _CompareBox extends StatelessWidget {
-  const _CompareBox({required this.label, required this.value, required this.style});
+class GaugeCompareBox extends StatelessWidget {
+  /// Создаёт плашку.
+  const GaugeCompareBox({super.key, required this.label, required this.value, required this.style});
 
+  /// Подпись.
   final String label;
+
+  /// Значение.
   final String value;
+
+  /// Шрифт значения.
   final TextStyle style;
 
   @override

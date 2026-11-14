@@ -8,6 +8,9 @@ import '../../app/routes/engineer_inspect_routes.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
 import '../shared/bridges.dart';
+import 'inspect_providers.dart';
+import 'route_screen.dart';
+import 'works_sheet.dart';
 
 /// Пути вкладок карточки агрегата по индексу сегмента: Сейчас, Графики, История.
 String cardTabPath(String unitId, int index) => switch (index) {
@@ -99,6 +102,15 @@ Future<void> showCardMenu(BuildContext context, Equipment unit) {
             KvList(
               children: [
                 KvRow(icon: KvIcons.route, title: 'Маршрут осмотра', subtitle: '${unit.nodes.length + 1} узлов по приоритету', onTap: () => open(EngineerInspectPaths.routeFor(unit.id))),
+                KvRow(
+                  icon: KvIcons.wrench,
+                  title: 'Записать работы',
+                  subtitle: 'Обслужил, заменил узел или заметка',
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    showWorksSheet(screen, unit.id);
+                  },
+                ),
                 if (unit.id == 'N-101')
                   KvRow(
                     icon: KvIcons.flag,
@@ -170,10 +182,69 @@ class CardNowScreen extends ConsumerWidget {
       ),
       children: [
         CardTabs(unitId: unit.id, index: 0, fromSegment: fromSegment),
+        FirstChecks(unitId: unit.id),
         _ResourceCard(unit: unit, history: history),
         _DiagnosisRow(unit: unit, diagnosis: diagnosis, rules: rules, findings: findings, history: history),
         _ReadingTiles(unit: unit),
         _Passport(unit: unit),
+      ],
+    );
+  }
+}
+
+/// «Сначала проверьте» на первой вкладке карточки: верхние узлы маршрута осмотра с причиной словами (прошлая
+/// находка, датчики, ресурс, план) и кнопка, открывающая сканер с подсказкой «Наведите камеру на: <узел>».
+class FirstChecks extends ConsumerWidget {
+  /// Создаёт блок для агрегата [unitId].
+  const FirstChecks({super.key, required this.unitId});
+
+  /// Агрегат.
+  final String unitId;
+
+  /// Сколько узлов показывать.
+  static const int shown = 3;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final KvTextStyles t = context.kvText;
+    final List<RouteStep> route = ref.watch(routeProvider(unitId)).value ?? const <RouteStep>[];
+    final List<RouteStep> top = route.where((RouteStep s) => s.result == null || s.result == 'next').take(shown).toList();
+    if (top.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final RouteStep first = top.first;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const KvSectionLabel('Сначала проверьте'),
+        KvList(
+          dividerIndent: 60,
+          children: [
+            for (final RouteStep s in top)
+              KvRow(
+                title: s.name,
+                leading: KvRowIcon(icon: RouteWhy.of(s.why).icon),
+                subtitleWidget: RouteWhyLabel(
+                  why: RouteWhy.of(s.why),
+                  text: s.reason.isEmpty ? RouteWhy.of(s.why).title : '${RouteWhy.of(s.why).title}: ${s.reason}',
+                  height: 1.35,
+                ),
+                chevron: false,
+              ),
+          ],
+        ),
+        const SizedBox(height: KvSpace.s3),
+        KvButton(
+          KvFormat.typo('Проверить: ${first.name}'),
+          kind: KvButtonKind.secondary,
+          icon: KvIcons.target,
+          onPressed: () => context.kvUp(EngineerInspectPaths.scannerFor(unitId, aim: first.nodeId)),
+        ),
+        Text(
+          KvFormat.typo('Порядок из маршрута осмотра: ${route.length} ${KvFormat.plural(route.length, 'узел', 'узла', 'узлов')} по приоритету.'),
+          style: t.caption,
+        ),
       ],
     );
   }

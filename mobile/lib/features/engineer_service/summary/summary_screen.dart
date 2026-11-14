@@ -55,6 +55,7 @@ class SummaryScreen extends ConsumerWidget {
       ),
       children: [
         _Kpis(summary: s),
+        if (s.verdict != null) InspectionVerdictBlock(verdict: s.verdict),
         KvSectionLabel(
           KvFormat.typo(
             'Находки · ${s.findings.length} · ${s.cameraDefects} ${KvFormat.plural(s.cameraDefects, 'дефект', 'дефекта', 'дефектов')} на камере',

@@ -72,6 +72,10 @@ class SavedScreen extends ConsumerWidget {
                         style: t.body.copyWith(color: c.text2),
                       ),
                     ),
+                    if (s?.verdict != null) ...[
+                      const SizedBox(height: 12),
+                      InspectionVerdictBlock(verdict: s?.verdict, center: true),
+                    ],
                     const SizedBox(height: 12 + 10),
                     Row(
                       children: [

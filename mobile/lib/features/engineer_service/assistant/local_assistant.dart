@@ -283,6 +283,7 @@ class LocalAssistantController extends Notifier<LocalAssistantState> {
     final Stopwatch sw = Stopwatch()..start();
     int first = -1;
     int tokens = 0;
+    bool blocked = false;
     try {
       await for (final String piece in model.generate(prompt)) {
         if (first < 0) {
@@ -291,6 +292,13 @@ class LocalAssistantController extends Notifier<LocalAssistantState> {
         tokens++;
         raw.write(piece);
         final ParsedAnswer partial = parseAnswer(raw.toString(), _validator!, streaming: true);
+        if (blocked || unsafeVerdicts(partial.text).isNotEmpty) {
+          if (!blocked) {
+            blocked = true;
+            model.cancel();
+          }
+          continue;
+        }
         state = state.copyWith(
           streaming: AssistantMessage(
             fromUser: false,
@@ -308,14 +316,17 @@ class LocalAssistantController extends Notifier<LocalAssistantState> {
     final double? speed = tokens > 1 && total > first ? (tokens - 1) * 1000 / (total - first) : null;
     final ParsedAnswer done = parseAnswer(raw.toString(), _validator!);
     final bool invented = unsupportedNumbers(done.text, prompt).isNotEmpty;
-    if (done.text.replaceAll(kDecisionLine, '').trim().isEmpty || invented) {
+    final bool unsafe = unsafeVerdicts(done.text).isNotEmpty;
+    if (done.text.replaceAll(kDecisionLine, '').trim().isEmpty || invented || unsafe) {
       _finish(
         AssistantMessage(
           fromUser: false,
           text: quick.text,
           links: _links(quick.links),
           found: found.found,
-          source: invented ? 'Справка на устройстве: ответ модели не прошёл проверку чисел' : 'Справка на устройстве',
+          source: invented
+              ? 'Справка на устройстве: ответ модели не прошёл проверку чисел'
+              : (unsafe ? 'Справка на устройстве: ответ модели не прошёл проверку формулировок' : 'Справка на устройстве'),
         ),
         speed: speed,
         first: first,

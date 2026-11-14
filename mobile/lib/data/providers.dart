@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api/api_client.dart';
@@ -164,6 +166,16 @@ final FutureProvider<List<Person>> engineersProvider = FutureProvider<List<Perso
 final FutureProvider<List<Equipment>> unitsProvider = FutureProvider<List<Equipment>>((Ref ref) {
   ref.watch(revisionProvider(KvDomain.equipment));
   return ref.watch(equipmentRepositoryProvider).units();
+});
+
+/// Опрос цехового сервера, пока список агрегатов на экране: раз в 5 секунд перечитывает агрегаты, чтобы
+/// сценарии телеметрии и решения других сотрудников были видны без ручного обновления. В демонстрационном режиме выключен.
+final Provider<void> liveUnitsPollProvider = Provider.autoDispose<void>((Ref ref) {
+  if (ref.watch(apiConfigProvider).demo) {
+    return;
+  }
+  final Timer timer = Timer.periodic(const Duration(seconds: 5), (_) => ref.invalidate(unitsProvider));
+  ref.onDispose(timer.cancel);
 });
 
 /// Агрегат по идентификатору.

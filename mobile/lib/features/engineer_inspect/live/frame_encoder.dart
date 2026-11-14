@@ -132,3 +132,33 @@ Uint8List encodeFrame(RawFrame f) {
 /// Кодирует кадр [raw] в отдельном изоляте. Функция верхнего уровня: замыкание видит только кадр, а не объект
 /// камеры с контроллером и соединением, которые нельзя передать в другой изолят.
 Future<Uint8List> encodeFrameInBackground(RawFrame raw) => Isolate.run(() => encodeFrame(raw));
+
+/// Вырезает из кадра JPEG [jpeg] участок [left], [top], [width], [height] (в пикселях кадра) с полями [margin]
+/// в долях большей стороны участка и возвращает его в JPEG; null - кадр не читается или участок пуст.
+Uint8List? cropJpeg(Uint8List jpeg, double left, double top, double width, double height, {double margin = 0.2, int quality = 92}) {
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+  final img.Image? src;
+  try {
+    src = img.decodeJpg(jpeg);
+  } on Object {
+    return null;
+  }
+  if (src == null) {
+    return null;
+  }
+  final double pad = math.max(width, height) * margin;
+  final int x0 = math.max(0, (left - pad).floor());
+  final int y0 = math.max(0, (top - pad).floor());
+  final int x1 = math.min(src.width, (left + width + pad).ceil());
+  final int y1 = math.min(src.height, (top + height + pad).ceil());
+  if (x1 - x0 < 8 || y1 - y0 < 8) {
+    return null;
+  }
+  return img.encodeJpg(img.copyCrop(src, x: x0, y: y0, width: x1 - x0, height: y1 - y0), quality: quality);
+}
+
+/// Вырезает участок кадра в отдельном изоляте.
+Future<Uint8List?> cropJpegInBackground(Uint8List jpeg, double left, double top, double width, double height, {double margin = 0.2}) =>
+    Isolate.run(() => cropJpeg(jpeg, left, top, width, height, margin: margin));

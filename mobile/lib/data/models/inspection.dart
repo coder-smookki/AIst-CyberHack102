@@ -521,6 +521,63 @@ class SummaryNote {
   final String? sentAt;
 }
 
+/// Узел, который в осмотре не был осмотрен: код и название.
+typedef UninspectedNode = ({String code, String name});
+
+/// Общий итог осмотра от сервера: статус, его название и неосмотренные узлы. Все поля нового формата читаются
+/// только здесь; старый сервер без них даёт null, и экраны показывают итог, как раньше.
+@immutable
+class InspectionVerdict {
+  /// Создаёт итог.
+  const InspectionVerdict({required this.status, required this.title, this.uninspected = const <UninspectedNode>[]});
+
+  /// Статус «осмотр неполный».
+  static const String incompleteStatus = 'incomplete';
+
+  /// Из ответа сервера: GET /inspections/{id} и ответ завершения (summary.status, summary.status_title,
+  /// summary.uninspected) или данные отчёта (overall.status, overall.title, uninspected верхнего уровня).
+  /// Неизвестные и повреждённые поля пропускаются; null - сервер итога не прислал.
+  static InspectionVerdict? fromJson(Map<String, dynamic> j) {
+    final Map<String, dynamic> summary = j['summary'] is Map<String, dynamic> ? j['summary'] as Map<String, dynamic> : const {};
+    final Map<String, dynamic> overall = j['overall'] is Map<String, dynamic> ? j['overall'] as Map<String, dynamic> : const {};
+    String text(Object? v) => v is String ? v.trim() : '';
+    final String status = text(summary['status']).isNotEmpty ? text(summary['status']) : text(overall['status']);
+    final String title = text(summary['status_title']).isNotEmpty ? text(summary['status_title']) : text(overall['title']);
+    final Object? raw = summary['uninspected'] is List ? summary['uninspected'] : j['uninspected'];
+    final List<UninspectedNode> nodes = [
+      if (raw is List)
+        for (final Object? n in raw)
+          if (n is Map && text(n['code'] ?? n['name']).isNotEmpty)
+            (code: text(n['code'] ?? n['name']), name: text(n['name']).isNotEmpty ? text(n['name']) : text(n['code']))
+          else if (n is String && n.trim().isNotEmpty)
+            (code: n.trim(), name: n.trim()),
+    ];
+    if (title.isEmpty && nodes.isEmpty && status != incompleteStatus) {
+      return null;
+    }
+    return InspectionVerdict(
+      status: status.isEmpty && nodes.isNotEmpty ? incompleteStatus : status,
+      title: title.isNotEmpty ? title : (status == incompleteStatus || (status.isEmpty && nodes.isNotEmpty) ? 'Осмотр неполный' : ''),
+      uninspected: nodes,
+    );
+  }
+
+  /// Статус сервера: ok, check, defect, incomplete.
+  final String status;
+
+  /// Название итога: «Осмотр неполный».
+  final String title;
+
+  /// Узлы без осмотра.
+  final List<UninspectedNode> uninspected;
+
+  /// Обход не закончен: статус «неполный» или есть неосмотренные узлы.
+  bool get incomplete => status == incompleteStatus || uninspected.isNotEmpty;
+
+  /// Неосмотренные узлы через запятую.
+  String get uninspectedText => uninspected.map((UninspectedNode n) => n.name).join(', ');
+}
+
 /// Итог осмотра для экранов «Итог», «Осмотр сохранён», отчёта PDF и очереди отправки
 /// (GET /inspections/{id}: coverage, findings, summary).
 @immutable
@@ -545,6 +602,7 @@ class InspectionSummary {
     this.notes = const <SummaryNote>[],
     this.sentAt,
     this.reportAt,
+    this.verdict,
   });
 
   /// Осмотр.
@@ -597,6 +655,9 @@ class InspectionSummary {
 
   /// Когда осмотр передан на сервер цеха; null - ждёт отправки.
   final String? sentAt;
+
+  /// Общий итог от сервера со списком неосмотренных узлов; null - сервер итога не прислал.
+  final InspectionVerdict? verdict;
 
   /// Когда сформирован отчёт PDF.
   final String? reportAt;

@@ -29,6 +29,14 @@ enum RouteWhy {
   /// Подпись в легенде.
   final String legend;
 
+  /// Причина словами для блока «Сначала проверьте»: «Прошлая находка», «Датчики», «Ресурс», «План».
+  String get title => switch (this) {
+        RouteWhy.sensor => 'Датчики',
+        RouteWhy.finding => 'Прошлая находка',
+        RouteWhy.resource => 'Ресурс',
+        RouteWhy.routine => 'План',
+      };
+
   /// Причина по коду сервера.
   static RouteWhy of(String code) => RouteWhy.values.where((RouteWhy w) => w.name == code).firstOrNull ?? RouteWhy.routine;
 
@@ -85,10 +93,14 @@ class RouteScreen extends ConsumerWidget {
 }
 
 /// Подпись причины (.b-why): значок 14 и текст 12 цвета причины.
-class _Why extends StatelessWidget {
-  const _Why({required this.why, required this.text, this.height});
+class RouteWhyLabel extends StatelessWidget {
+  /// Создаёт подпись причины [why] с текстом [text].
+  const RouteWhyLabel({super.key, required this.why, required this.text, this.height});
 
+  /// Причина.
   final RouteWhy why;
+
+  /// Текст подписи.
   final String text;
 
   /// Межстрочный множитель: в строках списка 1,35, в легенде 1,33, в карточке «Далее» - normal.
@@ -155,7 +167,7 @@ class _NextCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(step.name, style: t.bodyM),
-                      _Why(why: RouteWhy.of(step.why), text: step.reason),
+                      RouteWhyLabel(why: RouteWhy.of(step.why), text: step.reason),
                     ],
                   ),
                 ),
@@ -205,7 +217,7 @@ class _StepRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Why(why: RouteWhy.of(step.why), text: step.reason, height: 1.35),
+          RouteWhyLabel(why: RouteWhy.of(step.why), text: step.reason, height: 1.35),
           if (step.note.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(KvFormat.typo('Итог: ${step.note}'), style: t.caption.copyWith(height: 1.35)),
@@ -226,7 +238,7 @@ class _Legend extends StatelessWidget {
       spacing: 14,
       runSpacing: 6,
       children: [
-        for (int i = 0; i < RouteWhy.values.length; i++) _Why(why: RouteWhy.values[i], text: '${i + 1}. ${RouteWhy.values[i].legend}', height: 1.33),
+        for (int i = 0; i < RouteWhy.values.length; i++) RouteWhyLabel(why: RouteWhy.values[i], text: '${i + 1}. ${RouteWhy.values[i].legend}', height: 1.33),
       ],
     );
   }

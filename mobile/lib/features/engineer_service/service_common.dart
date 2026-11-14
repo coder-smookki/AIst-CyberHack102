@@ -331,3 +331,48 @@ abstract final class ServiceFormat {
     _ => null,
   };
 }
+
+/// Итог осмотра от сервера: чип статуса («Осмотр неполный») и список неосмотренных узлов. Без итога сервера
+/// ничего не показывает. Итог без находок не называется исправностью: зелёного цвета у него нет.
+class InspectionVerdictBlock extends StatelessWidget {
+  /// Создаёт блок для итога [verdict].
+  const InspectionVerdictBlock({super.key, required this.verdict, this.center = false});
+
+  /// Итог сервера.
+  final InspectionVerdict? verdict;
+
+  /// Выравнивание по центру (экран «Осмотр сохранён»).
+  final bool center;
+
+  /// Цвет чипа по статусу сервера.
+  static KvStatus tone(InspectionVerdict v) => switch (v.status) {
+        'defect' => KvStatus.bad,
+        'check' || InspectionVerdict.incompleteStatus => KvStatus.warn,
+        _ => v.incomplete ? KvStatus.warn : KvStatus.info,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final InspectionVerdict? v = verdict;
+    if (v == null || (v.title.isEmpty && v.uninspected.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final KvTextStyles t = context.kvText;
+    final KvColors c = context.kv;
+    return Column(
+      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (v.title.isNotEmpty) KvChip(v.title, status: tone(v)),
+        if (v.uninspected.isNotEmpty) ...[
+          const SizedBox(height: KvSpace.s2),
+          Text(
+            KvFormat.typo('Не осмотрены: ${v.uninspectedText}'),
+            textAlign: center ? TextAlign.center : TextAlign.start,
+            style: t.sm.copyWith(color: c.text2),
+          ),
+        ],
+      ],
+    );
+  }
+}

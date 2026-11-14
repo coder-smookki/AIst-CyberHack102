@@ -628,6 +628,40 @@ class ApiInspectionRepository implements InspectionRepository {
     return _postFinding(inspectionId, fields);
   }
 
+  @override
+  Future<void> addWork(String inspectionId, String unitId, {required WorkKind kind, String? node, String? comment, String? maintenanceCode}) async {
+    if (!isServerId(inspectionId)) {
+      return mock.addWork(inspectionId, unitId, kind: kind, node: node, comment: comment, maintenanceCode: maintenanceCode);
+    }
+    final String text = (comment ?? '').trim();
+    await api.postForm(
+      '/inspections/$inspectionId/findings',
+      fields: {
+        'kind': kind.server,
+        'node': ?node,
+        if (text.isNotEmpty) 'comment': text,
+        if (kind == WorkKind.maintenance) 'maintenance_code': ?maintenanceCode,
+      },
+    );
+    if (node != null && kind != WorkKind.note) {
+      _marks.putIfAbsent(unitId, () => {})[node] = (result: 'ok', note: kind.label);
+    }
+    feed
+      ..notify(KvDomain.inspections)
+      ..notify(KvDomain.findings)
+      ..notify(KvDomain.equipment)
+      ..notify(KvDomain.plan);
+  }
+
+  @override
+  Future<List<MaintenanceKind>> maintenanceKinds(String unitId) async {
+    final Map<String, dynamic> j = await api.getJson('/equipment/${Uri.encodeComponent(unitId)}/resource') as Map<String, dynamic>;
+    return [
+      for (final Map<String, dynamic> m in Json.list(j, 'maintenance', (Map<String, dynamic> e) => e))
+        if (Json.str(m, 'code').isNotEmpty) (code: Json.str(m, 'code'), name: Json.str(m, 'name', Json.str(m, 'code'))),
+    ];
+  }
+
   /// Признаки дефекта, которые сервер принимает в поле sign (data/rules.json, signs).
   static const Set<String> serverSigns = {
     'leak',

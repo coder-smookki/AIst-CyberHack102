@@ -24,6 +24,7 @@ class OpObjectsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(liveUnitsPollProvider);
     final Site? site = ref.watch(siteProvider).value;
     final List<Equipment> units = ref.watch(unitsProvider).value ?? const <Equipment>[];
     final List<AppNotification> notes = ref.watch(notificationsProvider('operator')).value ?? const <AppNotification>[];

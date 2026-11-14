@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/state/app_state.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/inspection_repository.dart';
 
@@ -59,10 +60,46 @@ final unitSearchProvider = FutureProvider.autoDispose.family<List<Equipment>, St
 /// Недавний запрос поиска: агрегат или строка без результата.
 typedef RecentSearch = ({String query, String? unitId});
 
-/// Недавние запросы поиска на этом телефоне, новые сверху (не больше трёх).
+/// Недавние запросы поиска на этом телефоне, новые сверху (не больше трёх). На цеховом сервере список
+/// начинается с агрегатов из настоящих осмотров сотрудника, в демонстрационном режиме - с агрегатов демо-данных.
 class RecentSearches extends Notifier<List<RecentSearch>> {
+  bool _touched = false;
+
   @override
-  List<RecentSearch> build() => const [(query: 'АМС-2', unitId: 'AMS-2'), (query: 'АМС-1', unitId: 'AMS-1'), (query: 'Н-205', unitId: null)];
+  List<RecentSearch> build() {
+    _touched = false;
+    if (!ref.watch(serverModeProvider)) {
+      return const [(query: 'АМС-2', unitId: 'AMS-2'), (query: 'АМС-1', unitId: 'AMS-1')];
+    }
+    final String? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.name));
+    Future<void>.microtask(() => _fromHistory(me));
+    return const <RecentSearch>[];
+  }
+
+  /// Агрегаты последних осмотров сотрудника [me] (без имени - все осмотры, которые отдал сервер), новые сверху.
+  Future<void> _fromHistory(String? me) async {
+    try {
+      final List<Inspection> all = await ref.read(inspectionRepositoryProvider).inspections();
+      final List<Equipment> units = await ref.read(equipmentRepositoryProvider).units();
+      final Map<String, Equipment> byId = {for (final Equipment u in units) u.id: u};
+      final List<RecentSearch> found = [];
+      for (final Inspection i in all) {
+        final Equipment? u = byId[i.unitId];
+        if (u == null || (me != null && me.isNotEmpty && i.who.isNotEmpty && i.who != me) || found.any((RecentSearch r) => r.unitId == u.id)) {
+          continue;
+        }
+        found.add((query: u.code, unitId: u.id));
+        if (found.length == 3) {
+          break;
+        }
+      }
+      if (ref.mounted && !_touched) {
+        state = found;
+      }
+    } on Object {
+      return;
+    }
+  }
 
   /// Запомнить запрос [query]; [unitId] - найденный агрегат или null.
   void remember(String query, String? unitId) {
@@ -70,6 +107,7 @@ class RecentSearches extends Notifier<List<RecentSearch>> {
     if (q.isEmpty) {
       return;
     }
+    _touched = true;
     state = [
       (query: q, unitId: unitId),
       ...state.where((RecentSearch r) => r.query.toLowerCase() != q.toLowerCase() && (unitId == null || r.unitId != unitId)),

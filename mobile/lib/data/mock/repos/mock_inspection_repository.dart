@@ -259,6 +259,25 @@ class MockInspectionRepository implements InspectionRepository {
       });
 
   @override
+  Future<void> addWork(String inspectionId, String unitId, {required WorkKind kind, String? node, String? comment, String? maintenanceCode}) =>
+      backend.write(const [KvDomain.inspections, KvDomain.equipment], () {
+        _inspection(inspectionId);
+        final Equipment u = backend.unitOf(unitId);
+        final String what = switch (kind) {
+          WorkKind.maintenance => 'Обслуживание${maintenanceCode == null ? '' : ' $maintenanceCode'}',
+          WorkKind.replacement => 'Замена узла',
+          WorkKind.note => 'Заметка',
+        };
+        final String text = (comment ?? '').trim();
+        backend.pushHistory(u.id, status: 'info', title: node == null ? what : '$what: $node', text: text.isEmpty ? 'Осмотр $inspectionId' : text);
+      });
+
+  @override
+  Future<List<MaintenanceKind>> maintenanceKinds(String unitId) => backend.read(
+        () => [for (final MaintenanceItem m in backend.unitOf(unitId).maintenance) (code: m.code, name: m.code)],
+      );
+
+  @override
   Future<void> dismissDetection(String inspectionId, String label) => backend.write([KvDomain.inspections], () {
         _inspection(inspectionId);
         backend.pushSysLog('info', 'Модели', 'Отметка «не дефект»: $label, кадр сохранён для проверки модели');

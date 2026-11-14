@@ -452,6 +452,7 @@ abstract final class ApiMap {
             recommendation: Json.str(f, 'recommendation'),
           ),
       ],
+      verdict: InspectionVerdict.fromJson(j),
     );
   }
 }
