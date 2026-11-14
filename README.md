@@ -16,7 +16,7 @@
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.162-009688?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="ONNX Runtime" src="https://img.shields.io/badge/ONNX%20Runtime-1.32-005CED?style=flat-square&logo=onnx&logoColor=white">
-  <a href="#сервер-в-docker"><img alt="Docker" src="https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
+  <a href="#запуск-в-docker"><img alt="Docker" src="https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
   <img alt="Лицензии моделей" src="https://img.shields.io/badge/модели-MIT%20%7C%20Apache--2.0-92B6FF?style=flat-square">
 </p>
 
@@ -49,7 +49,7 @@
 | Сервер и веб-панель | [server/](server): FastAPI, веб-панель администраторов в [server/webadmin/](server/webadmin), адрес `/web/` |
 | Модели | [models/](models): `detector.onnx`, `defects.onnx`, описание, пороги и замеры в [models/models.json](models/models.json) |
 | Данные | [data/DATASETS.txt](data/DATASETS.txt): источники, лицензии, объёмы, проверка повторов |
-| Запуск и развёртывание | [deploy/](deploy): Docker, Caddy, скрипты `local.sh` и `deploy.sh` |
+| Запуск и развёртывание | `docker compose up -d --build` в корне ([Запуск в Docker](#запуск-в-docker)), [deploy/](deploy): Caddy и `deploy.sh` для стенда |
 | Сборка приложения | [.github/workflows/mobile.yml](.github/workflows/mobile.yml) |
 | Демо-стенд | https://kct.lumnex.ru, веб-панель `/web/`, закрыт паролем сайта; логин и пароль - в описании решения на странице хакатона |
 
@@ -232,25 +232,26 @@ APK подписан отладочным ключом сборки. Новая 
 - Часть открытых наборов (SAFE-Net под GPL, снимки Roboflow и Kaggle из сети) пригодна только для прототипа
 - Четвёртая сборка дефектов (9422 кадра) и наборы для следующего круга модели узлов (манометры, шильдики, фланцы) собраны, но в поставку пока не входят
 
-## Сервер в Docker
+## Запуск в Docker
 
-Нужны Docker с плагином `compose`, Python 3.11 и две таблицы телеметрии заказчика: `data/customer/Вибрация/*.xlsx` и `data/customer/Температура/*.xlsx`. Таблицы и файлы моделей OCR в репозиторий не входят. Модели OCR скрипт берёт из `models/ocr/` или из пакета `rapidocr` в `.venv`.
+Всё серверное решение - API, распознавание (обе модели и чтение шильдиков), правила, отчёты, веб-панель `/web/` и пульт демонстрации `/panel/` - собирается в один контейнер. Нужен Docker с плагином `compose`.
 
 ```sh
 git clone https://github.com/coder-smookki/AIst-CyberHack102.git
 cd AIst-CyberHack102
-python3.11 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-./deploy/local.sh
+docker compose up -d --build
+docker compose ps        # статус healthy - сервер готов
 ```
 
-Скрипт собирает образ из нужных файлов, поднимает контейнер `kst-vizor-local` на порту 8765 и ждёт, пока `/health` ответит. Дальше:
+- Веб-панель: http://localhost:8765/web/, пульт демонстрации: http://localhost:8765/panel/, проверка: http://localhost:8765/health
+- Демо-учётные записи создаются при первом запуске, пароль у всех `demo12345`
+- Телефон: на экране входа кнопка «Сервер», адрес `http://<IP компьютера>:8765`, телефон и компьютер в одной сети
+- База, ключ подписи токенов и резервные копии лежат в томе `kst-runtime` и переживают пересборку
+- Телеметрия заказчика в репозиторий не входит: положите `data/customer/Вибрация/*.xlsx` и `data/customer/Температура/*.xlsx` до сборки. Без них сервер запускается, но показания датчиков и графики недоступны
+- Модели распознавания текста берутся из пакета `rapidocr` внутри образа, интернет нужен только для сборки
+- Остановить: `docker compose down`, журнал: `docker compose logs -f app`
 
-- веб-панель: http://localhost:8765/web/
-- в приложении: «Сервер» на экране входа, адрес `http://<IP компьютера>:8765`, телефон и компьютер в одной сети
-- база, ключ подписи токенов и резервные копии лежат в томе `kst-local-runtime` и переживают пересборку
-
-Без Docker: `.venv/bin/python -m server --port 8765`.
+Без Docker: `python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m server --port 8765`.
 
 ## Развёртывание
 
