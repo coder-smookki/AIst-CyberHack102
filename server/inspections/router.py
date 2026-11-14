@@ -146,7 +146,7 @@ def add_finding(
     inspection_id: int,
     user: Annotated[User, Depends(require_permission("inspect.run", "findings.create"))],
     session: Annotated[Session, Depends(get_session)],
-    kind: Annotated[Literal["checked", "defect", "maintenance", "replacement"], Form()],
+    kind: Annotated[Literal["checked", "defect", "maintenance", "replacement", "note"], Form()],
     node: Annotated[str | None, Form(max_length=64)] = None,
     severity: Annotated[int | None, Form(ge=1, le=3)] = None,
     comment: Annotated[str | None, Form(max_length=2000)] = None,

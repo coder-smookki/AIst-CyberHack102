@@ -88,7 +88,8 @@
        "checked",
        "defect",
        "maintenance",
-       "replacement"
+       "replacement",
+       "note"
       ],
       "title": "Kind",
       "type": "string"

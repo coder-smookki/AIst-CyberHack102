@@ -635,3 +635,20 @@ def test_live_panel_sources(client):
     recent = client.get("/inspections/sound/recent?limit=5", headers=master).json()
     assert recent[0]["inspection_id"] == inspection_id and recent[0]["candidates"]
     assert client.get("/inspections/sound/recent", headers=headers(client, "security")).status_code == 403
+
+
+def test_note_finding_does_not_mark_node(client):
+    """Заметка инженера пишется в осмотр, но не делает узел осмотренным и требует текста."""
+    auth_headers = headers(client, "engineer")
+    inspection_id = start(client, auth_headers)
+    empty = client.post(f"/inspections/{inspection_id}/findings", data={"kind": "note", "node": "seal"}, headers=auth_headers)
+    assert empty.status_code == 422
+    made = client.post(f"/inspections/{inspection_id}/findings",
+                       data={"kind": "note", "node": "seal", "comment": "Подтёков нет, но шумит"}, headers=auth_headers)
+    assert made.status_code == 201, made.text
+    body = made.json()
+    assert body["kind"] == "note" and body["title"] == "Заметка инженера" and body["state"] == "resolved"
+    view = client.get(f"/inspections/{inspection_id}", headers=auth_headers).json()
+    nodes = view["coverage"]["nodes"]
+    seal = nodes["seal"] if isinstance(nodes, dict) else next(node for node in nodes if node["code"] == "seal")
+    assert not seal["inspected"]

@@ -27,7 +27,7 @@ from server.models import Equipment, Finding, Inspection, MaintenanceRecord, Sou
 from server.rules import EQUIPMENT_NODE, GAUGE_READING, defect_signs, diagnose, maintenance_intervals, resource_estimates
 from server.telemetry import CODES, TelemetryDataError, get_player
 
-KINDS = ("checked", "defect", "maintenance", "replacement")
+KINDS = ("checked", "defect", "maintenance", "replacement", "note")
 DECISION_LINE = "Решение принимает инженер"
 OK_NOTE = "не является подтверждением исправности"
 STATUS_TITLES = {
@@ -51,6 +51,7 @@ KIND_TITLES = {
     "defect": "Дефект, зафиксированный инженером",
     "maintenance": "Выполнено техническое обслуживание",
     "replacement": "Выполнена замена узла",
+    "note": "Заметка инженера",
 }
 INSPECTION_TITLES = {"active": "Идёт", "finished": "Завершён"}
 IDENTIFIED_TITLES = {"nameplate": "По шильдику", "manual": "Выбран вручную", "qr": "По QR-коду"}
@@ -333,7 +334,7 @@ def _live_state(session: Session, inspection: Inspection) -> dict:
             tracker = CoverageTracker(card, node_priority(session, inspection.equipment))
             known = _node_names(inspection.equipment)
             for finding in counted(inspection.findings):
-                if finding.node_code in known:
+                if finding.node_code in known and finding_kind(finding) != "note":
                     tracker.mark_checked(finding.node_code)
             state = {"tracker": tracker, "gauge": None}
             _live[key] = state
@@ -630,15 +631,16 @@ def _work_finding(inspection: Inspection, user: User, kind: str, node: str | Non
 def add_finding(session: Session, inspection: Inspection, user: User, *, kind: str, node: str | None = None,
                 severity: int | None = None, comment: str | None = None, sign: str | None = None,
                 rule_id: str | None = None, maintenance_code: str | None = None, frame: bytes | None = None) -> Finding:
-    """Фиксирует результат осмотра узла: проверено, дефект, обслуживание или замена; к записи можно приложить стоп-кадр.
+    """Фиксирует результат осмотра узла: проверено, дефект, обслуживание, замена или заметка; можно приложить стоп-кадр.
 
     Замена обнуляет наработку узла и ставит дату замены; обслуживание и замена пишутся в историю работ.
-    Узел, по которому инженер сделал запись, считается осмотренным в полноте обхода.
+    Узел, по которому инженер сделал запись, считается осмотренным в полноте обхода; заметка его осмотренным не
+    делает и не оценивает состояние узла.
     """
     _ensure_editor(inspection, user)
     _ensure_active(inspection)
     if kind not in KINDS:
-        raise HTTPException(status_code=422, detail="Вид записи: checked, defect, maintenance или replacement")
+        raise HTTPException(status_code=422, detail="Вид записи: checked, defect, maintenance, replacement или note")
     node = (node or "").strip() or None
     if node == EQUIPMENT_NODE:
         node = None
@@ -648,6 +650,8 @@ def add_finding(session: Session, inspection: Inspection, user: User, *, kind: s
         raise HTTPException(status_code=404, detail="Узел не найден")
     if kind == "replacement" and node is None:
         raise HTTPException(status_code=422, detail="Для замены укажите узел")
+    if kind == "note" and not comment:
+        raise HTTPException(status_code=422, detail="Напишите текст заметки")
     if kind != "defect" and (sign or rule_id):
         raise HTTPException(status_code=422, detail="Признак и правило указываются только при фиксации дефекта")
     if kind != "maintenance" and maintenance_code:
@@ -656,6 +660,11 @@ def add_finding(session: Session, inspection: Inspection, user: User, *, kind: s
     record = None
     if kind == "defect":
         finding = _defect_finding(session, inspection, node, severity, sign, rule_id)
+    elif kind == "note":
+        finding = Finding(
+            inspection_id=inspection.id, equipment_id=inspection.equipment_id, node_code=node, source="manual",
+            status="ok", severity=0, title=KIND_TITLES["note"], state="resolved", created_at=now(),
+            evidence=_manual_evidence("note", "заметка, состояние узла не оценивалось"))
     elif kind == "checked":
         finding = Finding(
             inspection_id=inspection.id, equipment_id=inspection.equipment_id, node_code=node, source="manual",
@@ -683,7 +692,7 @@ def add_finding(session: Session, inspection: Inspection, user: User, *, kind: s
         if saved is not None:
             saved.unlink(missing_ok=True)
         raise
-    if finding.node_code:
+    if finding.node_code and kind != "note":
         tracker_for(session, inspection).mark_checked(finding.node_code)
     return finding
 
