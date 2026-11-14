@@ -4,11 +4,13 @@
     python cv/eval_equipment.py <название> <веса.onnx|.pt> [--data data/equipment_ds_v1] [--target 0.9]
                                 [--min-area 0.01] [--clean data/open/clean-indoor/images]
 
-Порог класса - наименьший порог из сетки, при котором точность рамок класса на val не ниже target; рамки
-меньше min_area кадра отбрасываются всегда. Если ни один порог не даёт нужной точности на val, класс
-считается ненадёжным (порог None) и в поставку не идёт. На части test (реальные снимки, не участвовавшие в
-обучении и выборе порогов) считаются точность, полнота и AP50 по классам при общем пороге 0.25 и при
-выбранных порогах; на чистых снимках помещений (клавиатуры, мониторы, стены) - доля снимков с ложной рамкой.
+Порог класса - наименьший порог из сетки (от 0,5), при котором точность рамок класса на val не ниже target;
+рамки меньше min_area кадра отбрасываются всегда. Если в наборе есть часть negtest (кадры без оборудования,
+не участвовавшие в обучении), её чётные кадры добавляются к val при выборе порога (ложная рамка на них
+снижает точность класса), а на нечётных считается доля кадров с ложной рамкой. Если ни один порог не даёт
+нужной точности, класс считается ненадёжным (порог None) и в поставку не идёт. На части test (реальные снимки,
+не участвовавшие в обучении и выборе порогов) считаются точность, полнота и AP50 по классам при общем пороге 0.25
+и при выбранных порогах; на чистых снимках помещений (клавиатуры, мониторы, стены) - доля снимков с ложной рамкой.
 Отчёт runs/reports/<название>.json.
 """
 import argparse
@@ -22,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_equipment import EQUIPMENT_CLASSES
 from protocol import ROOT, average_precision, match, read_frame, read_truth
 
-GRID = tuple(round(0.1 + 0.05 * step, 2) for step in range(17))
+GRID = tuple(round(0.5 + 0.05 * step, 2) for step in range(9))
 
 
 def records_for(model, folder: str, split: str) -> list[dict]:
@@ -94,6 +96,18 @@ def pick_thresholds(records: list[dict], target: float, min_area: float) -> dict
     return chosen
 
 
+def false_alarms(records: list[dict], thresholds: dict, min_area: float) -> dict:
+    """Считает кадры без оборудования, на которых после порогов осталась рамка, и число таких кадров по классам."""
+    by_class, hit = {}, 0
+    for record in records:
+        names = {name for name, _, _ in filtered(record, thresholds, min_area)}
+        hit += bool(names)
+        for name in names:
+            by_class[name] = by_class.get(name, 0) + 1
+    return {"images": len(records), "with_alarm": hit, "rate": round(hit / len(records), 3) if records else None,
+            "by_class": by_class}
+
+
 def clean_alarms(model, folder: str, thresholds: dict, min_area: float) -> dict:
     """Считает чистые снимки, на которых после порогов осталась хотя бы одна рамка оборудования."""
     files = sorted(glob.glob(os.path.join(folder, "*.jpg")) + glob.glob(os.path.join(folder, "*.png")))
@@ -132,13 +146,18 @@ def main() -> None:
     model = LibreYOLO(args.weights)
     val = records_for(model, args.data, "val")
     test = records_for(model, args.data, "test")
-    thresholds = pick_thresholds(val, args.target, args.min_area)
+    negatives = records_for(model, args.data, "negtest")
+    neg_val, neg_test = negatives[0::2], negatives[1::2]
+    thresholds = pick_thresholds(val + neg_val, args.target, args.min_area)
     flat = {name: 0.25 for name in EQUIPMENT_CLASSES}
     report = {"name": args.name, "weights": args.weights, "date": time.strftime("%Y-%m-%d %H:%M"), "target_precision": args.target,
               "min_area": args.min_area, "thresholds": thresholds,
               "val_tuned": class_stats(val, thresholds, args.min_area),
               "test_conf_0.25": class_stats(test, flat, 0.0),
               "test_tuned": class_stats(test, thresholds, args.min_area)}
+    if negatives:
+        report["negatives_conf_0.25"] = false_alarms(neg_test, flat, 0.0)
+        report["negatives_tuned"] = false_alarms(neg_test, thresholds, args.min_area)
     if os.path.isdir(args.clean):
         report["clean_conf_0.25"] = clean_alarms(model, args.clean, flat, 0.0)
         report["clean_tuned"] = clean_alarms(model, args.clean, thresholds, args.min_area)
@@ -150,6 +169,9 @@ def main() -> None:
     for key in ("clean_conf_0.25", "clean_tuned"):
         if key in report:
             print(key, report[key]["with_alarm"], "из", report[key]["images"], report[key]["alarms"])
+    for key in ("negatives_conf_0.25", "negatives_tuned"):
+        if key in report:
+            print(key, report[key])
     print("отчёт:", out)
 
 

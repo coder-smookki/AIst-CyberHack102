@@ -211,5 +211,164 @@
   "threshold_choice": "общий порог 0.15 выбран только по проверочной части defects_ds_v3 (519 кадров): полнота важнее точности; пороги по классам, подобранные по той же части (corrosion 0.15, leak 0.175, terminal_box_burnt 0.625, damage 0.125), ложных тревог не уменьшают, а высокий порог terminal_box_burnt объясняется лёгкими снимками розеток в проверочной части, поэтому оставлен единый порог; рамки от 0.15 до 0.5 сервер отдаёт со статусом check, от 0.5 - defect",
   "not_used": "отражение кадра при выводе (те же веса .pt, runs/reports/rfn384s_plain.json и rfn384s_flip.json: val mAP50 0.701 -> 0.707) удваивает время и на отложенных снимках снижает mAP50 (0.417 -> 0.394) и точность рамок при 0.15 (0.625 -> 0.417), не включено; второй этап проверки вырезок DINOv2 small (cv/verifier.py) на отложенных снимках, копиях и наборе из сети не изменил ни одного числа и добавил бы 30-380 мс на кадр, не включён",
   "thresholds_note": "пороги классов подобраны на проверочной выборке defects_ds_v3 (val): ложные рамки повреждения на val 134 -> 41, подгорания 6 -> 4, доля найденных дефектов на val 0.996 -> 0.991; на фото из сети найдено 0.891 -> 0.826, ложные тревоги 0.138 -> 0.103; чистые снимки помещений с тревогой 3 из 17 -> 1 из 17 (runs/reports/proposed_thresholds_delivered.json)"
+ },
+ {
+  "file": "equipment.onnx",
+  "role": "equipment",
+  "hint": true,
+  "classes": [
+   "pump_unit",
+   "control_cabinet",
+   "transformer",
+   "motor",
+   "valve",
+   "compressor"
+  ],
+  "imgsz": 640,
+  "conf_check": 0.5,
+  "input": "images",
+  "size_mb": 8.4,
+  "family": "LibreYOLO9t",
+  "only": [
+   "pump_unit",
+   "control_cabinet",
+   "transformer",
+   "motor",
+   "compressor"
+  ],
+  "rename": {
+   "motor": "electric_motor"
+  },
+  "labels": {
+   "pump_unit": "Насосный агрегат",
+   "control_cabinet": "Шкаф управления",
+   "transformer": "Трансформатор",
+   "motor": "Электродвигатель",
+   "compressor": "Компрессор"
+  },
+  "min_share": 0.01,
+  "thresholds": {
+   "pump_unit": 0.75,
+   "control_cabinet": 0.5,
+   "transformer": 0.7,
+   "motor": 0.5,
+   "compressor": 0.5
+  },
+  "purpose": "подсказка типа оборудования в кадре (рамка с русской подписью, статус ok); агрегат определяет только шильдик, подсказка его не меняет, дефектом не считается и ничего не записывает; узлы карточки с этими классами (ШУ-3 control_cabinet, ТР-1 transformer) засчитываются в обходе",
+  "weights_licence": "MIT (страница https://huggingface.co/LibreYOLO/LibreYOLO9t, поле license карточки модели: mit, проверено 2026-11-14)",
+  "code_licence": "MIT (libreyolo 1.7.4, https://pypi.org/project/libreyolo/1.7.4/), MIT (onnxruntime 1.32)",
+  "trained_from": "LibreYOLO9t.pt, 25 эпох на mps (runs/equipment_9t_local, без фоновых кадров), затем 6 эпох дообучения с фоновыми кадрами (lr 0.003, пакет 8, вход 640), эпоха 5 выбрана по val",
+  "weights_pt": "runs/equipment_9t_neg/weights/best.pt",
+  "data": "data/equipment_ds_v1 (cv/build_equipment.py и --add-negatives): train 2442 кадра (из них 1022 без оборудования), val 189, test 271, negtest 326 кадров без оборудования; источники и лицензии в data/DATASETS.txt",
+  "threshold_choice": "пороги выбраны только на val вместе с чётными кадрами negtest (cv/eval_equipment.py, сетка 0.5-0.9, наименьший порог с точностью класса от 0.9); test, нечётные кадры negtest, data/open/clean-indoor, data/web_testset и рендеры макета в выборе не участвовали",
+  "measured": {
+   "note": "рамка верна при совпадении класса и пересечении от 0.5; рамки меньше 1 % кадра отбрасываются; runs/reports/equipment_9t_neg.json",
+   "test_271_tuned": {
+    "pump_unit": {
+     "tp": 32,
+     "fp": 3,
+     "fn": 11,
+     "precision": 0.914,
+     "recall": 0.744,
+     "ap50": 0.684
+    },
+    "control_cabinet": {
+     "tp": 83,
+     "fp": 1,
+     "fn": 16,
+     "precision": 0.988,
+     "recall": 0.838,
+     "ap50": 0.838
+    },
+    "transformer": {
+     "tp": 10,
+     "fp": 2,
+     "fn": 8,
+     "precision": 0.833,
+     "recall": 0.556,
+     "ap50": 0.537
+    },
+    "motor": {
+     "tp": 83,
+     "fp": 0,
+     "fn": 3,
+     "precision": 1.0,
+     "recall": 0.965,
+     "ap50": 0.965
+    },
+    "compressor": {
+     "tp": 40,
+     "fp": 0,
+     "fn": 0,
+     "precision": 1.0,
+     "recall": 1.0,
+     "ap50": 1.0
+    }
+   },
+   "non_equipment_negtest_163": {
+    "frames_with_box": 2,
+    "rate": 0.012,
+    "by_class": {
+     "control_cabinet": 2
+    }
+   },
+   "clean_indoor_17": {
+    "frames_with_box": 1,
+    "rate": 0.059,
+    "by_class": {
+     "control_cabinet": 1
+    }
+   },
+   "web_testset_90": {
+    "frames_with_box": 2,
+    "wrong_type": 1,
+    "note": "шкаф на уличной розетке в корпусе (0.56); двигатель насоса на снимке группы gauge - верно"
+   },
+   "blender_test_70": {
+    "frames_with_box": 65,
+    "wrong_type": 0
+   },
+   "latency_640_ms": {
+    "cpu": 26.3,
+    "coreml": 8.9,
+    "note": "одна модель, cv/latency.py, runs/reports/latency_equipment.json"
+   },
+   "before_negatives": "без фоновых кадров (runs/equipment_9t_local, пороги по тем же правилам): рамка на 3 из 17 чистых снимков помещений и на 0.086 кадров без оборудования, компрессор не проходил порог точности (runs/reports/equipment_9t_v2grid.json)",
+   "served_detect_ab_ms": {
+    "default_threads": {
+     "two_models_median": [
+      340.4,
+      346.2
+     ],
+     "three_models_median": [
+      530.0,
+      550.0
+     ],
+     "added": [
+      189.6,
+      203.8
+     ]
+    },
+    "KST_ORT_THREADS_4": {
+     "two_models_median": [
+      122.8,
+      101.8
+     ],
+     "three_models_median": [
+      195.0,
+      157.3
+     ],
+     "added": [
+      72.2,
+      55.5
+     ]
+    },
+    "note": "два прогона; Detector.detect на 60 кадрах 720 px (30 рендеров, 30 снимков из сети), две и три модели по очереди на каждом кадре, 2 круга; M4, машина загружена другими задачами (load average 7-48); при числе потоков по умолчанию (по одному на ядро в каждом из параллельных сеансов) сеансы мешают друг другу, KST_ORT_THREADS=4 быстрее и для двух моделей"
+   }
+  },
+  "not_shipped": {
+   "valve": "выключен: на test точность 0.898, но самые уверенные ложные рамки поставки - задвижка на разъёме клавиатуры (0.89), циркуляционном насосе (0.69) и болте (0.60)"
+  },
+  "limits": "трансформатор: полнота 0.556 на 18 рамках test (обе лишние рамки - тот же трансформатор вместе с вводами, разметка обводит только бак); компрессор проверен только на герметичных холодильных компрессорах одного набора (test из того же источника), винтовые и поршневые промышленные компрессоры не проверялись; шкаф управления изредка срабатывает на задней стенке монитора и табличках (0.55-0.59); снимки двигателей и насосов из сети (web_testset) почти не дают рамок агрегата - модель молчит, а не ошибается"
  }
 ]

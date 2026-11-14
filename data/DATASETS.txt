@@ -388,3 +388,44 @@ kstv-v4-a: RF-DETR nano 384 от весов поставленной модел�
   набора из сети 0.138 -> 0.103, чистые снимки помещений 3 -> 1 из 17). Файлы:
   runs/onnx/defects_v4ft12_int8.onnx, runs/onnx/defects_v4ft12lo_int8.onnx (34.3 МБ), отчёты
   runs/reports/v4_ft12*.json.
+
+ДЕТЕКТОР ТИПА ОБОРУДОВАНИЯ (data/equipment_ds_v1, cv/build_equipment.py, models/equipment.onnx, 2026-11-15)
+Классы: pump_unit, control_cabinet, transformer, motor, valve, compressor; рамка обводит аппарат целиком.
+Сборка: python cv/build_equipment.py data/equipment_ds_v1, затем --add-negatives (кадры без оборудования).
+Источники с рамками (кадров в train / val / test):
+  Roboflow objectdetectionseperatemodels/electric-panel (MIT), классы Electric_panel-t1..t12 -> control_cabinet:
+    612 / 88 / 80. data/open/rf-electric-panel.
+  Roboflow substation-equipment-florence2-datasets/substation-equipment-det-2 (CC BY 4.0), главный трансформатор
+    -> transformer, Switch cabinet -> control_cabinet, рамки от 1 % кадра: 77 / 11 / 25. data/open/rf-substation-equip.
+  Roboflow kmd-0u5yp/valve-mo95u (CC BY 4.0), opened/closed valve -> valve: 250 / 37 / 40. data/open/rf-valve-kmd.
+  Roboflow lms-ynahk/compressor-c238z (CC BY 4.0), compressor: 121 / 13 / 40; это герметичные холодильные
+    компрессоры в одной лаборатории. data/open/rf-compressor-lms.
+  Собственные рендеры макета data/blender/ds (pump_unit - объединение рамок узлов, motor) и data/open/parts_real
+    (motor, pump_unit, valve), части train/val/test этих наборов идут в те же части.
+Кадры без оборудования (пустая разметка; train / negtest):
+  HF blackbeedrones/manometer-sae26 (Apache-2.0), только кадры без рамок: 260 / 80;
+  Roboflow kuanhan-fu-mri8i/leakage-fw7iy (CC BY 4.0): 200 / 45;
+  Roboflow electrical-hazard-zcack/electrical-hazards (Public Domain): 120 / 40;
+  Roboflow khang-nguyen-4jqxa/gauge-analog (MIT): 120 / 40;
+  Roboflow rust-r6xzj/rust-dataset-uk2zn (CC BY 4.0): 100 / 40;
+  Kaggle sardaanaeginova/gas-pipelines (MIT): 100 / 40;
+  Roboflow yolov5-ajg4i/nameplate-y8frp (Public Domain): 60 / 20;
+  data/open/indoor-negatives - 238 снимков Wikimedia Commons (клавиатуры, мониторы, столы, офисы, кухни и т. п.,
+    лицензия каждого снимка в manifest.csv: CC BY-SA 4.0/3.0/2.0, CC BY 4.0/3.0/2.5/2.0, CC0, Public domain),
+    взято 62 / 21.
+Итого: train 2442 кадра (1022 без оборудования; рамки pump_unit 193, control_cabinet 688, transformer 53,
+  motor 359, valve 348, compressor 121), val 189, test 271 (реальные снимки из частей valid/test источников и
+  тестовые части рендеров и parts_real), negtest 326 кадров без оборудования из проверочных частей источников.
+Проверка повторов: каждый кадр train и val сравнивается по pHash и dHash (cv/build_defects_v3.Guard) с
+  отложенными снимками заказчика, их копиями, data/web_testset, тестом parts_real и 17 чистыми снимками
+  data/open/clean-indoor; порог 10 бит - выброшено 0 кадров; повторы внутри набора и между train и test
+  (до 8 бит) отсечены: 309 при первой сборке и 61 среди кадров без оборудования. Журнал - dedup.json и
+  summary.json, опись - manifest.csv.
+Не использованы (скачаны и просмотрены): Roboflow kmutt-xl8hl/air-compressor (наружные блоки кондиционеров),
+  duowork/valve-detection-0bed6 и valve-detection-2-prhdo (схемы P&ID, не снимки), uav-cjzhh/valve-detection-olbzv
+  (снимки с БПЛА, рамки около 0.2 % кадра), university-bswxt/power-equipment (классы без названий), Zenodo
+  PowerTransformer-3K (реклоузеры и трансформаторы на опорах ЛЭП одним классом).
+Обучение: LibreYOLO9t.pt (MIT), 25 эпох на mps без фоновых кадров (runs/equipment_9t_local), затем 6 эпох
+  дообучения с фоновыми кадрами (runs/equipment_9t_neg, эпоха 5 по val). Пороги - только по val и чётным
+  кадрам negtest (cv/eval_equipment.py), проверка - test, нечётные кадры negtest, clean-indoor, data/web_testset
+  и тест рендеров. Класс valve в поставку не включён (см. models/models.json, поле not_shipped).

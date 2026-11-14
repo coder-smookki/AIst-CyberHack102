@@ -2,7 +2,8 @@
 компрессор.
 
 Запуск:
-    python cv/build_equipment.py data/open/equipment_ds_v1 [--seed 0]
+    python cv/build_equipment.py data/equipment_ds_v1 [--seed 0]
+    python cv/build_equipment.py data/equipment_ds_v1 --add-negatives   дописать кадры без оборудования (NEGATIVES)
 
 Отдельный детектор, а не новые классы модели узлов: модель узлов (11 классов, рендеры макета и parts_real)
 остаётся без изменений и не может ухудшиться. Классы EQUIPMENT_CLASSES; рамка обводит агрегат или аппарат целиком.
@@ -57,6 +58,25 @@ SOURCES = [
      "test_cap": 40, "licence": "CC BY 4.0 (Roboflow lms-ynahk/compressor-c238z)"},
 ]
 EXTRA_FILE = os.path.join(OPEN, "equipment_sources.json")
+NEGATIVES = [
+    {"key": "neg_home", "train": "hf-manometer-sae26/yolo/train/images/*", "test": "hf-manometer-sae26/yolo/valid/images/*",
+     "empty_only": True, "cap": 260, "test_cap": 80, "licence": "Apache-2.0 (HF blackbeedrones/manometer-sae26, кадры без рамок)"},
+    {"key": "neg_floor", "train": "rf-leakage-kf/raw/train/images/*", "test": "rf-leakage-kf/raw/valid/images/*",
+     "cap": 200, "test_cap": 50, "licence": "CC BY 4.0 (Roboflow kuanhan-fu-mri8i/leakage-fw7iy)"},
+    {"key": "neg_socket", "train": "rf-electrical-hazards/train/images/*", "test": "rf-electrical-hazards/valid/images/*",
+     "cap": 120, "test_cap": 40, "licence": "Public Domain (Roboflow electrical-hazard-zcack/electrical-hazards)"},
+    {"key": "neg_gauge", "train": "rf-gauge-analog/raw/train/images/*", "test": "rf-gauge-analog/raw/test/images/*",
+     "cap": 120, "test_cap": 40, "licence": "MIT (Roboflow khang-nguyen-4jqxa/gauge-analog)"},
+    {"key": "neg_rust", "train": "rf-rust-5k/raw/train/images/*", "test": "rf-rust-5k/raw/valid/images/*",
+     "cap": 100, "test_cap": 40, "licence": "CC BY 4.0 (Roboflow rust-r6xzj/rust-dataset-uk2zn)"},
+    {"key": "neg_street", "train": "kg-gas-pipelines/raw/valid/*.jpg", "test": "kg-gas-pipelines/raw/test/*.jpg",
+     "cap": 100, "test_cap": 40, "licence": "MIT (Kaggle sardaanaeginova/gas-pipelines)"},
+    {"key": "neg_plate", "train": "rf-nameplate-y8frp/raw/train/images/*", "test": "rf-nameplate-y8frp/raw/test/images/*",
+     "cap": 60, "test_cap": 20, "licence": "Public Domain (Roboflow yolov5-ajg4i/nameplate-y8frp)"},
+    {"key": "neg_indoor", "train": "indoor-negatives/images/*", "test": None, "test_every": 4,
+     "cap": 400, "test_cap": 100, "licence": "Wikimedia Commons, лицензия каждого снимка в indoor-negatives/manifest.csv"},
+]
+CLEAN_TEST = os.path.join(OPEN, "clean-indoor", "images")
 
 
 def union_box(rows: list[tuple], names: tuple) -> tuple | None:
@@ -199,12 +219,77 @@ def add_source(writer: EquipmentWriter, source: dict, rng: random.Random) -> dic
     return taken
 
 
+def has_boxes(path: str) -> bool:
+    """Проверяет, есть ли у снимка набора YOLO непустой файл разметки рядом (папка labels вместо images)."""
+    label = os.path.splitext(path.replace(os.sep + "images" + os.sep, os.sep + "labels" + os.sep))[0] + ".txt"
+    return os.path.exists(label) and bool(open(label).read().strip())
+
+
+def add_negatives(out: str, seed: int) -> dict:
+    """Дописывает в собранный набор кадры без оборудования: в train (пустая разметка) и в часть negtest.
+
+    Детектор, обученный только на кадрах с оборудованием, находит "шкаф" на клавиатурах и мониторах, поэтому
+    фоновые кадры обязательны. Кадры train берутся из обучающих частей источников NEGATIVES, кадры negtest -
+    из их проверочных частей (или каждый test_every-й кадр), в обучение они не попадают. Чистые снимки
+    помещений data/open/clean-indoor добавляются к защищённым: их повторы в train не допускаются.
+    """
+    rng = random.Random(seed)
+    spec = json.load(open(os.path.join(ROOT, "cv", "customer_labels.json"), encoding="utf-8"))
+    guard = build_guard(spec)
+    for path in sorted(glob.glob(os.path.join(CLEAN_TEST, "*"))):
+        image = read_any(path)
+        if image is not None:
+            guard.protect("clean:" + os.path.basename(path), image)
+    writer = EquipmentWriter(out, guard, rng)
+    taken = {}
+    for source in NEGATIVES:
+        pools = {"train": sorted(glob.glob(os.path.join(OPEN, source["train"]))),
+                 "negtest": sorted(glob.glob(os.path.join(OPEN, source["test"]))) if source.get("test") else []}
+        if source.get("test_every"):
+            pools["negtest"] = pools["train"][::source["test_every"]]
+            pools["train"] = [path for path in pools["train"] if path not in set(pools["negtest"])]
+        counts = {}
+        for split, pool in pools.items():
+            if source.get("empty_only"):
+                pool = [path for path in pool if not has_boxes(path)]
+            rng.shuffle(pool)
+            limit, done = source["cap" if split == "train" else "test_cap"], 0
+            for index, path in enumerate(pool):
+                if done >= limit:
+                    break
+                done += writer.put("test" if split == "negtest" else "train", f"{source['key']}_{split[:2]}{index:05d}",
+                                   path, [], source["key"], source["licence"])
+            counts[split] = done
+        taken[source["key"]] = counts
+        print(source["key"], counts, flush=True)
+    for name in os.listdir(os.path.join(out, "images", "test")):
+        if name.startswith("neg_"):
+            for kind in ("images", "labels"):
+                os.makedirs(os.path.join(out, kind, "negtest"), exist_ok=True)
+                stem = name if kind == "images" else os.path.splitext(name)[0] + ".txt"
+                os.replace(os.path.join(out, kind, "test", stem), os.path.join(out, kind, "negtest", stem))
+    for row in writer.manifest:
+        if row["split"] == "test":
+            row["split"], row["file"] = "negtest", row["file"].replace("images/test/", "images/negtest/")
+    with open(os.path.join(out, "manifest.csv"), "a", encoding="utf-8", newline="") as handle:
+        csv.DictWriter(handle, fieldnames=["file", "split", "source", "origin", "licence", "classes"]).writerows(writer.manifest)
+    summary = json.load(open(os.path.join(out, "summary.json"), encoding="utf-8"))
+    summary["negatives"] = {"sources": taken, "dropped_as_test_duplicates": writer.dropped, "twins": writer.twins}
+    summary["splits"] = {split: equipment_counts(out, split) for split in ("train", "val", "test", "negtest")}
+    json.dump(summary, open(os.path.join(out, "summary.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return taken
+
+
 def main() -> None:
-    """Собирает набор, data.yaml, опись, журнал повторов и сводку."""
+    """Собирает набор, data.yaml, опись, журнал повторов и сводку; с --add-negatives дописывает фоновые кадры."""
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--add-negatives", action="store_true")
     args = parser.parse_args()
+    if args.add_negatives:
+        print(json.dumps(add_negatives(args.out, args.seed), ensure_ascii=False))
+        return
     rng = random.Random(args.seed)
     if os.path.exists(args.out):
         shutil.rmtree(args.out)

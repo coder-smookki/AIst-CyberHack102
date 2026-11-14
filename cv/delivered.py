@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from protocol import (DEFECT_CLASSES, DEFECT_NAMES, FLOOR, LEVELS, PART_CLASSES, ROOT, SET_NOTES, SET_PATHS,
                       labelled_records, parts_labelled, summarize, web_records)
-from server.recognition import merge_boxes, model_thresholds
+from server.recognition import merge_boxes, model_options, model_thresholds
 
 CACHE = os.path.join(ROOT, "runs", "reports", "cache")
 
@@ -78,7 +78,12 @@ def combine(per_model: list[list[dict]], entries: list[dict]) -> list[dict]:
 
 
 def evaluate(entries: list[dict], models_dir: str, sets: list[str], mode: str, loader=None) -> dict:
-    """Считает показатели набора моделей на перечисленных наборах с порогами и объединением сервера."""
+    """Считает показатели набора моделей на перечисленных наборах с порогами и объединением сервера.
+
+    Модели-подсказки (hint в models.json, детектор типа оборудования) пропускаются: их классы переименованы и
+    с рамками узлов и дефектов не объединяются, поэтому на показатели этих наборов они не влияют.
+    """
+    entries = [entry for entry in entries if not model_options(entry).get("hint")]
     keep = DEFECT_NAMES if mode == "defects" else PART_CLASSES
     classes = DEFECT_CLASSES if mode == "defects" else PART_CLASSES
     if loader is None:

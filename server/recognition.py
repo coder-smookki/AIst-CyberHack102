@@ -160,24 +160,78 @@ def model_thresholds(entry) -> tuple[float, dict[str, float]]:
     return default, classes
 
 
+def model_options(entry) -> dict:
+    """Возвращает необязательные правила вывода модели из записи models.json.
+
+    hint - рамки модели служат только подсказкой типа оборудования и не участвуют в выборе агрегата (агрегат
+    определяет шильдик); only - перечень классов, которые модель вправе выдавать (остальные отбрасываются);
+    rename - новые имена классов, чтобы классы подсказки не смешивались с классами узлов; labels - русские
+    подписи классов; min_share - наименьшая доля кадра, которую должна занимать рамка.
+    """
+    if not isinstance(entry, dict):
+        return {}
+    options = {}
+    if entry.get("hint") is True:
+        options["hint"] = True
+    if isinstance(entry.get("only"), list):
+        options["only"] = {str(name) for name in entry["only"]}
+    for key in ("rename", "labels"):
+        if isinstance(entry.get(key), dict):
+            options[key] = {str(name): str(value) for name, value in entry[key].items()}
+    share = entry.get("min_share")
+    if isinstance(share, (int, float)) and not isinstance(share, bool) and 0.0 < float(share) < 1.0:
+        options["min_share"] = float(share)
+    return options
+
+
 def _model_boxes(model, frame: np.ndarray, default: float = WEAK_CONFIDENCE,
-                 classes: dict[str, float] | None = None) -> list[dict]:
+                 classes: dict[str, float] | None = None, options: dict | None = None) -> list[dict]:
     """Запускает одну модель на кадре и возвращает её рамки в пикселях кадра.
 
     Модель запускается с наименьшим из её порогов, затем каждая рамка сверяется с порогом своего класса.
+    Правила options (model_options) применяются только к этой модели: лишние классы и слишком мелкие рамки
+    отбрасываются, класс переименовывается, рамка получает русскую подпись label и пометку hint.
     """
     classes = classes or {}
+    options = options or {}
     result = model(frame, conf=min([default, *classes.values()]))
     result = result[0] if isinstance(result, (list, tuple)) else result
     names = getattr(result, "names", None) or getattr(model, "names", {})
+    area = float(frame.shape[0] * frame.shape[1]) or 1.0
     boxes = []
     for corners, index, score in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf):
         name, conf = str(names[int(index)]), float(score)
-        if conf < classes.get(name, default):
+        if conf < classes.get(name, default) or ("only" in options and name not in options["only"]):
             continue
         x1, y1, x2, y2 = (round(float(value), 1) for value in corners)
-        boxes.append({"cls": name, "conf": round(conf, 3), "x1": x1, "y1": y1, "x2": x2, "y2": y2})
+        if "min_share" in options and (x2 - x1) * (y2 - y1) / area < options["min_share"]:
+            continue
+        box = {"cls": options.get("rename", {}).get(name, name), "conf": round(conf, 3), "x1": x1, "y1": y1, "x2": x2, "y2": y2}
+        if name in options.get("labels", {}):
+            box["label"] = options["labels"][name]
+        if options.get("hint"):
+            box["hint"] = True
+            if box["cls"] != name:
+                box["_twin"] = name
+        boxes.append(box)
     return boxes
+
+
+def drop_twin_hints(boxes: list[dict]) -> list[dict]:
+    """Убирает подсказку типа оборудования, если тот же предмет уже найден моделью узлов.
+
+    Переименованный класс подсказки (например electric_motor) уступает рамке исходного класса (motor) другой
+    модели при сильном пересечении, чтобы на кадре не было двух рамок одного двигателя. Рамки моделей узлов и
+    дефектов при этом не меняются. Служебное поле _twin из ответа убирается.
+    """
+    solid = [box for box in boxes if not box.get("hint")]
+    kept = []
+    for box in boxes:
+        twin = box.get("_twin")
+        if twin and any(other["cls"] == twin and _overlap(box, other) >= MERGE_OVERLAP for other in solid):
+            continue
+        kept.append({key: value for key, value in box.items() if key != "_twin"})
+    return kept
 
 
 class Detector:
@@ -203,7 +257,7 @@ class Detector:
         Возвращает найденные файлы, отсутствующие файлы, дефектные классы и пороги моделей из описания
         и замечание о нечитаемом описании.
         """
-        names, defects, note, thresholds = [DEFAULT_MODEL], set(), None, {}
+        names, defects, note, thresholds, options = [DEFAULT_MODEL], set(), None, {}, {}
         manifest = self._dir / MANIFEST
         if manifest.is_file():
             try:
@@ -216,6 +270,7 @@ class Detector:
                     if isinstance(name, str) and name.endswith(".onnx") and Path(name).name == name:
                         listed.append(name)
                         thresholds.setdefault(name, model_thresholds(entry))
+                        options.setdefault(name, model_options(entry))
                         if isinstance(entry, dict):
                             defects.update(str(cls) for cls in entry.get("defect_classes") or [])
                 if not listed:
@@ -223,10 +278,12 @@ class Detector:
                 names = list(dict.fromkeys(listed))
             except (OSError, ValueError, AttributeError, TypeError):
                 defects, note, thresholds = set(), f"{MANIFEST} не читается - используется {DEFAULT_MODEL}", {}
+                options = {}
                 names = [DEFAULT_MODEL]
         found = [name for name in names if (self._dir / name).is_file()]
         return {"files": found, "missing": [name for name in names if name not in found], "defects": defects, "note": note,
-                "thresholds": {name: thresholds.get(name, (WEAK_CONFIDENCE, {})) for name in found}}
+                "thresholds": {name: thresholds.get(name, (WEAK_CONFIDENCE, {})) for name in found},
+                "options": {name: options.get(name, {}) for name in found}}
 
     @property
     def available(self) -> bool:
@@ -271,7 +328,7 @@ class Detector:
             models, failed = [], []
             for name in plan["files"]:
                 try:
-                    models.append((self._loader(self._dir / name), *plan["thresholds"][name]))
+                    models.append((self._loader(self._dir / name), *plan["thresholds"][name], plan["options"][name]))
                 except Exception as error:
                     logger.warning("Модель %s не загрузилась: %s", name, type(error).__name__)
                     failed.append(name)
@@ -286,9 +343,9 @@ class Detector:
 
     def _run_one(self, index: int, frame: np.ndarray) -> list[dict]:
         """Прогоняет кадр через одну модель; одна и та же модель не вызывается из двух потоков одновременно."""
-        model, default, classes = self._models[index]
+        model, default, classes, options = self._models[index]
         with self._model_locks[index]:
-            return _model_boxes(model, frame, default, classes)
+            return _model_boxes(model, frame, default, classes, options)
 
     def detect(self, frame: np.ndarray) -> list[dict]:
         """Находит узлы и дефекты на кадре всеми загруженными моделями с их порогами и объединяет рамки.
@@ -302,7 +359,7 @@ class Detector:
         else:
             futures = [self._pool.submit(self._run_one, index, frame) for index in range(len(models))]
             boxes = [box for future in futures for box in future.result()]
-        return merge_boxes(boxes)
+        return drop_twin_hints(merge_boxes(boxes))
 
     def _warm(self) -> None:
         """Загружает модели и прогоняет пустой кадр, чтобы первый кадр инженера не ждал загрузки."""

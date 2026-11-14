@@ -197,7 +197,7 @@ def test_models_manifest_matches_files():
         meta = onnxruntime.InferenceSession(file, providers=["CPUExecutionProvider"]).get_modelmeta().custom_metadata_map
         names = json.loads(meta["names"])
         assert entry["classes"] == [names[str(index)] for index in range(len(names))]
-        assert entry["imgsz"] == int(meta["imgsz"]) and entry["role"] in ("stand", "defects")
+        assert entry["imgsz"] == int(meta["imgsz"]) and entry["role"] in ("stand", "defects", "equipment")
 
 
 def test_annotated_picture_fits_size_limit(tmp_path):
