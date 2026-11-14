@@ -366,7 +366,7 @@ def _remarks(findings) -> list[Finding]:
 
 def _unresolved(session: Session, equipment_id: str, node_code: str | None = None) -> list[Finding]:
     """Читает незакрытые замечания агрегата или одного его узла, сначала новые."""
-    query = select(Finding).where(Finding.equipment_id == equipment_id, Finding.state != "resolved",
+    query = select(Finding).where(Finding.equipment_id == equipment_id, Finding.state.notin_(("resolved", "rejected")),
                                   Finding.status != "ok")
     if node_code is not None:
         query = query.where(Finding.node_code == node_code)
@@ -538,7 +538,10 @@ def _card(session: Session, reply: Reply, unit: Unit) -> None:
 
 
 def _attention(session: Session, units: list[Unit]) -> Reply:
-    """Отвечает, какие агрегаты требуют внимания и почему; агрегаты идут от самых срочных."""
+    """Отвечает, какие агрегаты требуют внимания и почему; агрегаты идут от самых срочных.
+
+    Ссылки даются на агрегаты, требующие внимания; если таких нет - на все.
+    """
     reply = Reply("attention")
     if not units:
         reply.say("В базе нет оборудования.")
@@ -547,7 +550,7 @@ def _attention(session: Session, units: list[Unit]) -> Reply:
     listed = [(unit, _reasons(session, unit)) for unit in units]
     listed.sort(key=lambda entry: (_urgency(entry[1]), entry[0].id))
     urgent = [entry for entry in listed if entry[1]]
-    for unit, _ in listed:
+    for unit, _ in urgent or listed:
         reply.link("equipment", unit.item.name, "equipment", unit.id)
     if len(units) > 1:
         reply.say(f"Внимания требуют {len(urgent)} из {len(units)} "
@@ -986,7 +989,7 @@ def _records(session: Session, units: list[Unit], rules: list[dict]) -> list[sea
     records = _rule_records(rules)
     for unit in units:
         names = unit.node_names
-        findings = select(Finding).where(Finding.equipment_id == unit.id, Finding.status != "ok")
+        findings = select(Finding).where(Finding.equipment_id == unit.id, Finding.status != "ok", Finding.state != "rejected")
         for finding in session.scalars(findings.order_by(Finding.id.desc()).limit(RECORD_LIMIT)):
             text = " ".join(filter(None, (finding.diagnosis, finding.recommendation, finding.comment,
                                           names.get(finding.node_code))))

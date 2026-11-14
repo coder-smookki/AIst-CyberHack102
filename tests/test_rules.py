@@ -241,11 +241,13 @@ def test_rules_file_structure():
 
 
 def test_load_rules_groups():
-    """Правила делятся на группы: 12 правил заказчика, 5 уставок его баз и одно общее визуальное."""
+    """Группы правил: 12 заказчика, 5 уставок, одно по звуку, 7 демонстрационных для шкафа и трансформатора, одно визуальное."""
     assert len(load_rules("customer")) == 12
     assert [rule["id"] for rule in load_rules("threshold")] == ["S01", "S02", "S03", "S04", "S05"]
+    assert [rule["id"] for rule in load_rules("sound")] == ["N01"]
+    assert [rule["id"] for rule in load_rules("demo")] == ["C01", "C02", "C03", "T01", "T02", "T03", "T04"]
     assert [rule["id"] for rule in load_rules("visual")] == ["V01"]
-    assert len(load_rules()) == 18
+    assert len(load_rules()) == 26
 
 
 def test_shared_constants_and_defect_signs():
@@ -296,7 +298,7 @@ def test_rules_file_errors(tmp_path, monkeypatch):
     finally:
         monkeypatch.undo()
         engine._document.cache_clear()
-    assert len(load_rules()) == 18
+    assert len(load_rules()) == 26
 
 
 def test_inputs_of_other_types():

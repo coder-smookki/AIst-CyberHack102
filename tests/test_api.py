@@ -106,10 +106,10 @@ def closed_with(socket) -> tuple[dict, int]:
 
 
 def test_health_without_login(server):
-    """Проверка готовности отвечает без входа: база доступна, три агрегата, детектор готов."""
+    """Проверка готовности отвечает без входа: база доступна, пять единиц оборудования, детектор готов."""
     client, _ = server
     body = client.get("/health").json()
-    assert body["ok"] is True and body["database"] == "ok" and body["equipment"] == 3
+    assert body["ok"] is True and body["database"] == "ok" and body["equipment"] == 5
     assert body["detector"]["ready"] is True
 
 

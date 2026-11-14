@@ -25,7 +25,8 @@ import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import admin, assistant, auth, config, db, equipment, inspections, recognition, telemetry_api, webadmin_api, workflow
+from server import (admin, assistant, auth, config, db, equipment, inspections, recognition, rules_api, site, telemetry_api,
+                    webadmin_api, workflow)
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -329,6 +330,8 @@ def create_app(detector=None) -> FastAPI:
     app.include_router(equipment.router)
     app.include_router(telemetry_api.router)
     app.include_router(inspections.router)
+    app.include_router(rules_api.router)
+    app.include_router(site.router)
     app.include_router(assistant.router)
     app.include_router(workflow.router)
     app.include_router(admin.router)

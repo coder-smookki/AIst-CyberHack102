@@ -224,10 +224,11 @@ def test_open_findings(session):
     assert "Коррозия на корпусе насоса" not in reply.answer and "замечаний нет" not in reply.answer
     assert targets(reply) == [moisture, N101]
     everywhere = ask(session, "Какие дефекты ещё не устранены?")
-    assert everywhere.facts[0] == "Всего незакрытых замечаний: 2, агрегатов с замечаниями: 2 из 3."
+    assert everywhere.facts[0] == "Всего незакрытых замечаний: 2, агрегатов с замечаниями: 2 из 5."
     assert "Агрегат насосный винтовой №1 (AMS-1): незакрытых замечаний нет." in everywhere.facts
     assert "Коррозия рамы у анкерного болта, узел «Рама и анкерные болты», правило R02: требует проверки, в работе" in everywhere.answer
-    assert targets(everywhere) == [corrosion, moisture, AMS1, AMS2, N101]
+    assert targets(everywhere) == [corrosion, moisture, AMS1, AMS2, N101, "kstvizor://equipment/SHU-3",
+                                   "kstvizor://equipment/TR-1"]
 
 
 def test_resolved_findings_on_request(session):
@@ -407,7 +408,7 @@ def test_units_needing_attention(session):
     """Какие агрегаты требуют внимания: причины из замечаний и сроков, сначала самые срочные."""
     reply = ask(session, "Какое оборудование требует внимания?")
     assert reply.intent == "attention"
-    assert reply.facts[0] == "Внимания требуют 3 из 3 агрегатов."
+    assert reply.facts[0] == "Внимания требуют 3 из 5 агрегатов."
     assert reply.facts[1] == "Агрегат насосный винтовой №2 (AMS-2), Узел откачки, площадка 1, остановлен - 3 причины:"
     assert reply.facts[2].startswith("- Незакрытое замечание: Коррозия рамы у анкерного болта")
     assert reply.facts[3].startswith("- Ресурс узла «Торцевое уплотнение»: срок наступил: израсходовано 224,8 %")
@@ -445,14 +446,15 @@ def test_equipment_card(session):
 def test_equipment_list_and_modes(session):
     """Список оборудования и вопрос о режиме: перечень из базы с местом, режимом и наработкой."""
     listing = ask(session, "Покажи список оборудования")
-    assert listing.intent == "equipment_list" and listing.facts[0] == "В базе 3 единицы оборудования."
+    assert listing.intent == "equipment_list" and listing.facts[0] == "В базе 5 единиц оборудования."
     assert "- Агрегат насосный винтовой №1 (AMS-1): Узел откачки, площадка 1, в работе, наработка 9800 ч." in listing.facts
-    assert targets(listing) == [AMS1, AMS2, N101]
+    assert targets(listing)[:3] == [AMS1, AMS2, N101] and len(targets(listing)) == 5
     stopped = ask(session, "Какие агрегаты остановлены?", "N-101")
-    assert stopped.facts == ["Остановлено 1 из 3 единиц оборудования.",
+    assert stopped.facts == ["Остановлено 1 из 5 единиц оборудования.",
                              "- Агрегат насосный винтовой №2 (AMS-2): Узел откачки, площадка 1, остановлен, наработка 10650 ч."]
     assert targets(stopped) == [AMS2]
-    assert targets(ask(session, "что сейчас в работе?")) == [AMS1, N101]
+    assert targets(ask(session, "что сейчас в работе?")) == [AMS1, N101, "kstvizor://equipment/SHU-3",
+                                                             "kstvizor://equipment/TR-1"]
     maker = ask(session, "Какой производитель у Н-101?")
     assert maker.intent == "equipment" and "производитель KST DEMO PUMPS." in maker.facts[0]
 
@@ -463,9 +465,9 @@ def test_unknown_unit(session):
     assert reply.intent == "unknown_equipment" and not reply.found
     assert reply.facts[0] == "Не нашёл в базе оборудование или запись с обозначением «Н-999»."
     assert reply.facts[1] == ("В базе есть: Агрегат насосный винтовой №1 (AMS-1), Агрегат насосный винтовой №2 (AMS-2), "
-                              "Насос Н-101 (N-101).")
+                              "Насос Н-101 (N-101), Шкаф управления ШУ-3 (SHU-3), Силовой трансформатор ТМ-400/10 (TR-1).")
     assert "осмотр" not in reply.answer
-    assert targets(reply) == [AMS1, AMS2, N101]
+    assert targets(reply)[:3] == [AMS1, AMS2, N101]
     with_context = ask(session, "история Н-999", "N-101")
     assert not with_context.found and "«Н-999»" in with_context.answer
     by_serial = ask(session, "последний осмотр агрегата с номером 99999999")
@@ -547,7 +549,7 @@ def test_equipment_context_narrows_search(session):
     plural = ask(session, "история агрегатов на узле откачки", "AMS-2")
     assert targets(plural)[0] == f"{AMS1}/history" and f"{AMS2}/history" in targets(plural)
     everywhere = ask(session, "Какое оборудование требует внимания?", "AMS-1")
-    assert everywhere.facts[0] == "Внимания требуют 3 из 3 агрегатов." and targets(everywhere)[:3] == [AMS2, N101, AMS1]
+    assert everywhere.facts[0] == "Внимания требуют 3 из 5 агрегатов." and targets(everywhere)[:3] == [AMS2, N101, AMS1]
     named = ask(session, "история Н-101", "AMS-2")
     assert targets(named)[0] == f"{N101}/history" and all("AMS-2" not in line for line in named.facts)
     seal = ask(session, "когда меняли уплотнение?", "AMS-1")

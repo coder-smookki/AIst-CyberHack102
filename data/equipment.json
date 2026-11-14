@@ -75,6 +75,66 @@
     {"id": "frame", "name": "Рама и анкерные болты", "classes": ["corrosion"], "norm_hours": null, "norm_years": null, "installed": "2023-07-20", "replaced": null, "hours": null, "source": "Инструкция, п. 8.1.1: затяжка крепежа раз в 3 месяца"}
    ],
    "documents": [{"id": "ams-passport-2", "title": "Паспорт насоса №2", "file": "Документация/Паспорта Насосов/1) Насос №2 ПС.pdf"}]
+  },
+  {
+   "id": "SHU-3",
+   "name": "Шкаф управления ШУ-3",
+   "type": "control_cabinet",
+   "model": "ШУ-3/0,4-22-IP54",
+   "serial": "2408-0317",
+   "manufacturer": "KST DEMO ELECTRO",
+   "location": "Насосная станция, щитовая",
+   "commissioned": "2021-03-15",
+   "mode": "running",
+   "run_hours": 48200,
+   "telemetry": false,
+   "demo": true,
+   "card_source": "Демонстрационная карточка: значения условные, уточнить по паспорту шкафа",
+   "specs": {"voltage_v": 380, "rated_current_a": 63, "protection": "IP 54", "feeds": "Н-101, АМС-1, АМС-2", "cooling": "Принудительная вентиляция с фильтром"},
+   "maintenance": [
+    {"code": "TO-1", "name": "ТО-1", "interval_hours": 4380, "last_at_hours": 45000, "work": "Осмотр, протяжка клеммных соединений, очистка или замена фильтра вентиляции, проверка индикации"},
+    {"code": "TO-2", "name": "Ревизия", "interval_hours": 17520, "last_at_hours": 35000, "work": "В объёме ТО-1 и дополнительно: проверка контакторов и автоматических выключателей, замер сопротивления изоляции"}
+   ],
+   "nodes": [
+    {"id": "door_seal", "name": "Дверь и уплотнитель", "classes": [], "norm_hours": null, "norm_years": 10, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "terminals", "name": "Клеммные колодки", "classes": [], "norm_hours": null, "norm_years": 15, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования", "parameters": ["temp_cabinet"]},
+    {"id": "contactors", "name": "Контакторы", "classes": [], "norm_hours": null, "norm_years": 15, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования", "parameters": ["temp_cabinet"]},
+    {"id": "breakers", "name": "Автоматические выключатели", "classes": [], "norm_hours": null, "norm_years": 15, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "indicators", "name": "Сигнальная арматура и индикаторы", "classes": [], "norm_hours": 100000, "norm_years": null, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "cable_entries", "name": "Кабельные вводы", "classes": [], "norm_hours": null, "norm_years": 15, "installed": "2021-03-15", "replaced": null, "hours": 48200, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "vent_filter", "name": "Фильтр вентиляции", "classes": [], "norm_hours": 4380, "norm_years": null, "installed": "2026-07-01", "replaced": null, "hours": 3200, "source": "Демонстрационное значение: уточнить по паспорту оборудования", "parameters": ["temp_cabinet"]}
+   ],
+   "documents": []
+  },
+  {
+   "id": "TR-1",
+   "name": "Силовой трансформатор ТМ-400/10",
+   "type": "power_transformer",
+   "model": "ТМ-400/10-У1",
+   "serial": "1128746",
+   "manufacturer": "KST DEMO ELECTRO",
+   "location": "Насосная станция, КТП-2",
+   "commissioned": "2019-08-01",
+   "mode": "running",
+   "run_hours": 63500,
+   "telemetry": false,
+   "demo": true,
+   "card_source": "Демонстрационная карточка: значения условные, уточнить по паспорту трансформатора",
+   "specs": {"power_kva": 400, "voltage_hv_kv": 10, "voltage_lv_kv": 0.4, "connection": "Y/Yн-0", "cooling": "Естественное масляное (М)", "oil_mass_kg": 270, "mass_kg": 1400},
+   "maintenance": [
+    {"code": "TO-1", "name": "Осмотр", "interval_hours": 4380, "last_at_hours": 61000, "work": "Внешний осмотр бака, радиаторов и вводов, проверка уровня масла и цвета силикагеля, осмотр кабельной коробки"},
+    {"code": "TR", "name": "Текущий ремонт", "interval_hours": 8760, "last_at_hours": 60000, "work": "Очистка изоляторов, проверка уплотнений, замена силикагеля, отбор пробы масла, замер сопротивления изоляции"}
+   ],
+   "nodes": [
+    {"id": "tank", "name": "Бак", "classes": [], "norm_hours": null, "norm_years": 25, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования", "parameters": ["temp_oil"]},
+    {"id": "radiators", "name": "Радиаторы", "classes": [], "norm_hours": null, "norm_years": 25, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "bushings", "name": "Вводы ВН и НН", "classes": [], "norm_hours": null, "norm_years": 25, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "windings", "name": "Обмотки", "classes": [], "norm_hours": null, "norm_years": 25, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования", "parameters": ["temp_winding_tr"]},
+    {"id": "oil_gauge", "name": "Маслоуказатель", "classes": [], "norm_hours": null, "norm_years": 10, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "breather", "name": "Воздухоосушитель", "classes": [], "norm_hours": 8760, "norm_years": null, "installed": "2026-02-01", "replaced": null, "hours": 6800, "source": "Демонстрационное значение: уточнить по паспорту оборудования"},
+    {"id": "cable_box", "name": "Кабельная коробка", "classes": [], "norm_hours": null, "norm_years": 25, "installed": "2019-08-01", "replaced": null, "hours": 63500, "source": "Демонстрационное значение: уточнить по паспорту оборудования"}
+   ],
+   "documents": []
   }
  ]
 }

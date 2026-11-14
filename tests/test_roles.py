@@ -469,7 +469,7 @@ def test_system_status_for_admin(client):
     """Администратор системы видит состояние сервера, базы и моделей, но не учётные записи."""
     admin = bearer(sign_in(client, EMAILS["admin"]))
     status = client.get("/system/status", headers=admin).json()
-    assert status["database"]["file"] == "kst.db" and status["database"]["equipment"] == 3
+    assert status["database"]["file"] == "kst.db" and status["database"]["equipment"] == 5
     assert status["users"]["total"] == 5 and status["detector"] is None
     assert client.get("/admin/users", headers=admin).status_code == 403
 

@@ -165,7 +165,8 @@ def test_report_data_has_everything(reports):
 
 def test_xlsx_sheets_and_russian_text(reports, book):
     """Книга Excel содержит листы с русскими названиями, а ячейки - русский текст об оборудовании и осмотре."""
-    assert book.sheetnames == ["Осмотр", "Оценки по узлам", "Находки", "Основания", "Проверки и работы", "Регламент"]
+    assert book.sheetnames == ["Осмотр", "Оценки по узлам", "Находки", "Основания", "Проверки и работы", "Регламент",
+                               "Обход узлов", "Датчики", "Рекомендации"]
     summary = dict((row[0], row[1]) for row in sheet_rows(book["Осмотр"]) if row[0])
     assert book["Осмотр"]["A1"].value == f"Отчёт об осмотре оборудования № {reports['finished']['inspection']['id']}"
     assert summary["Оборудование"] == "Насос Н-101 (N-101)"

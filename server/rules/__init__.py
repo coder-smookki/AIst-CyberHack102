@@ -6,8 +6,10 @@ from .engine import (
     WEAK_CONFIDENCE,
     defect_signs,
     diagnose,
+    explain_rule,
     gauge_difference_percent,
     load_rules,
+    parameter_meta,
 )
 from .forecast import hours_to_threshold
 from .resource import accrue_hours, maintenance_intervals, resource_estimates
@@ -31,10 +33,12 @@ __all__ = [
     "accrue_hours",
     "defect_signs",
     "diagnose",
+    "explain_rule",
     "gauge_difference_percent",
     "hours_to_threshold",
     "load_rules",
     "maintenance_intervals",
+    "parameter_meta",
     "parameter_level",
     "resource_estimates",
     "temperature_label",

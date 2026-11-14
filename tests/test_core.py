@@ -300,11 +300,11 @@ def test_equipment_list_and_filters(client):
     """Список отдаёт все агрегаты по порядку с числом незакрытых замечаний и умеет отбирать по режиму и типу."""
     head = bearer(sign_in(client))
     items = client.get("/equipment", headers=head).json()
-    assert [item["id"] for item in items] == ["AMS-1", "AMS-2", "N-101"]
+    assert [item["id"] for item in items] == ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"]
     pump = items[2]
     assert pump["serial"] == "2786107-0142" and pump["mode"] == "running" and pump["run_hours"] == 19190
     assert pump["telemetry"] is True and pump["manufacturer"] == "KST DEMO PUMPS" and "nodes" not in pump
-    assert {item["id"]: item["open_findings"] for item in items} == {"AMS-1": 0, "AMS-2": 1, "N-101": 1}
+    assert {item["id"]: item["open_findings"] for item in items} == {"AMS-1": 0, "AMS-2": 1, "N-101": 1, "SHU-3": 0, "TR-1": 0}
     assert pump["last_inspection_at"] == "2026-10-27T14:05:00"
     stopped = client.get("/equipment", headers=head, params={"mode": "stopped"}).json()
     assert [item["id"] for item in stopped] == ["AMS-2"]
@@ -319,9 +319,10 @@ def test_equipment_search(client):
     head = bearer(sign_in(client))
     expected = {
         "н-101": ["N-101"], "Н101": ["N-101"], "n-101": ["N-101"], "2786107": ["N-101"], "27861070142": ["N-101"],
-        "il 65/160": ["N-101"], "IL65160": ["N-101"], "kst demo": ["N-101"], "зал 2": ["N-101"],
+        "il 65/160": ["N-101"], "IL65160": ["N-101"], "kst demo pumps": ["N-101"], "kst demo": ["N-101", "SHU-3", "TR-1"], "зал 2": ["N-101"],
         "ВИНТОВОЙ №2": ["AMS-2"], "21031004-1": ["AMS-1"], "площадка винтовой": ["AMS-1", "AMS-2"],
-        "насос": ["AMS-1", "AMS-2", "N-101"], "насос зал": ["N-101"], "   ": ["AMS-1", "AMS-2", "N-101"],
+        "насос": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"], "насос зал": ["N-101"],
+        "   ": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"], "ТМ-400/10": ["TR-1"], "2408-0317": ["SHU-3"],
         "компрессор": [], "н-101 площадка": [],
     }
     for query, ids in expected.items():

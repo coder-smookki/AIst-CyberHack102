@@ -9,6 +9,7 @@
 import io
 import os
 from datetime import date, datetime
+from importlib import import_module
 from pathlib import Path
 from threading import Lock
 
@@ -22,7 +23,7 @@ from server import workflow
 from server.auth import has_permission, role_title
 from server.equipment import equipment_card, get_equipment
 from server.inspections.coverage import CoverageTracker, static_priority
-from server.models import Equipment, Finding, Inspection, MaintenanceRecord, User, now
+from server.models import Equipment, Finding, Inspection, MaintenanceRecord, SoundRecord, User, now
 from server.rules import EQUIPMENT_NODE, GAUGE_READING, defect_signs, diagnose, maintenance_intervals, resource_estimates
 from server.telemetry import CODES, TelemetryDataError, get_player
 
@@ -36,8 +37,11 @@ STATUS_TITLES = {
     "unknown": "Узел не осмотрен / недостаточно данных",
 }
 STATUS_RANK = {"unknown": 0, "ok": 1, "check": 2, "defect": 3}
-STATE_TITLES = {"open": "Открыто", "in_work": "В работе", "resolved": "Устранено"}
+STATE_TITLES = {"open": "Открыто", "in_work": "В работе", "resolved": "Устранено", "rejected": "Отклонено"}
 NEXT_STATE = {"open": "in_work", "in_work": "resolved"}
+REJECTED = "rejected"
+CLOSED_STATES = ("resolved", REJECTED)
+REJECTABLE = ("open", "in_work")
 SOURCE_TITLES = {"camera": "Камера", "sensor": "Датчики", "resource": "Ресурс", "manual": "Инженер"}
 SEVERITY_TITLES = {1: "наблюдение и проверка", 2: "устранить в плановом порядке", 3: "критично"}
 KIND_TITLES = {
@@ -47,6 +51,7 @@ KIND_TITLES = {
     "replacement": "Выполнена замена узла",
 }
 INSPECTION_TITLES = {"active": "Идёт", "finished": "Завершён"}
+IDENTIFIED_TITLES = {"nameplate": "По шильдику", "manual": "Выбран вручную", "qr": "По QR-коду"}
 MODE_TITLES = {"running": "В работе", "stopped": "Остановлен"}
 WHOLE_UNIT = "Агрегат в целом"
 ENGINEER_MARK = "Отметка инженера"
@@ -95,9 +100,26 @@ def _node_names(item: Equipment) -> dict[str, str]:
     return {node.code: node.name for node in item.nodes}
 
 
+def is_rejected(finding: Finding) -> bool:
+    """Сообщает, что находку отклонили как ложную: она не учитывается нигде, кроме собственной карточки."""
+    return finding.state == REJECTED
+
+
+def counted(findings) -> list[Finding]:
+    """Оставляет находки, которые учитываются в диагнозе, сводке и отчёте: все, кроме отклонённых."""
+    return [finding for finding in findings if not is_rejected(finding)]
+
+
+def _note_person(user_id: int | None, name: str | None) -> dict | None:
+    """Автор комментария или отклонения: номер и имя."""
+    return None if user_id is None else {"id": user_id, "name": name}
+
+
 def finding_view(finding: Finding, node_names: dict[str, str]) -> dict:
     """Описывает находку для ответа сервера; путь к снимку на диске не раскрывается."""
     meta = _meta(finding)
+    notes = list(finding.notes or [])
+    rejection = next((note for note in reversed(notes) if note.get("kind") == REJECTED), None)
     return {
         "id": finding.id, "inspection_id": finding.inspection_id, "equipment_id": finding.equipment_id,
         "node_code": finding.node_code, "node_name": node_names.get(finding.node_code) or WHOLE_UNIT,
@@ -111,6 +133,11 @@ def finding_view(finding: Finding, node_names: dict[str, str]) -> dict:
         "photo_url": f"/inspections/findings/{finding.id}/photo" if finding.photo_path else None,
         "state": finding.state, "state_title": STATE_TITLES.get(finding.state, finding.state),
         "created_at": _stamp(finding.created_at),
+        "rejected": is_rejected(finding), "rejected_at": _stamp(finding.rejected_at),
+        "rejected_by": _note_person(finding.rejected_by_id, rejection.get("user_name") if rejection else None)
+        if finding.rejected_by_id else None,
+        "reject_reason": rejection.get("text") if rejection and is_rejected(finding) else None,
+        "notes": notes,
     }
 
 
@@ -150,19 +177,26 @@ def _ensure_active(inspection: Inspection) -> None:
         raise HTTPException(status_code=409, detail="Осмотр уже завершён - начните новый осмотр")
 
 
-def start_inspection(session: Session, user: User, equipment_id: str) -> tuple[Inspection, bool]:
+def start_inspection(session: Session, user: User, equipment_id: str,
+                     identified_by: str | None = None) -> tuple[Inspection, bool]:
     """Начинает осмотр агрегата; незавершённый осмотр этого же сотрудника на этом агрегате продолжается.
 
+    identified_by - как агрегат опознан: nameplate (по шильдику), manual (выбран вручную) или qr.
     Возвращает осмотр и признак того, что он создан этим вызовом. Повтор запроса после обрыва связи
-    не плодит пустые осмотры.
+    не плодит пустые осмотры; способ опознания продолжаемого осмотра дописывается, если его не было.
     """
     item = get_equipment(session, equipment_id)
     active = session.scalar(
         select(Inspection.id).where(Inspection.equipment_id == item.id, Inspection.user_id == user.id,
                                     Inspection.status == "active").order_by(Inspection.id.desc()))
     if active is not None:
-        return get_inspection(session, active), False
-    inspection = Inspection(equipment_id=item.id, user_id=user.id, started_at=now(), status="active")
+        found = get_inspection(session, active)
+        if identified_by and not found.identified_by:
+            found.identified_by = identified_by
+            session.commit()
+        return found, False
+    inspection = Inspection(equipment_id=item.id, user_id=user.id, started_at=now(), status="active",
+                            identified_by=identified_by)
     session.add(inspection)
     session.commit()
     return get_inspection(session, inspection.id), True
@@ -190,6 +224,8 @@ def _inspection_brief(inspection: Inspection) -> dict:
         "user": _person(inspection.user), "started_at": _stamp(inspection.started_at),
         "finished_at": _stamp(inspection.finished_at), "status": inspection.status,
         "status_title": INSPECTION_TITLES.get(inspection.status, inspection.status), "summary": inspection.summary,
+        "identified_by": inspection.identified_by,
+        "identified_title": IDENTIFIED_TITLES.get(inspection.identified_by) if inspection.identified_by else None,
     }
 
 
@@ -257,7 +293,7 @@ def node_route(session: Session, item: Equipment) -> list[dict]:
                         "Отклонение по датчикам: " + "; ".join(state["reasons"]))
     unresolved = session.execute(
         select(Finding.id, Finding.node_code, Finding.status, Finding.title, Finding.created_at).where(
-            Finding.equipment_id == item.id, Finding.state != "resolved", Finding.status != "ok",
+            Finding.equipment_id == item.id, Finding.state.notin_(CLOSED_STATES), Finding.status != "ok",
             Finding.inspection_id.in_(select(Inspection.id).where(Inspection.status == "finished")),
         ).order_by(Finding.id.desc()))
     for number, code, status, title, created in unresolved:
@@ -285,7 +321,7 @@ def _live_state(session: Session, inspection: Inspection) -> dict:
             card = equipment_card(inspection.equipment)
             tracker = CoverageTracker(card, node_priority(session, inspection.equipment))
             known = _node_names(inspection.equipment)
-            for finding in inspection.findings:
+            for finding in counted(inspection.findings):
                 if finding.node_code in known:
                     tracker.mark_checked(finding.node_code)
             state = {"tracker": tracker, "gauge": None}
@@ -309,7 +345,7 @@ def note_gauge_reading(session: Session, inspection: Inspection, value: float | 
 def _manual_marks(inspection: Inspection) -> set[str]:
     """Собирает отметки инженера из записей осмотра: подтверждённые признаки и узлы, проверенные без замечаний."""
     marks = set()
-    for finding in inspection.findings:
+    for finding in counted(inspection.findings):
         meta = _meta(finding)
         if meta.get("sign"):
             marks.add(meta["sign"])
@@ -318,23 +354,37 @@ def _manual_marks(inspection: Inspection) -> set[str]:
     return marks
 
 
+def diagnosis_inputs(session: Session, inspection: Inspection, extra_marks: frozenset = frozenset()) -> dict:
+    """Входные данные диагностики в осмотре: карточка, показания, тренды, признаки камеры и отметки инженера.
+
+    У идущего осмотра учитываются показание манометра и узлы, увиденные камерой (без неподтверждённых
+    признаков дефектов); у завершённого - только датчики и записи инженера. Отклонённые находки не учитываются.
+    """
+    item = inspection.equipment
+    card = equipment_card(item)
+    readings, trends, moment = _telemetry(item.id)
+    run_hours = readings.get("run_hours", item.run_hours)
+    seen = {}
+    if inspection.status == "active":
+        live = _live_state(session, inspection)
+        if live["gauge"] is not None:
+            readings = {**readings, GAUGE_READING: live["gauge"]}
+        signs = defect_signs()
+        seen = {cls: conf for cls, conf in live["tracker"].visual.items() if cls not in signs}
+    return {"card": card, "readings": readings, "trends": trends, "visual": seen,
+            "marks": _manual_marks(inspection) | extra_marks, "moment": moment, "run_hours": run_hours}
+
+
 def _assess(session: Session, inspection: Inspection, extra_marks: frozenset = frozenset()) -> dict:
     """Собирает всё для оценки агрегата в идущем осмотре и запускает диагностику.
 
     Текущим днём для расчёта ресурса служит момент ленты телеметрии, а без телеметрии - сегодняшняя дата.
     """
-    item = inspection.equipment
-    card = equipment_card(item)
-    live = _live_state(session, inspection)
-    readings, trends, moment = _telemetry(item.id)
-    run_hours = readings.get("run_hours", item.run_hours)
-    if live["gauge"] is not None:
-        readings = {**readings, GAUGE_READING: live["gauge"]}
-    marks = _manual_marks(inspection) | extra_marks
-    signs = defect_signs()
-    seen = {cls: conf for cls, conf in live["tracker"].visual.items() if cls not in signs}
-    diagnosis = diagnose(card, readings, trends, seen, marks)
-    return {"card": card, "moment": moment, "run_hours": run_hours, "diagnosis": diagnosis,
+    _ensure_active(inspection)
+    inputs = diagnosis_inputs(session, inspection, extra_marks)
+    diagnosis = diagnose(inputs["card"], inputs["readings"], inputs["trends"], inputs["visual"], inputs["marks"])
+    moment = inputs["moment"]
+    return {"card": inputs["card"], "moment": moment, "run_hours": inputs["run_hours"], "diagnosis": diagnosis,
             "today": moment.date() if moment else date.today()}
 
 
@@ -621,7 +671,7 @@ def _record_automatic(session: Session, inspection: Inspection, diagnosis: dict)
             select(Finding.id, Finding.created_at).where(
                 Finding.equipment_id == inspection.equipment_id, Finding.rule_id == finding.rule_id,
                 Finding.node_code.is_(None) if finding.node_code is None else Finding.node_code == finding.node_code,
-                Finding.inspection_id != inspection.id, Finding.state != "resolved", Finding.status != "ok",
+                Finding.inspection_id != inspection.id, Finding.state.notin_(CLOSED_STATES), Finding.status != "ok",
             ).order_by(Finding.id.desc())).first()
         if earlier:
             finding.comment = f"Повторно: замечание № {earlier.id} от {earlier.created_at:%d.%m.%Y} не устранено"
@@ -652,13 +702,14 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
         _record_automatic(session, inspection, assessment["diagnosis"])
         session.flush()
         card, diagnosis = assessment["card"], assessment["diagnosis"]
-        statuses = [finding.status for finding in inspection.findings]
-        nodes = _node_estimates(card, assessment["run_hours"], assessment["today"], diagnosis["nodes"], inspection.findings,
-                                coverage)
+        kept = counted(inspection.findings)
+        statuses = [finding.status for finding in kept]
+        nodes = _node_estimates(card, assessment["run_hours"], assessment["today"], diagnosis["nodes"], kept, coverage)
         inspection.status, inspection.finished_at = "finished", finished
         inspection.summary = {
             "findings": len(statuses),
             "by_status": {status: statuses.count(status) for status in ("ok", "check", "defect")},
+            "rejected": len(inspection.findings) - len(kept),
             "duration_s": max(int((finished - inspection.started_at).total_seconds()), 0),
             "status": _worst([diagnosis["status"], *statuses]),
             "coverage": _coverage_brief(coverage),
@@ -667,6 +718,7 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
             "run_hours": assessment["run_hours"],
             "telemetry_at": _stamp(assessment["moment"]),
             "estimates_on": assessment["today"].isoformat(),
+            "sound": sound_brief(session, inspection.id),
         }
         workflow.close_tasks(session, inspection, finished)
         session.commit()
@@ -678,9 +730,25 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
     return get_inspection(session, inspection.id)
 
 
+def sound_brief(session: Session, inspection_id: int) -> dict | None:
+    """Итог последней записи звука осмотра: уровень, отличие от нормы и тексты кандидатов; без записей - None."""
+    record = session.scalar(select(SoundRecord).where(SoundRecord.inspection_id == inspection_id)
+                            .order_by(SoundRecord.id.desc()))
+    if record is None:
+        return None
+    data = record.summary or {}
+    return {"id": record.id, "created_at": _stamp(record.created_at), "level_dbfs": data.get("level_dbfs"),
+            "delta_db": (data.get("baseline") or {}).get("delta_db"),
+            "candidates": [entry["text"] for entry in data.get("candidates") or []]}
+
+
 def list_findings(session: Session, *, inspection_id: int | None = None, equipment_id: str | None = None,
-                  state: str | None = None, include_ok: bool = False, limit: int = 200) -> list[dict]:
-    """Список замечаний, сначала новые; записи без замечаний показываются только по запросу."""
+                  state: str | None = None, include_ok: bool = False, include_rejected: bool = False,
+                  limit: int = 200) -> list[dict]:
+    """Список замечаний, сначала новые; записи без замечаний и отклонённые показываются только по запросу.
+
+    Отклонённые попадают в список, если запрошено именно состояние rejected или include_rejected.
+    """
     query = select(Finding)
     if inspection_id is not None:
         query = query.where(Finding.inspection_id == inspection_id)
@@ -688,6 +756,8 @@ def list_findings(session: Session, *, inspection_id: int | None = None, equipme
         query = query.where(Finding.equipment_id == equipment_id)
     if state:
         query = query.where(Finding.state == state)
+    elif not include_rejected:
+        query = query.where(Finding.state != REJECTED)
     if not include_ok:
         query = query.where(Finding.status != "ok")
     findings = list(session.scalars(query.order_by(Finding.created_at.desc(), Finding.id.desc()).limit(limit)))
@@ -708,32 +778,95 @@ def one_finding_view(session: Session, finding: Finding) -> dict:
     return {**finding_view(finding, _node_names(item)), "equipment_name": item.name}
 
 
-def set_finding_state(session: Session, finding: Finding, state: str, user: User, comment: str | None = None) -> Finding:
-    """Переводит замечание по цепочке «открыто - в работе - устранено»; шаг назад и через ступень не допускается.
+def _note(user: User, text: str, kind: str) -> dict:
+    """Комментарий сотрудника к находке: вид, текст, автор и время."""
+    return {"kind": kind, "text": text, "user_id": user.id, "user_name": user.name, "at": _stamp(now())}
 
-    Повтор уже выполненного перехода ничего не меняет. Комментарий дописывается к замечанию с именем и датой.
+
+def _comment_line(title: str, user: User, text: str) -> str:
+    """Строка комментария в общем тексте находки: заголовок, автор, дата и текст."""
+    return f"{title} - {user.name}, {now():%d.%m.%Y %H:%M}: {text}"
+
+
+def _summary_after_reject(session: Session, finding: Finding) -> None:
+    """Пересчитывает счётчики сводки завершённого осмотра после отклонения находки.
+
+    Итоговый статус становится наихудшим из оставшихся находок; если замечаний не осталось, а прежний итог
+    был «проверка» или «дефект», итог - «видимых проблем не обнаружено».
+    """
+    inspection = session.get(Inspection, finding.inspection_id)
+    summary = dict(inspection.summary or {}) if inspection else {}
+    if not summary:
+        return
+    rows = session.execute(select(Finding.status, Finding.state).where(Finding.inspection_id == inspection.id)).all()
+    statuses = [status for status, state in rows if state != REJECTED]
+    summary["findings"] = len(statuses)
+    summary["by_status"] = {status: statuses.count(status) for status in ("ok", "check", "defect")}
+    summary["rejected"] = len(rows) - len(statuses)
+    if summary.get("status") in ("check", "defect"):
+        summary["status"] = _worst([*statuses, "ok"])
+    inspection.summary = summary
+
+
+def set_finding_state(session: Session, finding: Finding, state: str, user: User, comment: str | None = None) -> Finding:
+    """Переводит замечание по цепочке «открыто - в работе - устранено» или отклоняет его как ложное.
+
+    Шаг назад и через ступень не допускается. Отклонить можно открытое замечание или замечание в работе,
+    только с комментарием-причиной; отклонённое замечание больше не меняет состояние. Повтор уже выполненного
+    перехода ничего не меняет. Комментарий дописывается к замечанию с именем и датой.
     """
     if state not in STATE_TITLES:
-        raise HTTPException(status_code=422, detail="Состояние: open, in_work или resolved")
+        raise HTTPException(status_code=422, detail="Состояние: open, in_work, resolved или rejected")
     if finding.state == state:
         return finding
-    if NEXT_STATE.get(finding.state) != state:
+    note = (comment or "").strip()
+    if state == REJECTED:
+        if finding.state not in REJECTABLE:
+            raise HTTPException(status_code=409, detail=f"Замечание в состоянии «{STATE_TITLES[finding.state]}» "
+                                                        "отклонить нельзя: отклоняются открытые замечания и замечания в работе")
+        if not note:
+            raise HTTPException(status_code=422, detail="Укажите причину отклонения замечания")
+    elif NEXT_STATE.get(finding.state) != state:
         raise HTTPException(
             status_code=409,
             detail=f"Переход из состояния «{STATE_TITLES[finding.state]}» в «{STATE_TITLES[state]}» невозможен: "
                    "порядок - открыто, в работе, устранено")
     values = {"state": state}
-    note = (comment or "").strip()
     if note:
-        line = f"{STATE_TITLES[state]} - {user.name}, {now():%d.%m.%Y %H:%M}: {note}"
+        line = _comment_line(STATE_TITLES[state], user, note)
         values["comment"] = f"{finding.comment}\n{line}" if finding.comment else line
+        values["notes"] = [*(finding.notes or []), _note(user, note, REJECTED if state == REJECTED else "state")]
+    if state == REJECTED:
+        values["rejected_at"], values["rejected_by_id"] = now(), user.id
     moved = session.execute(
         update(Finding).where(Finding.id == finding.id, Finding.state == finding.state).values(**values)
         .execution_options(synchronize_session=False))
+    if moved.rowcount and state == REJECTED:
+        _summary_after_reject(session, finding)
     session.commit()
     session.refresh(finding)
     if moved.rowcount == 0 and finding.state != state:
         raise HTTPException(status_code=409, detail="Состояние замечания уже изменил другой сотрудник - обновите список")
+    return finding
+
+
+def can_comment(session: Session, finding: Finding, user: User, permissions: set[str]) -> bool:
+    """Сообщает, может ли сотрудник комментировать находку: право «Просмотр замечаний» или он автор осмотра."""
+    if "findings.view" in permissions:
+        return True
+    return session.scalar(select(Inspection.user_id).where(Inspection.id == finding.inspection_id)) == user.id
+
+
+def add_comment(session: Session, finding: Finding, user: User, text: str) -> Finding:
+    """Дописывает к находке комментарий сотрудника с временем и автором; пустой комментарий отклоняется."""
+    note = (text or "").strip()
+    if not note:
+        raise HTTPException(status_code=422, detail="Комментарий пустой")
+    line = _comment_line("Комментарий", user, note)
+    finding.comment = f"{finding.comment}\n{line}" if finding.comment else line
+    finding.notes = [*(finding.notes or []), _note(user, note, "comment")]
+    session.commit()
+    session.refresh(finding)
     return finding
 
 
@@ -744,10 +877,11 @@ def _report_nodes(session: Session, inspection: Inspection) -> tuple[list[dict],
     if inspection.status == "active":
         assessment = _assess(session, inspection)
         coverage = _coverage_brief(tracker_for(session, inspection).state())
+        kept = counted(inspection.findings)
         nodes = _node_estimates(assessment["card"], assessment["run_hours"], assessment["today"],
-                                assessment["diagnosis"]["nodes"], inspection.findings, coverage)
+                                assessment["diagnosis"]["nodes"], kept, coverage)
         return nodes, {
-            "status": _worst([assessment["diagnosis"]["status"], *(finding.status for finding in inspection.findings)]),
+            "status": _worst([assessment["diagnosis"]["status"], *(finding.status for finding in kept)]),
             "coverage": coverage, "maintenance": maintenance_intervals(assessment["card"], assessment["run_hours"]),
             "run_hours": assessment["run_hours"], "telemetry_at": _stamp(assessment["moment"]),
             "estimates_on": assessment["today"].isoformat(),
@@ -759,12 +893,13 @@ def _report_nodes(session: Session, inspection: Inspection) -> tuple[list[dict],
             "basis": "Оценки сохранены на момент завершения осмотра",
         }
     card = equipment_card(item)
-    nodes = _node_estimates(card, item.run_hours, date.today(), {}, inspection.findings)
+    kept = counted(inspection.findings)
+    nodes = _node_estimates(card, item.run_hours, date.today(), {}, kept)
     for row in nodes:
         if row["actual"]["status"] == "unknown":
             row["actual"]["reasons"] = ["В этом осмотре по узлу записей нет"]
     return nodes, {
-        "status": _worst(finding.status for finding in inspection.findings), "coverage": None,
+        "status": _worst(finding.status for finding in kept), "coverage": None,
         "maintenance": maintenance_intervals(card, item.run_hours), "run_hours": item.run_hours, "telemetry_at": None,
         "estimates_on": date.today().isoformat(),
         "basis": "Оценки ресурса рассчитаны на дату формирования отчёта: на момент осмотра они не сохранялись",
@@ -787,6 +922,9 @@ def report_data(session: Session, inspection: Inspection) -> dict:
         views.append(view)
     finished = inspection.finished_at
     duration = int((finished - inspection.started_at).total_seconds()) if finished else None
+    confirmed = [view for view in views if view["kind"] == "defect" and not view["rejected"]]
+    extra = import_module("server.inspections.report_extra")
+    card = equipment_card(item)
     return {
         "generated_at": _stamp(now()),
         "decision": DECISION_LINE,
@@ -810,7 +948,16 @@ def report_data(session: Session, inspection: Inspection) -> dict:
         "basis": context["basis"],
         "nodes": nodes,
         "maintenance": context["maintenance"] or [],
-        "findings": [view for view in views if view["kind"] == "defect"],
+        "findings": confirmed,
         "checked": [view for view in views if view["kind"] == "checked"],
         "works": [view for view in views if view["kind"] in ("maintenance", "replacement")],
+        "rejected": [view for view in views if view["rejected"]],
+        "identified": {"code": inspection.identified_by,
+                       "title": IDENTIFIED_TITLES.get(inspection.identified_by, "Не указано")},
+        "walk": extra.walk_section(nodes, context["coverage"], counted(inspection.findings)),
+        "sensors": extra.sensors_section(inspection, context["telemetry_at"]),
+        "sound": extra.sound_section(session, inspection.id),
+        "recommendations": extra.recommendations(confirmed),
+        "next_maintenance": extra.next_maintenance(card, context["run_hours"], nodes),
+        "signatures": extra.signatures(session, inspection, inspection.findings),
     }

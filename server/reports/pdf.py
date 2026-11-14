@@ -4,11 +4,16 @@
 поиска шрифтов. Без такого шрифта отчёт не формируется: русский текст превратился бы в пустые квадраты.
 """
 import io
+import math
 from functools import lru_cache
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from datetime import datetime
+
 from reportlab import rl_config
+from reportlab.graphics.charts.lineplots import LinePlot
+from reportlab.graphics.shapes import Drawing, Line, String
 from reportlab.lib.colors import HexColor, white
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -20,6 +25,7 @@ from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate
 
 from server.reports.xlsx import (
     BRAND,
+    LEVEL_TITLES,
     ESTIMATES_NOTE,
     RESOURCE_STATES,
     STATUS_COLORS,
@@ -28,11 +34,14 @@ from server.reports.xlsx import (
     actual_title,
     calculated_text,
     coverage_note,
+    date_text,
     moment_text,
     normative_text,
     number_text,
     ok_tail,
+    rejected_rows,
     severity_text,
+    sound_rows,
     source_title,
     summary_rows,
 )
@@ -50,6 +59,10 @@ PHOTO_HEIGHT = 60 * mm
 GRID = HexColor("#C9CDD6")
 STRIPE = HexColor("#F4F5F8")
 NO_FINDINGS = "Замечаний и дефектов не зафиксировано"
+CHART_HEIGHT = 46 * mm
+SERIES_COLORS = ("#135AA6", "#2E7D4F", "#8E44AD")
+WARN_COLOR = "#B7791F"
+ALARM_COLOR = "#C53030"
 CELL_LIMIT = 1200
 NO_FONT = ("Не найден шрифт с кириллицей (Arial или DejaVu Sans): отчёт PDF сформировать нельзя. "
            "Установите шрифт DejaVu Sans или сформируйте отчёт Excel")
@@ -266,6 +279,17 @@ def _works(data: dict, styles: dict) -> list:
                    [28 * mm, 42 * mm, 50 * mm, PAGE_WIDTH - 120 * mm], styles)]
 
 
+def _rejected(data: dict, styles: dict) -> list:
+    """Раздел «Отклонено инженером»: находки, признанные ложными, с причиной; в итог они не входят."""
+    rows = rejected_rows(data)
+    if not rows:
+        return []
+    return [Paragraph("Отклонено инженером", styles["section"]),
+            _paragraph("Эти находки признаны ложными и не учитываются в итоге осмотра.", styles["small"]), Spacer(1, 3),
+            _table(["№", "Узел", "Находка", "Отклонил", "Когда", "Причина"], rows,
+                   [10 * mm, 30 * mm, 40 * mm, 28 * mm, 26 * mm, PAGE_WIDTH - 134 * mm], styles)]
+
+
 def _maintenance(data: dict, styles: dict) -> list:
     """Раздел «Регламент обслуживания»: наработка после последнего обслуживания против интервала."""
     if not data["maintenance"]:
@@ -288,11 +312,191 @@ def _closing(data: dict, styles: dict) -> list:
     ])]
 
 
+def _walk(data: dict, styles: dict) -> list:
+    """Сводка обхода: по каждому узлу - осмотрен или нет и его фактический статус."""
+    rows = []
+    for node in data.get("walk") or []:
+        state = _coloured(node.get("title") or node["status"], node["status"])
+        rows.append([node["name"], "осмотрен" if node["inspected"] else "не осмотрен", Paragraph(state, styles["cell"])])
+    if not rows:
+        return []
+    done = sum(1 for node in data["walk"] if node["inspected"])
+    return [Paragraph("Обход узлов", styles["section"]),
+            _paragraph(f"Осмотрено узлов: {done} из {len(rows)}", styles["small"]), Spacer(1, 3),
+            _table(["Узел", "Осмотр", "Статус"], rows, [60 * mm, 30 * mm, PAGE_WIDTH - 90 * mm], styles)]
+
+
+def _hours_before(stamp: str, at: datetime) -> float:
+    """Сколько часов от точки ряда до момента отчёта (отрицательное число)."""
+    return (datetime.fromisoformat(stamp) - at).total_seconds() / 3600.0
+
+
+def _line_chart(lines: list[tuple[str, list[tuple[float, float]], str]], limits: list[tuple[float, str, str]],
+                x_title: str, regular: str, from_zero: bool = True, log_x: bool = False) -> Drawing:
+    """График линиями: ряды значений, горизонтальные линии уставок с подписями, легенда сверху и подпись оси X.
+
+    from_zero - шкала значений от нуля, иначе от наименьшего значения; log_x - ось X логарифмическая
+    (точки передаются с исходными значениями X, подписи оси - в исходных единицах).
+    """
+    if log_x:
+        lines = [(name, [(math.log10(x), y) for x, y in points if x > 0], color) for name, points, color in lines]
+    drawing = Drawing(PAGE_WIDTH, CHART_HEIGHT + 18 * mm)
+    plot = LinePlot()
+    plot.x, plot.y = 14 * mm, 9 * mm
+    plot.width, plot.height = PAGE_WIDTH - 40 * mm, CHART_HEIGHT
+    usable = [points for _, points, _ in lines if points]
+    plot.data = usable or [[(0, 0)]]
+    values = [value for points in usable for _, value in points] + [value for value, _, _ in limits]
+    xs = [moment for points in usable for moment, _ in points] or [0, 1]
+    top = max(values) if values else 1.0
+    bottom = 0.0 if from_zero or not values else min(values)
+    if from_zero:
+        plot.yValueAxis.valueMin = 0
+        plot.yValueAxis.valueMax = top * 1.15 if top > 0 else 1.0
+    else:
+        margin = max((top - bottom) * 0.08, 1.0)
+        plot.yValueAxis.valueMin, plot.yValueAxis.valueMax = bottom - margin, top + margin
+    if log_x:
+        plot.xValueAxis.valueSteps = [value for value in (1.5, 2, 2.5, 3, 3.5, 4, 4.5) if min(xs) <= value <= max(xs)]
+        plot.xValueAxis.labelTextFormat = lambda value: f"{10 ** value:,.0f}".replace(",", "\u00a0")
+    plot.xValueAxis.valueMin, plot.xValueAxis.valueMax = min(xs), max(xs)
+    for axis in (plot.xValueAxis, plot.yValueAxis):
+        axis.labels.fontName, axis.labels.fontSize = regular, 6.5
+    plot.yValueAxis.visibleGrid = True
+    plot.yValueAxis.gridStrokeColor = GRID
+    index = 0
+    for _, points, color in lines:
+        if points:
+            plot.lines[index].strokeColor = HexColor(color)
+            plot.lines[index].strokeWidth = 1.1
+            index += 1
+    drawing.add(plot)
+    span = plot.yValueAxis.valueMax - plot.yValueAxis.valueMin
+    for value, label, color in limits:
+        y = plot.y + (value - plot.yValueAxis.valueMin) / span * plot.height
+        drawing.add(Line(plot.x, y, plot.x + plot.width, y, strokeColor=HexColor(color), strokeWidth=0.8,
+                         strokeDashArray=[3, 2]))
+        drawing.add(String(plot.x + plot.width + 2, y - 2, label, fontName=regular, fontSize=6, fillColor=HexColor(color)))
+    legend_x, legend_y = plot.x, plot.y + plot.height + 5 * mm
+    for name, points, color in lines:
+        drawing.add(Line(legend_x, legend_y + 1, legend_x + 6 * mm, legend_y + 1, strokeColor=HexColor(color), strokeWidth=1.5))
+        drawing.add(String(legend_x + 7 * mm, legend_y - 1, name, fontName=regular, fontSize=6.5))
+        legend_x += 56 * mm
+    drawing.add(String(plot.x, 1.5 * mm, x_title, fontName=regular, fontSize=6.5))
+    return drawing
+
+
+def _sensors(data: dict, styles: dict) -> list:
+    """Раздел датчиков: текущие значения с уставками, графики за 24 ч и 7 сут, правила, сработавшие по датчикам."""
+    sensors = data.get("sensors") or {}
+    story = [Paragraph("Датчики", styles["section"])]
+    if not sensors.get("available"):
+        return story + [_paragraph(sensors.get("reason") or "Телеметрии по агрегату нет", styles["base"])]
+    regular, _ = fonts()
+    rows = [[entry["name"], f"{number_text(entry['value'], 2)} {entry['unit']}" if entry["value"] is not None else "нет данных",
+             number_text(entry["warn"], 1) if entry["warn"] is not None else "-",
+             number_text(entry["alarm"], 1) if entry["alarm"] is not None else "-",
+             Paragraph(_coloured(LEVEL_TITLES.get(entry["level"], "-"), {"ok": "ok", "warn": "check", "alarm": "defect"}
+                                 .get(entry["level"], "unknown")), styles["cell"])]
+            for entry in sensors["current"]]
+    story += [_paragraph(f"Показания на {moment_text(sensors['at'])}", styles["small"]), Spacer(1, 2),
+              _table(["Параметр", "Значение", "Предупреждение", "Тревога", "Уровень"], rows,
+                     [62 * mm, 32 * mm, 28 * mm, 24 * mm, PAGE_WIDTH - 146 * mm], styles)]
+    at = datetime.fromisoformat(sensors["at"])
+    for key in ("24h", "7d"):
+        window = sensors["series"][key]
+        for group in sensors["groups"]:
+            if not group["params"]:
+                continue
+            lines, limits = [], []
+            for number, code in enumerate(group["params"]):
+                meta = sensors["meta"][code]
+                points = [(_hours_before(point["t"], at), point["v"]) for point in window["codes"].get(code, [])
+                          if point["v"] is not None]
+                lines.append((meta["name"], points, SERIES_COLORS[number % len(SERIES_COLORS)]))
+                if meta.get("warn") is not None:
+                    limits.append((meta["warn"], f"пред. {number_text(meta['warn'], 1)}", WARN_COLOR))
+                if meta.get("alarm") is not None:
+                    limits.append((meta["alarm"], f"трев. {number_text(meta['alarm'], 1)}", ALARM_COLOR))
+            story += [Spacer(1, 4), KeepTogether([
+                _paragraph(f"{group['title']} - за {window['title']}", styles["label"]),
+                _line_chart(lines, limits, "часы до момента осмотра", regular)])]
+    if sensors["rules"]:
+        story += [Spacer(1, 4), _paragraph("Правила, сработавшие по датчикам:", styles["label"])]
+        for rule in sensors["rules"]:
+            lines = "; ".join(f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})"
+                              for line in rule["evidence"] if line["met"])
+            story.append(Paragraph(f"<b>{_markup(rule['rule_id'])} {_markup(rule['title'])}</b> - "
+                                   f"{_coloured(rule['status'] == 'defect' and 'дефект' or 'проверка', rule['status'])}. "
+                                   f"{_markup(lines)}", styles["base"]))
+    else:
+        story.append(_paragraph("Правил, сработавших по датчикам, нет.", styles["base"]))
+    return story
+
+
+def _sound(data: dict, styles: dict) -> list:
+    """Раздел звука: показатели последней записи, спектр и признаки-кандидаты."""
+    records = data.get("sound") or []
+    if not records:
+        return []
+    regular, _ = fonts()
+    record = records[-1]
+    rows = [[label, value] for label, value in sound_rows(record)]
+    spectrum = [(point["f"], point["db"]) for point in record.get("spectrum") or []]
+    chart = _line_chart([("Уровень спектра, дБ", spectrum, SERIES_COLORS[0])], [], "частота, Гц (логарифмическая шкала)",
+                        regular, from_zero=False, log_x=True)
+    story = [Paragraph("Звук агрегата", styles["section"]),
+             _paragraph(f"Записей в осмотре: {len(records)}; показана последняя от {moment_text(record['created_at'])}. "
+                        "Микрофон телефона не калиброван: уровень сравнивается с нормой этого агрегата.", styles["small"]),
+             Spacer(1, 3), _table(["Показатель", "Значение"], rows, [70 * mm, PAGE_WIDTH - 70 * mm], styles),
+             Spacer(1, 4), KeepTogether([_paragraph("Спектр записи", styles["label"]), chart])]
+    candidates = record.get("candidates") or []
+    story.append(_labelled("Признаки-кандидаты", "; ".join(entry["text"] for entry in candidates) or "не выявлены",
+                           styles["base"]))
+    story.append(_paragraph(record.get("note") or "", styles["small"]))
+    return story
+
+
+def _recommendations(data: dict, styles: dict) -> list:
+    """Раздел рекомендаций по подтверждённым находкам и ближайшего обслуживания."""
+    story = [Paragraph("Рекомендации и ближайшее обслуживание", styles["section"])]
+    items = data.get("recommendations") or []
+    if items:
+        for number, item in enumerate(items, start=1):
+            story.append(_paragraph(f"{number}. {item['node_name']}: {item['text']} (замечание № {item['finding_id']})",
+                                    styles["base"]))
+    else:
+        story.append(_paragraph("Подтверждённых замечаний нет - действий по их устранению не требуется.", styles["base"]))
+    upcoming = data.get("next_maintenance")
+    if upcoming:
+        when = (f"через {number_text(upcoming['remaining_hours'])} ч наработки" if upcoming.get("remaining_hours") is not None
+                else f"ориентировочно {date_text(upcoming.get('forecast_date'))}")
+        if upcoming.get("remaining_hours") is not None and upcoming["remaining_hours"] <= 0:
+            when = "срок уже наступил"
+        story.append(_labelled("Ближайшее обслуживание", f"{upcoming['name']} - {when}. {upcoming.get('work') or ''}",
+                               styles["base"]))
+    return story
+
+
+def _signatures(data: dict, styles: dict) -> list:
+    """Строки подписей инженера и мастера."""
+    rows = [[entry["role"], entry.get("name") or "", "____________________", "«___» ____________ 20__ г."]
+            for entry in data.get("signatures") or []]
+    if not rows:
+        return []
+    table = Table([[_cell(value, styles["base"]) for value in row] for row in rows],
+                  colWidths=[24 * mm, 56 * mm, 48 * mm, PAGE_WIDTH - 128 * mm])
+    table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "BOTTOM"), ("TOPPADDING", (0, 0), (-1, -1), 10)]))
+    return [Paragraph("Подписи", styles["section"]), table]
+
+
 def build_story(data: dict) -> list:
     """Собирает содержимое отчёта по разделам в порядке их появления на страницах."""
     styles = _styles()
-    return [*_summary(data, styles), *_nodes(data, styles), *_findings(data, styles), *_works(data, styles),
-            *_maintenance(data, styles), *_closing(data, styles)]
+    return [*_summary(data, styles), *_walk(data, styles), *_findings(data, styles), *_rejected(data, styles),
+            *_sensors(data, styles), *_nodes(data, styles), *_sound(data, styles), *_works(data, styles),
+            *_maintenance(data, styles), *_recommendations(data, styles), *_signatures(data, styles),
+            *_closing(data, styles)]
 
 
 def build_pdf(data: dict) -> bytes:

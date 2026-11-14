@@ -78,10 +78,10 @@ def equipment_card(item: Equipment) -> dict:
 
 
 def _activity(session: Session, equipment_ids: list[str]) -> dict[str, dict]:
-    """Считает по каждому агрегату незакрытые замечания и время последнего осмотра."""
+    """Считает по каждому агрегату незакрытые замечания (без устранённых и отклонённых) и время последнего осмотра."""
     opened = dict(session.execute(
         select(Finding.equipment_id, func.count()).where(
-            Finding.equipment_id.in_(equipment_ids), Finding.state != "resolved", Finding.status != "ok",
+            Finding.equipment_id.in_(equipment_ids), Finding.state.notin_(("resolved", "rejected")), Finding.status != "ok",
         ).group_by(Finding.equipment_id)).all())
     latest = dict(session.execute(
         select(Inspection.equipment_id, func.max(Inspection.started_at)).where(

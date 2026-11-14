@@ -106,6 +106,11 @@ def defect_signs() -> dict[str, str]:
     return dict(_document().get("signs", {}))
 
 
+def parameter_meta() -> dict[str, dict]:
+    """Возвращает названия и единицы параметров, на которые ссылаются правила."""
+    return copy.deepcopy(_document().get("parameters", {}))
+
+
 def gauge_difference_percent(gauge_value: float, sensor_value: float) -> float:
     """Считает расхождение электронного датчика со стрелочным манометром в процентах от показания манометра.
 
@@ -619,3 +624,105 @@ def diagnose(equipment: dict, readings: dict, trends: dict, visual: dict, manual
     else:
         status = "unknown"
     return {"status": status, "findings": findings, "nodes": _node_states(context, findings)}
+
+
+def _leaf_view(leaf: dict, result: dict, source: str) -> dict:
+    """Описывает одно условие правила: что проверяется, значение, порог, выполнено ли и чего не хватает."""
+    lines = result["evidence"]
+    first = lines[0] if lines else {}
+    return {
+        "kind": leaf["kind"], "source": first.get("source") or leaf.get("source") or source,
+        "param": leaf.get("param"), "signs": list(leaf.get("signs") or []), "label": leaf.get("label"),
+        "op": leaf.get("op"), "limit": leaf.get("value"),
+        "what": first.get("what") or leaf.get("what") or leaf["kind"], "value": first.get("value"),
+        "threshold": first.get("threshold"), "state": result["state"], "met": result["state"] == "met",
+        "missing": result["state"] == "unknown", "hints": list(result["missing"]), "evidence": lines,
+    }
+
+
+def _explain(expr: dict, context: _Context, node_id: str, source: str, flat: list) -> dict:
+    """Строит дерево проверки выражения: группы «и» / «или» с состоянием и каждое условие отдельно.
+
+    Каждое условие проверяется само по себе, даже если группа «или» уже выполнена другим условием, -
+    так видно значение и порог по всем условиям правила. Условия по порядку добавляются в flat.
+    """
+    for key in ("all", "any"):
+        if key in expr:
+            children = [_explain(child, context, node_id, source, flat) for child in expr[key]]
+            return {"op": key, "state": _evaluate(expr, context, node_id)["state"], "children": children}
+    view = _leaf_view(expr, LEAVES[expr["kind"]](expr, context, node_id), source)
+    flat.append(view)
+    return {"op": "leaf", **view}
+
+
+def explain_rule(equipment: dict, readings: dict, trends: dict, visual: dict, manual=frozenset(), rule_id: str = "") -> dict:
+    """Проверяет одно правило для агрегата сейчас - сработало оно или нет - и раскладывает его по условиям.
+
+    Входные данные те же, что у diagnose. Возвращает: применимость к типу оборудования, узел, состояние каждой
+    части правила (камера, датчики, ресурс; уточняющие части помечены qualifier), дерево условий и плоский
+    список условий со значениями и порогами, повышение статуса (escalation), основания в том виде, в каком их
+    собирает diagnose, и находку, если правило дало её (для общего визуального правила - список находок).
+    Неизвестный номер правила - KeyError.
+    """
+    document = _document()
+    rule = next((entry for entry in document["rules"] if entry["id"] == rule_id), None)
+    if rule is None:
+        raise KeyError(rule_id)
+    context = _Context(document, equipment, readings, trends, visual, manual)
+    kind = equipment.get("type")
+    applies = "*" in rule["applies_to"] or kind in rule["applies_to"]
+    node_id = context.node_for(rule)
+    variants = rule.get("node_variants")
+    effective = rule
+    if variants:
+        effective = {**rule, **variants["values"].get(context.nodes.get(node_id, {}).get(variants["attr"]), {})}
+    flat, parts, evidence = [], [], []
+    for index, part in enumerate(effective["parts"]):
+        result = _evaluate(part["expr"], context, node_id)
+        evidence.extend(result["evidence"])
+        start = len(flat)
+        tree = _explain(part["expr"], context, node_id, part["source"], flat)
+        for view in flat[start:]:
+            view["part"] = index
+        parts.append({"index": index, "source": part["source"], "qualifier": bool(part.get("qualifier")),
+                      "state": result["state"], "met": result["state"] == "met", "missing": result["missing"],
+                      "tree": tree})
+    escalation = None
+    if effective.get("escalation"):
+        extra = _evaluate(effective["escalation"]["expr"], context, node_id)
+        lines = []
+        tree = _explain(effective["escalation"]["expr"], context, node_id, "sensor", lines)
+        escalation = {"state": extra["state"], "met": extra["state"] == "met", "status": effective["escalation"]["status"],
+                      "severity": effective["escalation"]["severity"], "conditions": lines, "tree": tree}
+    findings = []
+    if applies:
+        if rule.get("group") == "visual":
+            consumed = set()
+            for other in document["rules"]:
+                if "*" in other["applies_to"] or kind in other["applies_to"]:
+                    for part in other["parts"]:
+                        _collect_signs(part["expr"], consumed)
+            findings = sorted(_visual_findings(rule, context, consumed), key=_order)
+        else:
+            found = _finding(rule, context)
+            findings = [found] if found else []
+    finding = findings[0] if findings else None
+    if finding:
+        evidence = [line for entry in findings for line in entry["evidence"]]
+        status = finding["status"]
+    elif not applies:
+        status = "not_applicable"
+    elif any(part["state"] == "unknown" for part in parts if not part["qualifier"]) or not parts:
+        status = "unknown"
+    else:
+        status = "ok"
+    missing = _unique([hint for part in parts if part["state"] != "met" for hint in part["missing"]])
+    return {
+        "rule_id": rule["id"], "applies": applies, "node_id": node_id, "status": status,
+        "severity": finding["severity"] if finding else None,
+        "diagnosis": finding["diagnosis"] if finding else None,
+        "recommendation": finding["recommendation"] if finding else effective["recommendation"],
+        "confidence": finding["confidence"] if finding else None,
+        "parts": parts, "conditions": flat, "escalation": escalation, "evidence": evidence,
+        "missing": finding["missing"] if finding else missing, "findings": findings,
+    }

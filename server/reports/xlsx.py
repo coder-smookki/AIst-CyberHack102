@@ -25,6 +25,7 @@ ESTIMATES_NOTE = ("Три оценки приводятся раздельно �
                   "расчётный остаточный ресурс - по наработке и календарному сроку, фактическое состояние - "
                   "по камере, датчикам и отметкам инженера.")
 SYSTEM_NOTE = "Статусы и оценки в отчёте - подсказка системы; оценка ресурса расчётная."
+LEVEL_TITLES = {"ok": "в норме", "warn": "предупреждение", "alarm": "тревога"}
 MOMENT_FORMAT = "DD.MM.YYYY HH:MM"
 
 
@@ -130,6 +131,7 @@ def summary_rows(data: dict) -> list[tuple[str, str]]:
         ("Серийный номер", equipment["serial"]),
         ("Производитель", equipment.get("manufacturer") or "-"),
         ("Место установки", equipment["location"]),
+        ("Опознание агрегата", (data.get("identified") or {}).get("title") or "Не указано"),
         ("Режим", equipment["mode_title"]),
         ("Наработка агрегата", f"{number_text(equipment['run_hours'])} ч"),
         ("Ввод в эксплуатацию", date_text(equipment.get("commissioned"))),
@@ -265,6 +267,44 @@ def _works_sheet(sheet, data: dict) -> None:
     _table(sheet, [("Время", 17), ("Узел", 30), ("Запись", 46), ("Комментарий", 60)], rows)
 
 
+def rejected_rows(data: dict) -> list[list]:
+    """Строки списка «Отклонено инженером»: номер, узел, находка, кто и когда отклонил, причина."""
+    rows = []
+    for view in data.get("rejected") or []:
+        who = (view.get("rejected_by") or {}).get("name") or "-"
+        rows.append([view["id"], view["node_name"], view["title"], who, moment_text(view.get("rejected_at")),
+                     view.get("reject_reason") or "-"])
+    return rows
+
+
+def sound_rows(record: dict) -> list[tuple[str, str]]:
+    """Показатели записи звука строками «название - значение» для отчётов PDF и Excel."""
+    baseline = record.get("baseline") or {}
+    peaks = "; ".join(f"{number_text(peak['freq_hz'], 1)} Гц (+{number_text(peak['prominence_db'], 0)} дБ"
+                      + (f", {peak['match_title']})" if peak.get("match_title") else ")")
+                      for peak in record.get("peaks") or []) or "нет"
+    bands = "; ".join(f"{band['title']}: {number_text(band['share'] * 100, 0)} %" for band in record.get("bands") or [])
+    rows = [
+        ("Длительность, частота", f"{number_text(record.get('duration_s'), 1)} с, {number_text(record.get('sample_rate'))} Гц"),
+        ("Уровень", f"{number_text(record.get('level_dbfs'), 1)} дБ от полной шкалы"),
+        ("Норма уровня", f"{number_text(baseline.get('dbfs'), 1)} дБ - {baseline.get('title', '-')}"),
+        ("Отличие от нормы", f"{number_text(baseline.get('delta_db'), 1)} дБ"),
+        ("Коэффициент амплитуды", number_text(record.get("crest_factor"), 2)),
+        ("Эксцесс (импульсность)", number_text(record.get("kurtosis"), 2)),
+        ("Спектральный центроид", f"{number_text(record.get('centroid_hz'))} Гц"),
+        ("Энергия по полосам", bands),
+        ("Частота вращения", f"{number_text(record.get('shaft_hz'), 2)} Гц" if record.get("shaft_hz") else "не известна"),
+        ("Тональные пики", peaks),
+    ]
+    return rows
+
+
+def _rejected_sheet(sheet, data: dict) -> None:
+    """Лист «Отклонено инженером»: находки, признанные ложными; в итог и счётчики они не входят."""
+    _table(sheet, [("№", 6), ("Узел", 26), ("Находка", 40), ("Отклонил", 24), ("Когда", 17), ("Причина", 60)],
+           rejected_rows(data))
+
+
 def _maintenance_sheet(sheet, data: dict) -> None:
     """Лист «Регламент»: наработка после последнего обслуживания против интервала."""
     rows = [[entry.get("name"), entry.get("work") or "-", entry.get("interval_hours"), entry.get("since_hours"),
@@ -274,6 +314,84 @@ def _maintenance_sheet(sheet, data: dict) -> None:
                    ("Израсходовано, %", 17), ("Остаток, ч", 12), ("Состояние", 22)], rows)
 
 
+def _walk_sheet(sheet, data: dict) -> None:
+    """Лист «Обход узлов»: осмотрен ли каждый узел и его фактический статус."""
+    rows = [[node["name"], node["code"], "осмотрен" if node["inspected"] else "не осмотрен", node.get("title") or node["status"]]
+            for node in data.get("walk") or []]
+    _table(sheet, [("Узел", 34), ("Код", 16), ("Осмотр", 14), ("Статус", 44)], rows)
+
+
+def _sensors_sheet(sheet, data: dict) -> None:
+    """Лист «Датчики»: текущие значения с уставками, правила по датчикам и ряды за 24 ч и 7 сут."""
+    sensors = data.get("sensors") or {}
+    if not sensors.get("available"):
+        _put(sheet, 1, 1, sensors.get("reason") or "Телеметрии по агрегату нет")
+        return
+    rows = [[entry["name"], entry["unit"], entry["value"], entry["warn"], entry["alarm"],
+             LEVEL_TITLES.get(entry["level"], "-")] for entry in sensors["current"]]
+    last = _table(sheet, [("Параметр", 34), ("Единица", 10), (f"Значение на {moment_text(sensors['at'])}", 22),
+                          ("Предупреждение", 16), ("Тревога", 12), ("Уровень", 16)], rows)
+    rules = [[rule["rule_id"], rule["title"], rule["status"], "; ".join(
+        f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})" for line in rule["evidence"] if line["met"])]
+        for rule in sensors["rules"]]
+    last = _table(sheet, [("Правило", 34), ("Название", 10), ("Статус", 22), ("Основания", 16)], rules, last + 1)
+    codes = [code for code in sensors["meta"]]
+    for key in ("24h", "7d"):
+        window = sensors["series"][key]
+        series = window["codes"]
+        stamps = [point["t"] for point in series[codes[0]]] if codes else []
+        table = [[_moment(stamp), *[series[code][index]["v"] if index < len(series[code]) else None for code in codes]]
+                 for index, stamp in enumerate(stamps)]
+        _put(sheet, last + 1, 1, f"Ряды за {window['title']}", bold=True, color=BRAND)
+        last = _table(sheet, [("Время", 34), *[(sensors["meta"][code]["name"], 18) for code in codes]], table, last + 2)
+    sheet.freeze_panes = None
+
+
+def _sound_sheet(sheet, data: dict) -> None:
+    """Лист «Звук»: показатели каждой записи, кандидаты и спектр последней записи."""
+    records = data.get("sound") or []
+    row = 1
+    for record in records:
+        _put(sheet, row, 1, f"Запись № {record['id']} от {moment_text(record['created_at'])}"
+                            + (" (норма)" if record.get("normal") else ""), bold=True, color=BRAND)
+        row += 1
+        for label, value in sound_rows(record):
+            _put(sheet, row, 1, label, bold=True)
+            _put(sheet, row, 2, value)
+            row += 1
+        for entry in record.get("candidates") or []:
+            _put(sheet, row, 1, "Кандидат", bold=True)
+            _put(sheet, row, 2, entry["text"])
+            row += 1
+        row += 1
+    sheet.column_dimensions["A"].width = 30
+    sheet.column_dimensions["B"].width = 90
+    if records:
+        _put(sheet, row, 1, records[-1].get("note") or "")
+        spectrum = [[point["f"], point["db"]] for point in records[-1].get("spectrum") or []]
+        _table(sheet, [("Частота, Гц", 30), ("Уровень, дБ", 90)], spectrum, row + 2)
+        sheet.freeze_panes = None
+
+
+def _advice_sheet(sheet, data: dict) -> None:
+    """Лист «Рекомендации»: рекомендации по подтверждённым находкам, ближайшее обслуживание и подписи."""
+    rows = [[item["finding_id"], item["node_name"], item["title"], item["text"]] for item in data.get("recommendations") or []]
+    last = _table(sheet, [("№ замечания", 12), ("Узел", 28), ("Находка", 36), ("Рекомендация", 80)], rows)
+    upcoming = data.get("next_maintenance")
+    if upcoming:
+        when = (f"остаток {number_text(upcoming['remaining_hours'])} ч" if upcoming.get("remaining_hours") is not None
+                else f"прогноз {date_text(upcoming.get('forecast_date'))}")
+        _put(sheet, last + 1, 1, "Ближайшее обслуживание", bold=True)
+        _put(sheet, last + 1, 4, f"{upcoming['name']} - {when}. {upcoming.get('work') or ''}")
+    row = last + 3
+    for entry in data.get("signatures") or []:
+        _put(sheet, row, 1, entry["role"], bold=True)
+        _put(sheet, row, 2, entry.get("name") or "")
+        _put(sheet, row, 3, "подпись ____________")
+        row += 1
+    sheet.freeze_panes = None
+
+
 def build_xlsx(data: dict) -> bytes:
     """Собирает книгу Excel с отчётом об осмотре и возвращает её содержимое."""
     book = Workbook()
@@ -281,8 +399,18 @@ def build_xlsx(data: dict) -> bytes:
     _nodes_sheet(book.create_sheet("Оценки по узлам"), data)
     _findings_sheets(book.create_sheet("Находки"), book.create_sheet("Основания"), data)
     _works_sheet(book.create_sheet("Проверки и работы"), data)
+    if data.get("rejected"):
+        _rejected_sheet(book.create_sheet("Отклонено инженером"), data)
     if data["maintenance"]:
         _maintenance_sheet(book.create_sheet("Регламент"), data)
+    if data.get("walk"):
+        _walk_sheet(book.create_sheet("Обход узлов"), data)
+    if data.get("sensors"):
+        _sensors_sheet(book.create_sheet("Датчики"), data)
+    if data.get("sound"):
+        _sound_sheet(book.create_sheet("Звук"), data)
+    if "recommendations" in data:
+        _advice_sheet(book.create_sheet("Рекомендации"), data)
     book.properties.title = f"Отчёт об осмотре № {data['inspection']['id']}"
     book.properties.creator = "КСТ Визор"
     output = io.BytesIO()

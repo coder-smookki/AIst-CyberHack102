@@ -31,6 +31,24 @@ EQUIPMENT_COLUMNS = ("id", "name", "type", "model", "serial", "location", "mode"
 NODE_COLUMNS = ("id", "name", "hours", "installed", "replaced")
 NO_REMARKS = "Проверено, замечаний нет"
 DEMO_HISTORY = {
+    "SHU-3": {
+        "maintenance": [
+            {"at": "2025-05-20T10:00", "kind": "maintenance", "node": None, "user": "master@kst.demo", "hours_at": 35000,
+             "comment": "Ревизия шкафа: проверены контакторы и автоматические выключатели, замерено сопротивление изоляции"},
+            {"at": "2026-07-01T09:30", "kind": "maintenance", "node": "vent_filter", "user": "engineer@kst.demo",
+             "hours_at": 45000, "comment": "ТО-1: протянуты клеммные соединения, заменён фильтр вентиляции"},
+        ],
+        "inspections": [],
+    },
+    "TR-1": {
+        "maintenance": [
+            {"at": "2026-06-10T10:00", "kind": "maintenance", "node": None, "user": "master@kst.demo", "hours_at": 60000,
+             "comment": "Текущий ремонт: очищены изоляторы, заменён силикагель, отобрана проба масла"},
+            {"at": "2026-08-20T11:00", "kind": "maintenance", "node": None, "user": "engineer@kst.demo", "hours_at": 61000,
+             "comment": "Осмотр: бак, радиаторы и вводы без замечаний, уровень масла в норме"},
+        ],
+        "inspections": [],
+    },
     "N-101": {
         "maintenance": [
             {"at": "2022-06-10T10:30", "kind": "replacement", "node": "seal", "user": "master@kst.demo", "hours_at": 6000,
@@ -143,15 +161,22 @@ def _add_users(session: Session) -> dict[str, User]:
 
 
 def _add_equipment(session: Session, card: dict) -> bool:
-    """Добавляет агрегат и его узлы, если их ещё нет; сообщает, был ли агрегат создан этим вызовом."""
+    """Добавляет агрегат и его узлы, если их ещё нет; сообщает, был ли агрегат создан этим вызовом.
+
+    У существующих узлов обновляется только перечень классов детектора: соответствие узлов и классов задаётся
+    в data/equipment.json и может меняться с новой моделью распознавания, а остальные данные узла не трогаются.
+    """
     item = session.get(Equipment, card["id"])
     created = item is None
     if created:
         extra = {key: value for key, value in card.items() if key not in EQUIPMENT_COLUMNS and key != "nodes"}
         item = Equipment(**{key: card[key] for key in EQUIPMENT_COLUMNS}, data=extra)
         session.add(item)
-    known = set() if created else {node.code for node in item.nodes}
+    known = {} if created else {node.code: node for node in item.nodes}
     for entry in card["nodes"]:
+        stored = known.get(entry["id"])
+        if stored is not None and (stored.data or {}).get("classes") != entry.get("classes", []):
+            stored.data = {**(stored.data or {}), "classes": list(entry.get("classes", []))}
         if entry["id"] not in known:
             extra = {key: value for key, value in entry.items() if key not in NODE_COLUMNS}
             session.add(Node(equipment_id=card["id"], code=entry["id"], name=entry["name"], hours=entry["hours"],
@@ -185,7 +210,8 @@ def _add_history(session: Session, equipment_id: str, users: dict[str, User]) ->
 
 
 def seed(session: Session) -> None:
-    """Наполняет базу и сохраняет изменения; повторный вызов ничего не дублирует и не перезаписывает."""
+    """Наполняет базу и сохраняет изменения; повторный вызов ничего не дублирует и не перезаписывает
+    (кроме перечня классов детектора у узлов - он берётся из карточки)."""
     _add_roles(session)
     get_policy(session)
     users = _add_users(session)

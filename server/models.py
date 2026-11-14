@@ -1,5 +1,5 @@
 """Таблицы сервера: роли, сотрудники и их сеансы, журнал и политика безопасности, оборудование и узлы,
-осмотры, находки, записи о работах, сообщения о неисправностях и задания на осмотр.
+осмотры, находки, записи звука, записи о работах, сообщения о неисправностях и задания на осмотр.
 
 Время в базе - местное время сервера без часового пояса, как в базах датчиков заказчика.
 Поля JSON сохраняются при присваивании нового значения целиком: правка вложенного словаря на месте не отслеживается.
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from server.db import Base
 
 MODES = ("running", "stopped")
-FINDING_STATES = ("open", "in_work", "resolved")
+FINDING_STATES = ("open", "in_work", "resolved", "rejected")
 FINDING_STATUSES = ("ok", "check", "defect")
 FINDING_SOURCES = ("camera", "sensor", "resource", "manual")
 INSPECTION_STATUSES = ("active", "finished")
@@ -128,7 +128,10 @@ class Node(Base):
 
 
 class Inspection(Base):
-    """Осмотр оборудования сотрудником: время начала и конца, состояние и итоговая сводка."""
+    """Осмотр оборудования сотрудником: время начала и конца, состояние, итоговая сводка и способ опознания агрегата.
+
+    identified_by: nameplate - по шильдику, manual - выбран вручную, qr - по QR-коду; пусто - не сообщён.
+    """
 
     __tablename__ = "inspections"
     __table_args__ = (Index("ix_inspections_equipment_started", "equipment_id", "started_at"),)
@@ -140,6 +143,7 @@ class Inspection(Base):
     finished_at: Mapped[datetime | None]
     status: Mapped[str] = mapped_column(String(16), default="active")
     summary: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
+    identified_by: Mapped[str | None] = mapped_column(String(16))
 
     equipment: Mapped[Equipment] = relationship()
     user: Mapped[User] = relationship()
@@ -147,7 +151,12 @@ class Inspection(Base):
 
 
 class Finding(Base):
-    """Находка осмотра: что и на каком узле замечено, чем подтверждено и в каком состоянии устранение."""
+    """Находка осмотра: что и на каком узле замечено, чем подтверждено и в каком состоянии устранение.
+
+    Состояние rejected - инженер или мастер отклонил находку как ложную: она не учитывается в диагнозе,
+    на доске замечаний, в счётчиках и списке находок отчёта. Кто и когда отклонил - rejected_by_id и
+    rejected_at; notes - комментарии сотрудников с временем и автором.
+    """
 
     __tablename__ = "findings"
     __table_args__ = (
@@ -173,8 +182,33 @@ class Finding(Base):
     photo_path: Mapped[str | None] = mapped_column(String(300))
     state: Mapped[str] = mapped_column(String(16), default="open")
     created_at: Mapped[datetime] = mapped_column(default=now)
+    rejected_at: Mapped[datetime | None]
+    rejected_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    notes: Mapped[list | None] = mapped_column(JSON(none_as_null=True))
 
     inspection: Mapped[Inspection] = relationship(back_populates="findings")
+    rejected_by: Mapped[User | None] = relationship(foreign_keys=[rejected_by_id])
+
+
+class SoundRecord(Base):
+    """Запись звука агрегата в осмотре: файл WAV рядом с базой и итог анализа с признаками-кандидатами.
+
+    normal - инженер отметил запись как звучание исправного агрегата: такие записи служат нормой уровня.
+    """
+
+    __tablename__ = "sound_records"
+    __table_args__ = (Index("ix_sound_equipment_created", "equipment_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    inspection_id: Mapped[int] = mapped_column(ForeignKey("inspections.id"), index=True)
+    equipment_id: Mapped[str] = mapped_column(ForeignKey("equipment.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(default=now)
+    audio_path: Mapped[str | None] = mapped_column(String(300))
+    normal: Mapped[bool] = mapped_column(default=False)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    user: Mapped[User] = relationship()
 
 
 class MaintenanceRecord(Base):
