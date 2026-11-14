@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>КСТ Визор - пульт демонстрации</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="alerts" class="alerts" role="alert" aria-live="assertive"></div>
+
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-card" novalidate>
+      <p class="wordmark">КСТ Визор</p>
+      <h1>Пульт демонстрации</h1>
+      <p class="muted">Вход по рабочей почте и паролю. Сценариями и временем управляют мастер и администратор.</p>
+      <label class="field">
+        <span>Почта</span>
+        <input id="login-email" type="email" name="email" autocomplete="username" required>
+      </label>
+      <label class="field">
+        <span>Пароль</span>
+        <input id="login-password" type="password" name="password" autocomplete="current-password" required>
+      </label>
+      <p id="login-error" class="form-error" role="alert" hidden></p>
+      <button id="login-submit" class="button primary wide" type="submit">Войти</button>
+      <div class="demo-accounts">
+        <span class="muted">Учётные записи стенда:</span>
+        <button type="button" class="chip-button" data-demo="master@kst.demo">Мастер</button>
+        <button type="button" class="chip-button" data-demo="admin@kst.demo">Администратор</button>
+        <button type="button" class="chip-button" data-demo="engineer@kst.demo">Инженер</button>
+      </div>
+    </form>
+  </main>
+
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="wordmark">КСТ Визор</span>
+        <span class="topbar-sub">пульт демонстрации</span>
+      </div>
+      <div class="topbar-side">
+        <span id="link-state" class="link-state">Подключение к серверу</span>
+        <span id="user-name" class="user-name"></span>
+        <button id="logout" class="button ghost" type="button">Выйти</button>
+      </div>
+    </header>
+
+    <section class="console" aria-labelledby="console-title">
+      <div class="console-head">
+        <div>
+          <h1 id="console-title">Сценарии и время</h1>
+          <p id="console-unit" class="console-unit"></p>
+        </div>
+        <div class="console-clock">
+          <span class="console-clock-label">Время на стенде</span>
+          <span id="cursor-time" class="console-clock-value">нет данных</span>
+          <span id="cursor-origin" class="console-origin"></span>
+        </div>
+      </div>
+
+      <p id="console-note" class="console-note" hidden></p>
+      <p id="err-console" class="section-error on-dark" hidden></p>
+
+      <div id="console-body">
+        <div id="scenarios" class="scenarios" role="group" aria-label="Сценарии"></div>
+
+        <div class="strip-wrap">
+          <div id="strip" class="strip" role="slider" tabindex="0" aria-label="Время на стенде"
+               aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+            <div id="strip-bands" class="strip-bands"></div>
+            <div id="strip-needle" class="strip-needle" hidden></div>
+          </div>
+          <div id="strip-ticks" class="strip-ticks" aria-hidden="true"></div>
+          <p class="strip-legend">
+            <span class="legend-item"><i class="legend-swatch growth"></i>рост параметра</span>
+            <span class="legend-item"><i class="legend-swatch beyond"></i>параметр за уставкой</span>
+            <span class="legend-item"><i class="legend-swatch model"></i>смоделированные данные</span>
+          </p>
+        </div>
+
+        <div class="steps" role="group" aria-label="Сдвиг времени">
+          <button class="step" type="button" data-step="-24">-24 ч</button>
+          <button class="step" type="button" data-step="-6">-6 ч</button>
+          <button class="step" type="button" data-step="-1">-1 ч</button>
+          <button class="step" type="button" data-step="1">+1 ч</button>
+          <button class="step" type="button" data-step="6">+6 ч</button>
+          <button class="step" type="button" data-step="24">+24 ч</button>
+          <button id="play" class="step play" type="button" aria-pressed="false">Пустить время: 1 час за 2 секунды</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="card units" aria-labelledby="units-title">
+        <h2 id="units-title">Оборудование</h2>
+        <p id="err-units" class="section-error" hidden></p>
+        <div id="units" class="unit-list"></div>
+      </aside>
+
+      <section class="card telemetry" aria-labelledby="telemetry-title">
+        <div class="card-head">
+          <h2 id="telemetry-title">Показания датчиков</h2>
+          <span id="telemetry-stamp" class="muted"></span>
+        </div>
+        <p id="err-telemetry" class="section-error" hidden></p>
+        <div id="labels" class="labels"></div>
+        <div id="tiles" class="tiles"></div>
+
+        <div class="chart-head">
+          <h3 id="chart-title">График</h3>
+          <div id="chart-hours" class="segmented" role="group" aria-label="Период графика">
+            <button type="button" data-hours="12">12 ч</button>
+            <button type="button" data-hours="24">24 ч</button>
+            <button type="button" data-hours="72">3 суток</button>
+            <button type="button" data-hours="168">7 суток</button>
+          </div>
+        </div>
+        <p id="err-chart" class="section-error" hidden></p>
+        <div class="chart-box">
+          <canvas id="chart" aria-label="График выбранного параметра с уставками"></canvas>
+        </div>
+        <p id="forecast" class="forecast muted"></p>
+      </section>
+
+      <section class="card diagnosis" aria-labelledby="diagnosis-title">
+        <h2 id="diagnosis-title">Текущий диагноз</h2>
+        <p id="err-diagnosis" class="section-error" hidden></p>
+        <div id="verdict" class="verdict"></div>
+        <div id="diagnosis" class="finding-list"></div>
+        <h3>Порядок осмотра узлов</h3>
+        <p id="err-route" class="section-error" hidden></p>
+        <ol id="route" class="route"></ol>
+        <p class="decision">Решение принимает инженер.</p>
+      </section>
+    </div>
+
+    <div class="lower">
+      <section class="card history" aria-labelledby="history-title">
+        <h2 id="history-title">История осмотров и работ</h2>
+        <p id="err-history" class="section-error" hidden></p>
+        <div id="history" class="history-list"></div>
+      </section>
+
+      <section class="card board" aria-labelledby="board-title">
+        <div class="card-head">
+          <h2 id="board-title">Замечания</h2>
+          <div id="board-scope" class="segmented" role="group" aria-label="Чьи замечания показывать">
+            <button type="button" data-scope="unit">Выбранный агрегат</button>
+            <button type="button" data-scope="all">Всё оборудование</button>
+          </div>
+        </div>
+        <p id="err-findings" class="section-error" hidden></p>
+        <div class="board-columns">
+          <div class="board-column">
+            <h3>Открыто <span id="count-open" class="count">0</span></h3>
+            <div id="board-open" class="board-cards"></div>
+          </div>
+          <div class="board-column">
+            <h3>В работе <span id="count-in_work" class="count">0</span></h3>
+            <div id="board-in_work" class="board-cards"></div>
+          </div>
+          <div class="board-column">
+            <h3>Устранено <span id="count-resolved" class="count">0</span></h3>
+            <div id="board-resolved" class="board-cards"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card assistant" aria-labelledby="assistant-title">
+      <h2 id="assistant-title">Вопрос помощнику</h2>
+      <form id="ask-form" class="ask-form">
+        <input id="ask-input" type="text" maxlength="500" autocomplete="off"
+               placeholder="Например: какие замечания не устранены" aria-label="Вопрос помощнику">
+        <button id="ask-submit" class="button primary" type="submit">Спросить</button>
+      </form>
+      <p id="err-assistant" class="section-error" hidden></p>
+      <div id="answer" class="answer" hidden></div>
+    </section>
+  </div>
+
+  <dialog id="photo-dialog" class="photo-dialog" aria-label="Снимок к замечанию">
+    <img id="photo-image" alt="Стоп-кадр камеры, приложенный к замечанию">
+    <form method="dialog"><button class="button primary" type="submit">Закрыть</button></form>
+  </dialog>
+
+  <script src="panel.js"></script>
+</body>
+</html>
