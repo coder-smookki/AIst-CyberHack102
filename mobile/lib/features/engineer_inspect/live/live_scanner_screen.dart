@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/engineer_inspect_routes.dart';
@@ -495,7 +496,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
         ),
         Row(
           children: [
-            Expanded(child: KvButton('Карточка', kind: KvButtonKind.secondary, onPressed: () => context.kvPush(EngineerInspectPaths.card(id)))),
+            Expanded(child: KvButton('Карточка', kind: KvButtonKind.secondary, onPressed: () => context.go(EngineerInspectPaths.card(id)))),
             const SizedBox(width: KvSpace.s3),
             Expanded(
               child: KvButton(

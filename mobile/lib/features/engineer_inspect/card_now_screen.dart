@@ -173,6 +173,65 @@ class CardNowScreen extends ConsumerWidget {
         _ResourceCard(unit: unit, history: history),
         _DiagnosisRow(unit: unit, diagnosis: diagnosis, rules: rules, findings: findings, history: history),
         _ReadingTiles(unit: unit),
+        _Passport(unit: unit),
+      ],
+    );
+  }
+}
+
+/// Паспорт агрегата на карточке: наименование, тип, модель, изготовитель, номер, место, ввод, наработка,
+/// паспортные характеристики и описание.
+class _Passport extends StatelessWidget {
+  const _Passport({required this.unit});
+
+  final Equipment unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final KvColors c = context.kv;
+    final KvTextStyles t = context.kvText;
+    final List<(String, String)> rows = [
+      ('Наименование', unit.name),
+      ('Тип', unit.kind),
+      ('Модель', unit.modelFull.isNotEmpty ? unit.modelFull : unit.model),
+      ('Изготовитель', unit.manufacturer),
+      ('Заводской №', unit.serial),
+      ('Место', unit.location),
+      ('Ввод в эксплуатацию', unit.commissioned),
+      ('Наработка', '${KvFormat.num(unit.runHours)} ч'),
+      ('Узлов', '${unit.nodes.length}'),
+      ...unit.specs,
+    ].where(((String, String) r) => r.$2.trim().isNotEmpty).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const KvSectionLabel('Паспорт агрегата'),
+        Container(
+          padding: const EdgeInsets.all(KvSpace.s3),
+          decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(KvRadius.card)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (unit.summary.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: KvSpace.s2),
+                  child: Text(KvFormat.typo(unit.summary), style: t.body.copyWith(color: c.text2)),
+                ),
+              for (final (String k, String v) in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 2, child: Text(k, style: t.caption.copyWith(color: c.text3))),
+                      const SizedBox(width: KvSpace.s2),
+                      Expanded(flex: 3, child: Text(KvFormat.typo(v), style: t.caption.copyWith(color: c.text, fontWeight: FontWeight.w500))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
     );
   }
