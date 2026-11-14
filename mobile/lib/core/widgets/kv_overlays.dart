@@ -87,7 +87,10 @@ class _SheetFrame extends StatelessWidget {
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: mq.size.height - 64),
+        constraints: BoxConstraints(
+          maxHeight: mq.size.height - 64,
+          maxWidth: mq.size.width >= KvLayout.tablet ? KvLayout.maxContent : double.infinity,
+        ),
         child: GestureDetector(
           behavior: HitTestBehavior.deferToChild,
           onVerticalDragUpdate: route.dismissible ? (DragUpdateDetails d) => route.dragBy(d.primaryDelta! / (context.size?.height ?? 400)) : null,

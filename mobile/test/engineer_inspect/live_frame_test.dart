@@ -56,6 +56,63 @@ void main() {
     expect(out.getPixel(4, 4).r, greaterThan(180));
   });
 
+  test('следы рамок: та же рамка сдвигается, а не появляется заново; пропавшая держится до 600 мс', () {
+    final List<LiveTrack> tracks = [];
+    final DateTime t0 = DateTime(2026, 11, 14, 9, 30);
+    matchTracks(tracks, const [LiveBox(cls: 'motor', conf: 0.9, rect: Rect.fromLTRB(100, 100, 300, 300), status: 'ok')], t0);
+    matchTracks(
+      tracks,
+      const [LiveBox(cls: 'motor', conf: 0.9, rect: Rect.fromLTRB(120, 110, 320, 310), status: 'ok')],
+      t0.add(const Duration(milliseconds: 200)),
+    );
+    expect(tracks, hasLength(1));
+    expect(tracks.single.box.rect.left, 120);
+    expect(tracks.single.shown.left, 100);
+    matchTracks(tracks, const [], t0.add(const Duration(milliseconds: 600)));
+    expect(tracks, hasLength(1));
+    expect(tracks.single.opacity(t0.add(const Duration(milliseconds: 600))), closeTo(0.5, 0.01));
+    matchTracks(tracks, const [], t0.add(const Duration(milliseconds: 900)));
+    expect(tracks, isEmpty);
+  });
+
+  test('признак дефекта показывается после двух ответов подряд или при уверенности от 0,5; узлы - сразу', () {
+    final List<LiveTrack> tracks = [];
+    final DateTime t0 = DateTime(2026, 11, 14, 9, 30);
+    const LiveBox weak = LiveBox(cls: 'leak', conf: 0.3, rect: Rect.fromLTRB(10, 10, 60, 60), status: 'check');
+    const LiveBox part = LiveBox(cls: 'motor', conf: 0.3, rect: Rect.fromLTRB(100, 100, 300, 300), status: 'ok');
+    matchTracks(tracks, const [weak, part], t0);
+    expect(tracks.firstWhere((LiveTrack t) => t.box.cls == 'leak').confirmed, isFalse);
+    expect(tracks.firstWhere((LiveTrack t) => t.box.cls == 'motor').confirmed, isTrue);
+    matchTracks(tracks, const [weak], t0.add(const Duration(milliseconds: 250)));
+    expect(tracks.firstWhere((LiveTrack t) => t.box.cls == 'leak').confirmed, isTrue);
+    final List<LiveTrack> strong = [];
+    matchTracks(strong, const [LiveBox(cls: 'corrosion', conf: 0.7, rect: Rect.fromLTRB(0, 0, 50, 50), status: 'defect')], t0);
+    expect(strong.single.confirmed, isTrue);
+  });
+
+  test('поворот кадра: альбомный кадр Android поворачивается, портретный кадр iOS - нет', () {
+    expect(frameRotation(720, 480, 90), 90);
+    expect(frameRotation(640, 480, 270), 270);
+    expect(frameRotation(480, 640, 90), 0);
+    expect(frameRotation(480, 480, 90), 0);
+  });
+
+  test('рамка в центре портретного кадра остаётся в центре экрана при заполнении с обрезкой', () {
+    const LiveBox box = LiveBox(cls: 'motor', conf: 0.9, rect: Rect.fromLTRB(140, 220, 340, 420), status: 'ok');
+    final Rect r = coverPercentRects(const [box], const Size(480, 640), const Size(430, 932)).single;
+    expect(r.center.dx, closeTo(50, 0.01));
+    expect(r.center.dy, closeTo(50, 0.01));
+    expect(r.height, closeTo(200 / 640 * 100, 0.01));
+  });
+
+  test('альбомный кадр на портретном экране: обрезка по бокам, рамка у края уходит за экран', () {
+    const LiveBox box = LiveBox(cls: 'gauge', conf: 0.9, rect: Rect.fromLTRB(0, 0, 64, 48), status: 'check');
+    final Rect r = coverPercentRects(const [box], const Size(640, 480), const Size(390, 844)).single;
+    expect(r.top, closeTo(0, 0.01));
+    expect(r.height, closeTo(10, 0.01));
+    expect(r.left, closeTo(-94.25, 0.05));
+  });
+
   test('рамки кадра переводятся в проценты области с обрезкой краёв', () {
     const LiveBox box = LiveBox(cls: 'leak', conf: 0.9, rect: Rect.fromLTRB(0, 0, 240, 320), status: 'defect');
     final List<Rect> r = coverPercentRects(const [box], const Size(480, 640), const Size(390, 844));
@@ -69,6 +126,7 @@ void main() {
     expect(b.isCheck, isTrue);
     expect(b.node, 'casing');
     expect(liveClassLabel(b.cls), 'Коррозия');
-    expect(liveClassLabel('anchor_bolt_loose'), 'anchor_bolt_loose');
+    expect(liveClassLabel('damage'), 'Повреждение');
+    expect(liveClassLabel('valve_new_class'), 'valve_new_class');
   });
 }

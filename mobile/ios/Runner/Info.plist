@@ -43,8 +43,12 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Камера нужна для распознавания шильдика, узлов и признаков дефектов во время осмотра.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID нужен для быстрого входа в КСТ Визор без ввода пароля.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Приложение подключается к цеховому серверу в локальной сети для данных оборудования и распознавания кадров.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Микрофон нужен для записи шума агрегата во время осмотра: по звуку сервер ищет признаки неисправности.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -83,6 +87,9 @@
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 </dict>
 </plist>

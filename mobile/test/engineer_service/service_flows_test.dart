@@ -140,6 +140,15 @@ void main() {
     expect(find.text('Вопрос отправлен мастеру'), findsOneWidget);
   });
 
+  testWidgets('ассистент на устройстве: значок без сети, ответ по справке и переход по ссылке', (WidgetTester tester) async {
+    final _App app = await _open(tester, '/engineer/assistant');
+    expect(find.text('на устройстве'), findsOneWidget);
+    await _tap(tester, 'Как начать осмотр');
+    expect(find.textContaining('Маршруту осмотра'), findsWidgets);
+    await _tapFinder(tester, find.text(KvFormat.typo('Маршрут осмотра')).last);
+    expect(app.location, '/engineer/b-route');
+  });
+
   testWidgets('уведомления: отметить все прочитанными, переход к заданию и меню задания', (WidgetTester tester) async {
     final _App app = await _open(tester, '/engineer/c-notif');
     expect(find.text('3 новых'), findsOneWidget);

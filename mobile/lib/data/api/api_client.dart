@@ -28,6 +28,9 @@ class ApiClient {
   /// Последний кадр камеры в JPEG: прикладывается к находке, которую инженер фиксирует со сканера.
   Uint8List? lastFrame;
 
+  /// Сервер выдал новый токен обновления (после обновления сеанса): хранилище входа по биометрии его запоминает.
+  void Function(String refreshToken)? onRefreshToken;
+
   /// Сколько ждать ответа сервера.
   static const Duration timeout = Duration(seconds: 12);
 
@@ -73,13 +76,24 @@ class ApiClient {
         retry: auth,
       );
 
-  /// POST формы multipart с полями [fields] и кадром JPEG [frame] в поле frame.
-  Future<dynamic> postForm(String path, {Map<String, String> fields = const {}, Uint8List? frame}) => _send(() async {
+  /// POST формы multipart с полями [fields] и кадром JPEG [frame] в поле frame; другой файл - [file] в поле [fileField].
+  Future<dynamic> postForm(
+    String path, {
+    Map<String, String> fields = const {},
+    Uint8List? frame,
+    String fileField = 'frame',
+    Uint8List? file,
+    String fileName = 'frame.jpg',
+  }) =>
+      _send(() async {
         final http.MultipartRequest req = http.MultipartRequest('POST', uri(path))
           ..headers.addAll(_headers)
           ..fields.addAll(fields);
         if (frame != null) {
           req.files.add(http.MultipartFile.fromBytes('frame', frame, filename: 'frame.jpg'));
+        }
+        if (file != null) {
+          req.files.add(http.MultipartFile.fromBytes(fileField, file, filename: fileName));
         }
         return http.Response.fromStream(await _http.send(req));
       });
@@ -147,6 +161,10 @@ class ApiClient {
           final Map<String, dynamic> j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
           accessToken = j['access_token'] as String?;
           refreshToken = j['refresh_token'] as String?;
+          final String? rotated = refreshToken;
+          if (rotated != null) {
+            onRefreshToken?.call(rotated);
+          }
           return accessToken != null;
         } on KvApiException {
           return false;

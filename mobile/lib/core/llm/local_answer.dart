@@ -100,6 +100,9 @@ class LinkValidator {
   }
 }
 
+/// Ссылка на сам помощник бесполезна в его ответе.
+bool _selfLink(String path) => path.contains('/assistant') || path.contains('c-assist-input');
+
 /// Разбирает ответ модели: ссылки [[подпись|путь]] уходят в чипы (если путь проверен), подпись остаётся в тексте
 /// только у непроверенных ссылок; незаконченная ссылка в конце потока скрывается.
 ParsedAnswer parseAnswer(String raw, LinkValidator validator, {bool streaming = false}) {
@@ -118,7 +121,7 @@ ParsedAnswer parseAnswer(String raw, LinkValidator validator, {bool streaming = 
   final String text = s.replaceAllMapped(_token, (Match m) {
     final String label = m.group(1)!.trim();
     final String path = m.group(2)!.trim();
-    if (validator.valid(path)) {
+    if (validator.valid(path) && !_selfLink(path)) {
       if (seen.add(path)) {
         links.add(AnswerLink(label, path));
       }
@@ -244,7 +247,7 @@ ParsedAnswer fallbackAnswer(SearchResult found, {String? question}) {
   for (final SearchHit h in found.hits) {
     for (final PackLink l in h.chunk.links) {
       final PackLink? bound = bindLink(l, found.unitFor(h.chunk));
-      if (bound != null && seen.add(bound.path) && links.length < 5) {
+      if (bound != null && !_selfLink(bound.path) && seen.add(bound.path) && links.length < 5) {
         links.add(AnswerLink(bound.label, bound.path));
       }
     }

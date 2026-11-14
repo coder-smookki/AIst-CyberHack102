@@ -196,6 +196,9 @@ class _UnitCard extends StatelessWidget {
       final String part = u.resource.label.contains('подшипник') ? 'подшипники' : 'ресурс';
       return 'До ${u.nextTo.code} ${KvFormat.num(u.nextTo.inHours)} ч · $part ${KvFormat.num(u.resource.used)} из ${KvFormat.num(u.resource.total)} ч';
     }
+    if (u.resource.total <= 0) {
+      return u.runHours > 0 ? 'Наработка ${KvFormat.num(u.runHours)} ч · ресурс не задан' : 'Ресурс не задан';
+    }
     return 'Наработка ${KvFormat.num(u.runHours)} из ${KvFormat.num(u.resource.total)} ч';
   }
 

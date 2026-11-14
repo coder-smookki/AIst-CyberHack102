@@ -31,15 +31,24 @@ KvArKind arKindOf(String kind) => switch (kind) {
 /// с агрегатом, покрытием обхода и кнопками «Карточка» и «Завершить».
 class ScannerScreen extends ConsumerWidget {
   /// Создаёт сканер агрегата [unitId].
-  const ScannerScreen({super.key, this.unitId = kInspectDefaultUnit});
+  const ScannerScreen({super.key, this.unitId = kInspectDefaultUnit, this.nameplateFirst = false, this.via});
 
   /// Агрегат, распознанный по шильдику.
   final String unitId;
 
+  /// Агрегат не выбран (центральная кнопка «Сканер»): на настоящем сервере сначала читается шильдик.
+  final bool nameplateFirst;
+
+  /// Как выбран агрегат: «nameplate» - по шильдику; null - вручную (из карточки или списка).
+  final String? via;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(serverModeProvider)) {
-      return LiveScannerScreen(unitId: unitId);
+      if (via == 'nameplate' || via == 'manual') {
+        return LiveScannerScreen(unitId: unitId, byNameplate: via == 'nameplate');
+      }
+      return LiveScanSearchScreen(expected: nameplateFirst ? null : unitId);
     }
     final KvColors c = context.kv;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;

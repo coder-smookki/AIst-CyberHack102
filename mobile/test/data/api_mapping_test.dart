@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:kst_vizor/data/api/api_client.dart';
 import 'package:kst_vizor/data/api/api_config.dart';
 import 'package:kst_vizor/data/api/api_mappers.dart';
+import 'package:kst_vizor/data/api/api_sound.dart';
 import 'package:kst_vizor/data/api_exception.dart';
 import 'package:kst_vizor/data/models/equipment.dart';
 import 'package:kst_vizor/data/models/inspection.dart';
@@ -126,6 +127,67 @@ void main() {
     expect(api.refreshToken, 'r2');
     await expectLater(api.getJson('/x'), throwsA(isA<KvApiException>().having((KvApiException e) => e.failure, 'failure', KvFailure.notFound)));
     expect(api.ws('/ws/detect').toString(), 'ws://srv/ws/detect?token=new');
+  });
+
+  test('справочник правил GET /rules и разбор правила по агрегату', () {
+    final RuleDef r = ApiMap.rule(_j('''
+{"id":"R01","title":"Деградация уплотнения вала","camera":{"text":"Влажное пятно у вала","signs":[{"code":"leak","title":"Течь"}]},
+ "sensor":{"text":"Рост вибрации и температуры","conditions":[]},"status":{"status":"defect","status_title":"Правило сработало"},
+ "severity":3,"severity_title":"критично","recommendation":"Перевести насос в резерв."}'''));
+    expect(r.id, 'R01');
+    expect(r.camera, 'Влажное пятно у вала');
+    expect(r.status, 'defect');
+    expect(r.severity, 3);
+    final RuleCheck c = ApiMap.ruleCheck(_j('''
+{"equipment_id":"N-101","rule_id":"R01","status_title":"Недостаточно данных для проверки правила","conditions":[
+ {"source":"camera","source_title":"Камера","what":"Течь у вала","threshold":">= 0.5","state":"unknown","value":"нет данных"},
+ {"source":"sensor","source_title":"Датчики","param":"vib_hf","what":"ВЧ шум вибрации","threshold":"> 2.5 g","state":"unmet","value":"0.15 g"},
+ {"source":"sensor","source_title":"Датчики","param":"temp_bearing","what":"Температура подшипника","threshold":"> 75 °C","state":"met","value":"78 °C"}]}'''));
+    expect(c.verdict, 'Недостаточно данных для проверки правила');
+    expect(c.count, 'Выполнено 1 из 3 условий');
+    expect(c.conditions.map((RuleCondition x) => x.state), <String>['missing', 'not', 'met']);
+    expect(c.conditions.first.label, 'Камера');
+    expect(c.chartKey, 'vibHf');
+  });
+
+  test('отклонённая мастером находка', () {
+    final Finding f = ApiMap.finding(_j('''
+{"id":12,"equipment_id":"N-101","node_name":"Корпус","status":"defect","state":"rejected","reject_reason":"Блик на краске",
+ "rejected_at":"2026-11-14T18:05:00","created_at":"2026-11-14T17:50:00","title":"Коррозия"}'''));
+    expect(f.status, 'rejected');
+    expect(f.rejectReason, 'Блик на краске');
+    expect(f.rejectedAt, '14.11.2026 18:05');
+  });
+
+  test('разбор шума: уровень к норме, полосы, пики, спектр и признак-кандидат', () {
+    final SoundResult r = SoundResult.fromJson(_j('''
+{"id":7,"inspection_id":12,"duration_s":8.0,"level_dbfs":-21.5,"peak_dbfs":-3.2,"crest_factor":5.1,"kurtosis":6.3,
+ "bands":[{"code":"low","title":"Низкие","from_hz":20,"to_hz":200,"share":0.4,"db":-25.0}],
+ "shaft_hz":48.3,"peaks":[{"freq_hz":48.5,"prominence_db":12.0,"match":"1x","match_title":"1× оборотов"}],
+ "spectrum":[{"f":20,"db":-60},{"f":50,"db":-35}],
+ "baseline":{"dbfs":-29.9,"source":"recordings","recordings":3,"title":"по трём записям","delta_db":8.4},
+ "candidates":[{"sign":"noise_high","title":"Повышенный шум","text":"Шум на 8 дБ выше нормы","value":"+8,4 дБ","confirm":{"kind":"defect","sign":"noise_high"}}],
+ "normal":false,"note":"Кандидаты не записаны"}'''));
+    expect(r.id, '7');
+    expect(r.levelDb, -21.5);
+    expect(r.deltaDb, 8.4);
+    expect(r.bands.single.share, 0.4);
+    expect(r.peaks.single.match, '1x');
+    expect(r.spectrum, hasLength(2));
+    expect(r.candidates.single.sign, 'noise_high');
+    expect(r.candidates.single.explanation, 'Шум на 8 дБ выше нормы');
+  });
+
+  test('новые типы оборудования: русские названия и обозначения, без ресурса и показаний', () {
+    final Equipment e = ApiMap.equipment(_j('{"id":"SHU-3","name":"Шкаф управления ШУ-3","type":"control_cabinet","model":"ШУ","serial":"2408-0317","mode":"running","run_hours":48200.0}'));
+    expect(e.code, 'ШУ-3');
+    expect(e.kind, 'Шкаф управления');
+    expect(e.kindShort, 'шкаф управления');
+    expect(e.readings, isEmpty);
+    expect(e.resource.total, 0);
+    expect(ApiMap.codeOf('TR-1'), 'ТР-1');
+    expect(ApiMap.codeOf('N-101'), 'Н-101');
+    expect(ApiMap.kinds['power_transformer']!.$1, 'Силовой трансформатор');
   });
 }
 

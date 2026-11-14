@@ -92,5 +92,19 @@ class DemoBioScanner implements KvBioScanner {
   }
 }
 
-/// Сканер биометрии. На устройстве подменяется системным сканером через переопределение провайдера.
-final Provider<KvBioScanner> bioScannerProvider = Provider<KvBioScanner>((Ref ref) => DemoBioScanner());
+/// Системная проверка лица или отпечатка телефона (Face ID, Touch ID, BiometricPrompt).
+class VaultBioScanner implements KvBioScanner {
+  /// Создаёт сканер поверх хранилища [vault].
+  VaultBioScanner(this.vault);
+
+  /// Хранилище входа по биометрии.
+  final BioVault vault;
+
+  @override
+  Future<bool> scan() => vault.authenticate('Подтвердите вход в КСТ Визор');
+}
+
+/// Сканер биометрии: на настоящем сервере - системная проверка телефона, в демонстрации - сканер-заглушка.
+final Provider<KvBioScanner> bioScannerProvider = Provider<KvBioScanner>(
+  (Ref ref) => ref.watch(serverModeProvider) ? VaultBioScanner(ref.watch(bioVaultProvider)) : DemoBioScanner(),
+);

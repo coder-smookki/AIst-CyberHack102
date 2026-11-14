@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import 'inspect_actions.dart';
 import 'inspect_catalog.dart';
 import 'inspect_providers.dart';
+import 'live/live_detection.dart';
 import 'scan_detail_screens.dart';
 import 'scanner_screen.dart';
 import 'widgets/inspect_camera.dart';
@@ -48,6 +49,10 @@ class _DefectScreenState extends ConsumerState<DefectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final LiveDetection? live = ref.watch(serverModeProvider) && !widget.manual ? ref.watch(liveReviewProvider).shown : null;
+    if (live != null) {
+      return LiveDefectFormScreen(d: live);
+    }
     final String unitId = widget.unitId;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;
     final Inspection? ins = ref.watch(activeInspectionProvider(unitId)).value;

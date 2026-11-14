@@ -63,6 +63,15 @@ abstract final class KvRadius {
 
 /// Размеры каркаса экрана из прототипа.
 abstract final class KvLayout {
+  /// Наибольшая ширина колонки содержимого на планшете: списки, карточки и формы по центру экрана.
+  static const double maxContent = 640;
+
+  /// Ширина, начиная с которой экран считается планшетным.
+  static const double tablet = 600;
+
+  /// Боковой отступ, который центрирует колонку содержимого шириной [maxContent] на экране шириной [width].
+  static double sideInset(double width) => width >= tablet && width > maxContent ? (width - maxContent) / 2 : 0;
+
   /// Высота строки состояния в рамке iPhone прототипа; в приложении её заменяет системный отступ.
   static const double statusBar = 54;
 

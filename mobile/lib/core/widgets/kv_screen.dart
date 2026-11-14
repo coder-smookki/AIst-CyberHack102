@@ -199,6 +199,7 @@ class _KvScreenState extends State<KvScreen> with SingleTickerProviderStateMixin
     final bool lightStatus = widget.lightStatusBar ?? c.isDark;
     final bool lightHome = widget.lightHome ?? (widget.immersive ? lightStatus : c.isDark);
     final Color bg = widget.surface ? c.surface : c.bg;
+    final double side = KvLayout.sideInset(mq.size.width);
 
     Widget body;
     if (widget.body != null) {
@@ -207,7 +208,7 @@ class _KvScreenState extends State<KvScreen> with SingleTickerProviderStateMixin
       final List<Widget> items = widget.children ?? const <Widget>[];
       body = ListView.separated(
         controller: widget.scrollController,
-        padding: EdgeInsets.only(left: widget.padding.left, right: widget.padding.right, top: widget.padding.top, bottom: bodyBottom),
+        padding: EdgeInsets.only(left: widget.padding.left + side, right: widget.padding.right + side, top: widget.padding.top, bottom: bodyBottom),
         itemCount: items.length,
         separatorBuilder: (BuildContext context, int i) => SizedBox(height: widget.gap),
         itemBuilder: (BuildContext context, int i) => _item(i, items[i]),
@@ -220,7 +221,7 @@ class _KvScreenState extends State<KvScreen> with SingleTickerProviderStateMixin
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (!widget.immersive) SizedBox(height: mq.padding.top),
-          ?widget.header,
+          if (widget.header != null) Padding(padding: EdgeInsets.symmetric(horizontal: side), child: widget.header),
           Expanded(child: body),
         ],
       ),
@@ -251,7 +252,7 @@ class _KvScreenState extends State<KvScreen> with SingleTickerProviderStateMixin
           child: _FootGradient(
             color: bg,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(KvSpace.gutter, 18, KvSpace.gutter, hasTab ? 12 : (keyboard > 0 ? 12 : homeGap)),
+              padding: EdgeInsets.fromLTRB(KvSpace.gutter + side, 18, KvSpace.gutter + side, hasTab ? 12 : (keyboard > 0 ? 12 : homeGap)),
               child: widget.foot,
             ),
           ),

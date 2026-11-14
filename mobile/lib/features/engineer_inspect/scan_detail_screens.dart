@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import 'inspect_actions.dart';
 import 'inspect_catalog.dart';
 import 'inspect_providers.dart';
+import 'live/live_detection.dart';
 import 'scanner_screen.dart';
 import 'widgets/inspect_camera.dart';
 
@@ -27,6 +28,10 @@ class ScanDefectScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final LiveDetection? live = ref.watch(serverModeProvider) ? ref.watch(liveReviewProvider).shown : null;
+    if (live != null) {
+      return LiveScanDefectScreen(d: live);
+    }
     final DefectClass cls = kDefectClasses[label] ?? kDefectClasses.values.first;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;
     final Detection? det = (ref.watch(detectionsProvider(unitId)).value ?? const <Detection>[]).where((Detection d) => d.label == label).firstOrNull;

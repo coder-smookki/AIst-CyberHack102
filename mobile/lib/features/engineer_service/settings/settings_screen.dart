@@ -53,6 +53,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  /// Включает или выключает вход по биометрии: выключение забывает ключ сеанса на телефоне, включение на настоящем
+  /// сервере сохраняет ключ текущего сеанса после системной проверки.
+  Future<void> _setBiometrics(ServiceSettingsController ctl, bool on) async {
+    await ctl.setBiometrics(on);
+    final BioVault vault = ref.read(bioVaultProvider);
+    if (!on) {
+      await vault.clear();
+      return;
+    }
+    final AuthSession? s = ref.read(sessionProvider);
+    final String? token = ref.read(apiClientProvider).refreshToken;
+    if (!ref.read(serverModeProvider) || s == null || token == null || !await vault.available()) {
+      return;
+    }
+    if (await vault.authenticate('Подтвердите включение входа по биометрии')) {
+      await vault.store(SavedAccount(email: s.user.email, name: s.user.name, title: s.user.title, roleCode: s.user.roleCode), token);
+    } else {
+      await ctl.setBiometrics(false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ThemeMode mode = ref.watch(deviceSettingsProvider.select((DeviceSettings s) => s.themeMode));
@@ -115,7 +136,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               trailing: KvToggle(
                 value: s.biometrics,
                 semanticLabel: 'Вход по биометрии',
-                onChanged: (bool v) => unawaited(ctl.setBiometrics(v)),
+                onChanged: (bool v) => unawaited(_setBiometrics(ctl, v)),
               ),
             ),
             KvRow(

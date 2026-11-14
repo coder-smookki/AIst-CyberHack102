@@ -4,6 +4,7 @@ import 'api/api_client.dart';
 import 'api/api_config.dart';
 import 'api/api_feed.dart';
 import 'api/api_repositories.dart';
+import 'api/bio_vault.dart';
 import 'clock.dart';
 import 'mock/mock_backend.dart';
 import 'mock/repos/mock_admin_repository.dart';
@@ -34,6 +35,7 @@ import 'repositories/telemetry_repository.dart';
 import 'repositories/workflow_repository.dart';
 
 export 'api/api_config.dart';
+export 'api/bio_vault.dart';
 export 'api_exception.dart';
 export 'clock.dart';
 export 'models/admin.dart';
@@ -44,8 +46,8 @@ export 'models/people.dart';
 export 'models/workflow.dart';
 export 'repositories/change_feed.dart';
 
-/// Часы приложения: в демонстрации идут от 14.11.2026 09:41; в снимках дизайна остановлены.
-final Provider<KvClock> clockProvider = Provider<KvClock>((Ref ref) => StoryClock());
+/// Часы приложения: в демонстрации идут от 14.11.2026 09:41, на настоящем сервере - время телефона; в снимках дизайна остановлены.
+final Provider<KvClock> clockProvider = Provider<KvClock>((Ref ref) => ref.watch(serverModeProvider) ? const SystemClock() : StoryClock());
 
 /// Демонстрационный сервер в памяти. Подключение настоящего сервера заменяет провайдеры репозиториев ниже
 /// и [changeFeedProvider], после чего этот провайдер и папка data/mock больше не нужны.
@@ -64,6 +66,8 @@ final Provider<KvChangeFeed> changeFeedProvider = Provider<KvChangeFeed>((Ref re
 /// Клиент цехового сервера по адресу из настроек подключения.
 final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {
   final ApiClient client = ApiClient(ref.watch(apiConfigProvider.select((ApiConfig c) => c.baseUrl)));
+  final BioVault vault = ref.watch(bioVaultProvider);
+  client.onRefreshToken = vault.rotate;
   ref.onDispose(client.close);
   return client;
 });
@@ -81,11 +85,14 @@ final Provider<bool> serverModeProvider = Provider<bool>((Ref ref) => !ref.watch
 /// Вход и сеанс.
 final Provider<AuthRepository> authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
   final MockAuthRepository mock = MockAuthRepository(ref.watch(mockBackendProvider));
-  return ref.watch(serverModeProvider) ? ApiAuthRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+  return ref.watch(serverModeProvider) ? ApiAuthRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider), ref.watch(bioVaultProvider)) : mock;
 });
 
 /// Площадка и сотрудники.
-final Provider<SiteRepository> siteRepositoryProvider = Provider<SiteRepository>((Ref ref) => MockSiteRepository(ref.watch(mockBackendProvider)));
+final Provider<SiteRepository> siteRepositoryProvider = Provider<SiteRepository>((Ref ref) {
+  final MockSiteRepository mock = MockSiteRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiSiteRepository(ref.watch(apiClientProvider), mock) : mock;
+});
 
 /// Оборудование.
 final Provider<EquipmentRepository> equipmentRepositoryProvider =
@@ -110,7 +117,10 @@ final Provider<InspectionRepository> inspectionRepositoryProvider =
 
 /// Задания, сообщения, уведомления, план ТО.
 final Provider<WorkflowRepository> workflowRepositoryProvider =
-    Provider<WorkflowRepository>((Ref ref) => MockWorkflowRepository(ref.watch(mockBackendProvider)));
+    Provider<WorkflowRepository>((Ref ref) {
+  final MockWorkflowRepository mock = MockWorkflowRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiWorkflowRepository(ref.watch(apiClientProvider), mock) : mock;
+});
 
 /// Отчёты.
 final Provider<ReportRepository> reportRepositoryProvider = Provider<ReportRepository>((Ref ref) {

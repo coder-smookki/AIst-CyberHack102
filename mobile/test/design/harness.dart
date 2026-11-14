@@ -21,6 +21,9 @@ import 'design_case.dart';
 /// Размеры телефонов прототипа: ширина - высота в логических пикселях.
 const Map<int, double> kPhoneHeights = {360: 780, 390: 844, 430: 932};
 
+/// Размеры планшетов для проверки раскладки: ширина - высота в логических пикселях (1180 × 820 - альбомная).
+const Map<int, double> kTabletHeights = {768: 1024, 820: 1180, 1024: 1366, 1180: 820};
+
 /// Отступ строки состояния и индикатора «домой» в рамке iPhone прототипа.
 const double kStatusInset = 54;
 
@@ -71,7 +74,7 @@ Future<ShotResult> shootCase(WidgetTester tester, DesignCase c, {required int wi
 
 Future<ShotResult> _shoot(WidgetTester tester, DesignCase c, {required int width, required String theme}) async {
   await loadKvFonts();
-  final double height = kPhoneHeights[width]!;
+  final double height = kPhoneHeights[width] ?? kTabletHeights[width]!;
   tester.view.devicePixelRatio = kShotDpr;
   tester.view.physicalSize = Size(width * kShotDpr, height * kShotDpr);
   tester.view.padding = const FakeViewPadding(top: kStatusInset * kShotDpr, bottom: kHomeInset * kShotDpr);

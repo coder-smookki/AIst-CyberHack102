@@ -38,7 +38,13 @@ class ArCameraScreen extends StatelessWidget {
           Positioned.fill(child: RepaintBoundary(child: stage)),
           ...layers,
           Positioned(left: KvSpace.gutter, right: KvSpace.gutter, top: topInset, child: top),
-          if (panel != null) Positioned(left: 0, right: 0, bottom: 0, child: panel!),
+          if (panel != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: KvLayout.maxContent), child: panel)),
+            ),
         ],
       ),
     );

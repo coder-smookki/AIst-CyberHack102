@@ -9,8 +9,8 @@ import 'package:image/image.dart' as img;
 /// В выпускной сборке всегда выключен.
 const bool kDebugFrames = !kReleaseMode && bool.fromEnvironment('KST_DEBUG_FRAMES');
 
-/// Снимки из папки приложения /sdcard/Android/data/ru.aist.kstvizor/files/kst_frames (только Android),
-/// уменьшенные до 640 пикселей по длинной стороне: сканер отправляет их на сервер вместо кадров камеры.
+/// Снимки из папки kst_frames во внутренних файлах приложения (adb shell run-as ... cp) или в /sdcard/Android/data (только Android),
+/// уменьшенные до 1280 пикселей по длинной стороне: сканер отправляет их на сервер вместо кадров камеры.
 class DebugFrameSource {
   DebugFrameSource._(this.frames);
 
@@ -30,8 +30,11 @@ class DebugFrameSource {
     if (!Platform.isAndroid) {
       return null;
     }
-    final Directory dir = Directory('/storage/emulated/0/Android/data/ru.aist.kstvizor/files/kst_frames');
-    if (!dir.existsSync()) {
+    final Directory dir = [
+      Directory('/data/user/0/ru.aist.kstvizor/files/kst_frames'),
+      Directory('/storage/emulated/0/Android/data/ru.aist.kstvizor/files/kst_frames'),
+    ].firstWhere((Directory d) => d.existsSync(), orElse: () => Directory(''));
+    if (dir.path.isEmpty) {
       return null;
     }
     final List<File> files = dir.listSync().whereType<File>().where((File f) => RegExp(r'\.(jpe?g|png)$', caseSensitive: false).hasMatch(f.path)).toList()
@@ -49,7 +52,7 @@ class DebugFrameSource {
 }
 
 /// Снимок [raw] в JPEG не больше [side] пикселей по длинной стороне; null - файл не читается как изображение.
-Uint8List? shrinkPhoto(Uint8List raw, {int side = 640}) {
+Uint8List? shrinkPhoto(Uint8List raw, {int side = 1280}) {
   final img.Image? src = img.decodeImage(raw);
   if (src == null) {
     return null;

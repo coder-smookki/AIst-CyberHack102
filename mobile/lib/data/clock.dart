@@ -30,3 +30,12 @@ class StoryClock implements KvClock {
   @override
   DateTime now() => _start.add(DateTime.now().difference(_since));
 }
+
+/// Часы телефона: настоящий сервер работает в текущем времени.
+class SystemClock implements KvClock {
+  /// Создаёт часы.
+  const SystemClock();
+
+  @override
+  DateTime now() => DateTime.now();
+}

@@ -62,6 +62,25 @@ abstract final class ApiMap {
     return out;
   }
 
+  /// Тип оборудования по-русски: полное и короткое название по коду типа сервера.
+  static const Map<String, (String, String)> kinds = {
+    'inline_centrifugal_pump': ('Центробежный насос in-line', 'насос'),
+    'progressive_cavity_pump': ('Винтовой насос', 'винтовой насос'),
+    'control_cabinet': ('Шкаф управления', 'шкаф управления'),
+    'power_transformer': ('Силовой трансформатор', 'трансформатор'),
+  };
+
+  /// Обозначение на станции по идентификатору сервера: N-101 - «Н-101», SHU-3 - «ШУ-3», TR-1 - «ТР-1».
+  static String codeOf(String id) {
+    const Map<String, String> prefixes = {'SHU': 'ШУ', 'AMS': 'АМС', 'TR': 'ТР', 'N': 'Н'};
+    for (final MapEntry<String, String> e in prefixes.entries) {
+      if (id.startsWith('${e.key}-')) {
+        return '${e.value}${id.substring(e.key.length)}';
+      }
+    }
+    return id;
+  }
+
   /// Статус агрегата ok, warn, bad по диагнозу и уровню телеметрии.
   static String unitStatus(String? diagnosis, String? level) {
     if (diagnosis == 'defect' || level == 'alarm' || level == 'bad') {
@@ -96,15 +115,17 @@ abstract final class ApiMap {
     Map<String, Reading>? readings,
     String? diagnosis,
     String? level,
+    Resource? resource,
+    NextMaintenance? nextTo,
   }) {
     final String id = Json.str(j, 'id');
     final String mode = Json.str(j, 'mode', base?.mode ?? 'running');
     final String status = unitStatus(diagnosis, level);
-    final Map<String, Reading> values = readings ?? base?.readings ?? const <String, Reading>{};
+    final Map<String, Reading> values = readings ?? const <String, Reading>{};
     final Reading? vib = values['vib1x'];
     final Reading? bearing = values['tBearing'];
     final String summary = vib == null
-        ? (base?.summary ?? Json.str(j, 'location'))
+        ? Json.str(j, 'location', base?.location ?? '')
         : [
             'Вибрация 1X ${vib.value.toStringAsFixed(vib.digits).replaceAll('.', ',')} ${vib.unit}',
             if (bearing != null) 'подшипник ${bearing.value.toStringAsFixed(0)} ${bearing.unit}',
@@ -113,10 +134,10 @@ abstract final class ApiMap {
     final String? lastAt = Json.strOrNull(j, 'last_inspection_at') ?? Json.strOrNull(last, 'started_at');
     return Equipment(
       id: id,
-      code: base?.code ?? id,
+      code: base?.code ?? codeOf(id),
       name: Json.str(j, 'name', base?.name ?? id),
-      kind: base?.kind ?? Json.str(j, 'type'),
-      kindShort: base?.kindShort ?? 'насос',
+      kind: base?.kind ?? kinds[Json.str(j, 'type')]?.$1 ?? Json.str(j, 'type'),
+      kindShort: base?.kindShort ?? kinds[Json.str(j, 'type')]?.$2 ?? 'оборудование',
       model: Json.str(j, 'model', base?.model ?? ''),
       modelShort: base?.modelShort ?? Json.str(j, 'model'),
       modelFull: base?.modelFull ?? Json.str(j, 'model'),
@@ -130,8 +151,8 @@ abstract final class ApiMap {
       modeLabel: modeLabel(mode),
       summary: summary,
       runHours: Json.number(j, 'run_hours', base?.runHours ?? 0),
-      resource: base?.resource ?? const Resource(label: 'Ресурс', used: 0, total: 0, left: 0, status: 'ok'),
-      nextTo: base?.nextTo ?? const NextMaintenance(code: '', inHours: 0, atHours: 0, date: ''),
+      resource: resource ?? const Resource(label: 'Ресурс: недостаточно данных', used: 0, total: 0, left: 0, status: 'ok'),
+      nextTo: nextTo ?? const NextMaintenance(code: '', inHours: 0, atHours: 0, date: ''),
       lastInspection: lastAt == null
           ? (base?.lastInspection ?? const LastInspection(date: '', time: '', who: '', id: ''))
           : LastInspection(
@@ -146,9 +167,89 @@ abstract final class ApiMap {
       nodes: base?.nodes ?? Json.list(j, 'nodes', EquipmentNode.fromJson),
       documents: base?.documents ?? const <EquipmentDocument>[],
       runByMonth: base?.runByMonth ?? const <MonthRun>[],
-      openFindings: Json.integer(j, 'open_findings', base?.openFindings ?? 0),
-      stoppedAt: mode == 'stopped' ? base?.stoppedAt : null,
-      stopNote: mode == 'stopped' ? base?.stopNote : null,
+      openFindings: Json.integer(j, 'open_findings'),
+    );
+  }
+
+  /// Ресурс узла с наибольшим расчётным износом из ответа GET /equipment/{id}/resource; null - данных нет.
+  static Resource? resource(Map<String, dynamic> j) {
+    Resource? best;
+    double worst = -1;
+    for (final Map<String, dynamic> n in Json.list(j, 'nodes', (Map<String, dynamic> e) => e)) {
+      final Map<String, dynamic> calc = Json.obj(n, 'calculated');
+      final double? used = Json.numOrNull(calc, 'used_percent');
+      final double? total = Json.numOrNull(Json.obj(n, 'normative'), 'hours');
+      final double? left = Json.numOrNull(calc, 'remaining_hours');
+      if (used == null || total == null || left == null || used <= worst) {
+        continue;
+      }
+      worst = used;
+      best = Resource(
+        label: 'Ресурс: ${Json.str(n, 'name').toLowerCase()}',
+        used: total - left,
+        total: total,
+        left: left,
+        status: used >= 100 ? 'bad' : (used >= 80 ? 'warn' : 'ok'),
+      );
+    }
+    return best;
+  }
+
+  /// Ближайшее обслуживание по наработке из ответа GET /equipment/{id}/resource; null - данных нет.
+  static NextMaintenance? nextMaintenance(Map<String, dynamic> j) {
+    NextMaintenance? best;
+    for (final Map<String, dynamic> m in Json.list(j, 'maintenance', (Map<String, dynamic> e) => e)) {
+      final double? left = Json.numOrNull(m, 'remaining_hours');
+      if (left == null || (best != null && left >= best.inHours)) {
+        continue;
+      }
+      best = NextMaintenance(
+        code: Json.str(m, 'name', Json.str(m, 'code')),
+        inHours: left,
+        atHours: Json.number(m, 'last_at_hours') + Json.number(m, 'interval_hours'),
+        date: '',
+      );
+    }
+    return best;
+  }
+
+  /// Правило из справочника GET /rules.
+  static RuleDef rule(Map<String, dynamic> j) => RuleDef(
+        id: Json.str(j, 'id'),
+        title: Json.str(j, 'title'),
+        camera: Json.str(Json.obj(j, 'camera'), 'text'),
+        sensor: Json.str(Json.obj(j, 'sensor'), 'text'),
+        status: Json.str(Json.obj(j, 'status'), 'status', 'check'),
+        severity: Json.integer(j, 'severity', 1),
+        recommendation: Json.str(j, 'recommendation'),
+      );
+
+  /// Разбор правила по агрегату из GET /equipment/{id}/rules/{rule_id}: условия плоским списком.
+  static RuleCheck ruleCheck(Map<String, dynamic> j) {
+    final List<Map<String, dynamic>> raw = Json.list(j, 'conditions', (Map<String, dynamic> e) => e);
+    final List<RuleCondition> conditions = [
+      for (final Map<String, dynamic> c in raw)
+        RuleCondition(
+          source: Json.str(c, 'source'),
+          label: Json.str(c, 'source_title'),
+          what: [Json.str(c, 'what'), Json.str(c, 'threshold')].where((String x) => x.isNotEmpty).join(' '),
+          state: switch (Json.str(c, 'state')) {
+            'met' => 'met',
+            'unmet' => 'not',
+            _ => 'missing',
+          },
+          value: Json.str(c, 'value'),
+        ),
+    ];
+    final int met = conditions.where((RuleCondition c) => c.state == 'met').length;
+    final String? param = raw.where((Map<String, dynamic> c) => Json.str(c, 'source') == 'sensor').map((Map<String, dynamic> c) => Json.str(c, 'param')).firstOrNull;
+    return RuleCheck(
+      ruleId: Json.str(j, 'rule_id'),
+      unitId: Json.str(j, 'equipment_id'),
+      verdict: Json.str(j, 'status_title'),
+      count: 'Выполнено $met из ${conditions.length} условий',
+      conditions: conditions,
+      chartKey: param == null ? null : readingKeys[param],
     );
   }
 
@@ -251,8 +352,11 @@ abstract final class ApiMap {
       status: switch (Json.str(j, 'state')) {
         'in_work' => 'confirmed',
         'resolved' => 'closed',
+        'rejected' => 'rejected',
         _ => 'new',
       },
+      rejectReason: Json.strOrNull(j, 'reject_reason'),
+      rejectedAt: Json.strOrNull(j, 'rejected_at') == null ? null : '${date(Json.strOrNull(j, 'rejected_at'))} ${time(Json.strOrNull(j, 'rejected_at'))}',
       source: Json.str(j, 'source'),
       date: date(Json.strOrNull(j, 'created_at')),
       time: time(Json.strOrNull(j, 'created_at')),

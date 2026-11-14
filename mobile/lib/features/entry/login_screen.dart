@@ -119,11 +119,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final AuthSession session = await ref.read(sessionProvider.notifier).login(email, password);
       await pause;
       if (mounted) {
+        await _offerBiometrics(session);
+      }
+      if (mounted) {
         entryOpenHome(context, session);
       }
     } on KvApiException catch (e) {
       await pause;
       _failed(e, email);
+    }
+  }
+
+  /// После входа по паролю на настоящем сервере предлагает входить по Face ID или отпечатку, если телефон умеет,
+  /// политика безопасности разрешает и вход по биометрии ещё не включён.
+  Future<void> _offerBiometrics(AuthSession session) async {
+    if (!ref.read(serverModeProvider) || !session.biometricsAllowed || session.mustChangePassword) {
+      return;
+    }
+    final BioVault vault = ref.read(bioVaultProvider);
+    if (!await vault.available() || await vault.account() != null || !mounted) {
+      return;
+    }
+    final String kind = await vault.kind();
+    if (!mounted) {
+      return;
+    }
+    final bool? enable = await showKvDialog<bool>(
+      context,
+      builder: (BuildContext dialog) => KvDialog(
+        icon: KvIcons.finger,
+        title: 'Входить по ${kind == 'Face ID' ? 'Face ID' : 'отпечатку'}?',
+        text: 'Следующий вход - без пароля. Ключ сеанса хранится защищённо на этом телефоне и выдаётся только после проверки $kind.',
+        actions: [
+          KvButton('Не сейчас', kind: KvButtonKind.secondary, onPressed: () => Navigator.of(dialog).pop(false)),
+          KvButton('Включить', onPressed: () => Navigator.of(dialog).pop(true)),
+        ],
+      ),
+    );
+    if (enable == true) {
+      final AppUser u = session.user;
+      await vault.store(SavedAccount(email: u.email, name: u.name, title: u.title, roleCode: u.roleCode), session.refreshToken);
+      ref.invalidate(entrySavedAccountProvider);
     }
   }
 

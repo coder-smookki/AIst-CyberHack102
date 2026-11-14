@@ -50,6 +50,14 @@ class _EntryBioSheetState extends ConsumerState<EntryBioSheet> {
   Timer? _timer;
 
   @override
+  void initState() {
+    super.initState();
+    if (ref.read(serverModeProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scan());
+    }
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     super.dispose();

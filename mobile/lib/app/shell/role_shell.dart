@@ -43,8 +43,8 @@ class RoleShell extends ConsumerWidget {
         children: [
           Positioned.fill(child: child),
           Positioned(
-            left: KvSpace.gutter,
-            right: KvSpace.gutter,
+            left: KvSpace.gutter + KvLayout.sideInset(MediaQuery.sizeOf(context).width),
+            right: KvSpace.gutter + KvLayout.sideInset(MediaQuery.sizeOf(context).width),
             bottom: KvTabBarScope.bottomOf(context),
             child: KvTabBar(
               activeIndex: active,

@@ -13,10 +13,13 @@ import '../repositories/change_feed.dart';
 import '../repositories/equipment_repository.dart';
 import '../repositories/inspection_repository.dart';
 import '../repositories/report_repository.dart';
+import '../repositories/site_repository.dart';
 import '../repositories/telemetry_repository.dart';
+import '../repositories/workflow_repository.dart';
 import 'api_client.dart';
 import 'api_feed.dart';
 import 'api_mappers.dart';
+import 'bio_vault.dart';
 
 /// Номер записи настоящего сервера (целое число); номера демонстрационных данных («INS-2209») сюда не подходят.
 bool isServerId(String id) => int.tryParse(id) != null;
@@ -24,8 +27,11 @@ bool isServerId(String id) => int.tryParse(id) != null;
 /// Вход на настоящем сервере. Сведения, которых сервер не хранит (должность, смена, сохранённая учётная запись,
 /// контакты), остаются демонстрационными: параллельный вход в демонстрационный сервер даёт экранам других ролей контекст.
 class ApiAuthRepository implements AuthRepository {
-  /// Создаёт репозиторий.
-  ApiAuthRepository(this.api, this.mock, this.feed);
+  /// Создаёт репозиторий; [vault] - хранилище входа по биометрии.
+  ApiAuthRepository(this.api, this.mock, this.feed, [BioVault? vault]) : vault = vault ?? MemoryBioVault();
+
+  /// Хранилище входа по биометрии.
+  final BioVault vault;
 
   /// Клиент сервера.
   final ApiClient api;
@@ -83,9 +89,23 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> loginWithBiometrics(String refreshToken) async {
-    final String token = api.refreshToken ?? refreshToken;
-    final dynamic j = await api.postJson('/auth/refresh', {'refresh_token': token, 'biometric': true}, false);
-    return _merge(j as Map<String, dynamic>, _session);
+    final BioAccount? saved = await vault.read();
+    if (saved == null || saved.refreshToken.isEmpty) {
+      throw const KvApiException(KvFailure.invalidCredentials, 'Вход по биометрии не включён - войдите с паролем');
+    }
+    final dynamic j;
+    try {
+      j = await api.postJson('/auth/refresh', {'refresh_token': saved.refreshToken, 'biometric': true}, false);
+    } on KvApiException catch (e) {
+      if (e.failure == KvFailure.network) {
+        rethrow;
+      }
+      await vault.clear();
+      throw KvApiException(e.failure, 'Вход по биометрии больше не действует: ${e.message}. Войдите с паролем.');
+    }
+    final AuthSession s = _merge(j as Map<String, dynamic>, _session);
+    await vault.rotate(s.refreshToken);
+    return s;
   }
 
   @override
@@ -132,6 +152,7 @@ class ApiAuthRepository implements AuthRepository {
       ..accessToken = null
       ..lastFrame = null;
     _session = null;
+    await vault.clear();
     try {
       await mock.logout();
     } on Object {
@@ -143,7 +164,7 @@ class ApiAuthRepository implements AuthRepository {
   Future<LoginPreset?> scenarioLogin(String scenario) async => null;
 
   @override
-  Future<SavedAccount?> savedAccount() => mock.savedAccount();
+  Future<SavedAccount?> savedAccount() => vault.account();
 
   @override
   Future<ConnectionInfo> connectionInfo() => mock.connectionInfo();
@@ -218,7 +239,16 @@ class ApiEquipmentRepository implements EquipmentRepository {
     } on KvApiException {
       diagnosis = null;
     }
-    return ApiMap.equipment(row, base: base, readings: readings, diagnosis: diagnosis, level: level);
+    Resource? resource;
+    NextMaintenance? nextTo;
+    try {
+      final Map<String, dynamic> r = await api.getJson('/equipment/$id/resource') as Map<String, dynamic>;
+      resource = ApiMap.resource(r);
+      nextTo = ApiMap.nextMaintenance(r);
+    } on KvApiException {
+      resource = null;
+    }
+    return ApiMap.equipment(row, base: base, readings: readings ?? const <String, Reading>{}, diagnosis: diagnosis, level: level, resource: resource, nextTo: nextTo);
   }
 
   @override
@@ -311,7 +341,7 @@ class ApiTelemetryRepository implements TelemetryRepository {
     final Map<String, Reading> base = await _base(unitId);
     final Map<String, dynamic> t = await api.getJson('/equipment/${Uri.encodeComponent(unitId)}/telemetry') as Map<String, dynamic>;
     if (!Json.flag(t, 'available')) {
-      return base;
+      return const <String, Reading>{};
     }
     return ApiMap.readings(t, base);
   }
@@ -370,7 +400,8 @@ class ApiInspectionRepository implements InspectionRepository {
   static final Map<String, Map<String, String>> _nodeCodes = {};
   static final Map<String, int> _coverageSeen = {};
 
-  /// Учесть состояние обхода из ответа /ws/inspect: осмотренные камерой узлы отмечаются в маршруте.
+  /// Учесть состояние обхода из ответа /ws/inspect: узлы, осмотренные камерой без признаков дефекта, отмечаются
+  /// в маршруте как осмотренные. Узел с признаком ждёт решения инженера и сам дефектным не отмечается.
   void applyCoverage(String unitId, Map<String, dynamic> coverage) {
     final Map<String, ({String result, String note})> marks = _marks.putIfAbsent(unitId, () => {});
     final Map<String, dynamic> nodes = Json.obj(coverage, 'nodes');
@@ -379,13 +410,11 @@ class ApiInspectionRepository implements InspectionRepository {
       if (v is! Map<String, dynamic> || !Json.flag(v, 'inspected')) {
         return;
       }
-      final bool defect = Json.obj(v, 'defect_classes').isNotEmpty;
-      final String result = defect ? 'bad' : 'ok';
-      final ({String result, String note})? old = marks[code];
-      if (old == null || (old.result == 'ok' && result == 'bad')) {
-        marks[code] = (result: result, note: defect ? 'Признак дефекта на видео' : 'Осмотрено камерой');
-        changed = true;
+      if (Json.obj(v, 'defect_classes').isNotEmpty || marks.containsKey(code)) {
+        return;
       }
+      marks[code] = (result: 'ok', note: 'Осмотрено камерой');
+      changed = true;
     });
     final int inspected = Json.integer(coverage, 'inspected');
     if (changed || _coverageSeen[unitId] != inspected) {
@@ -394,14 +423,28 @@ class ApiInspectionRepository implements InspectionRepository {
     }
   }
 
-  @override
-  Future<List<RuleDef>> rules() => mock.rules();
+  List<Map<String, dynamic>>? _rulesJson;
+
+  Future<List<Map<String, dynamic>>> _rules() async =>
+      _rulesJson ??= ((await api.getJson('/rules')) as List<dynamic>).whereType<Map<String, dynamic>>().toList();
 
   @override
-  Future<RuleDef> rule(String id) => mock.rule(id);
+  Future<List<RuleDef>> rules() async => [for (final Map<String, dynamic> r in await _rules()) ApiMap.rule(r)];
 
   @override
-  Future<Map<int, String>> severityLabels() => mock.severityLabels();
+  Future<RuleDef> rule(String id) async {
+    final Map<String, dynamic>? r = (await _rules()).where((Map<String, dynamic> e) => Json.str(e, 'id') == id).firstOrNull;
+    if (r == null) {
+      throw KvApiException(KvFailure.notFound, 'Правило $id не найдено');
+    }
+    return ApiMap.rule(r);
+  }
+
+  @override
+  Future<Map<int, String>> severityLabels() async => {
+        for (final Map<String, dynamic> r in await _rules())
+          if (Json.integer(r, 'severity') > 0) Json.integer(r, 'severity'): Json.str(r, 'severity_title'),
+      };
 
   @override
   Future<List<DiagnosisResult>> diagnosis(String unitId) async {
@@ -459,7 +502,17 @@ class ApiInspectionRepository implements InspectionRepository {
   }
 
   @override
-  Future<RuleCheck> ruleCheck(String unitId, String ruleId) => mock.ruleCheck(unitId, ruleId);
+  Future<RuleCheck> ruleCheck(String unitId, String ruleId) async {
+    final Inspection? active = await activeInspection(unitId);
+    final Map<String, dynamic> j = await api.getJson(
+      '/equipment/${Uri.encodeComponent(unitId)}/rules/${Uri.encodeComponent(ruleId)}',
+      {if (active != null && isServerId(active.id)) 'inspection_id': active.id},
+    ) as Map<String, dynamic>;
+    return ApiMap.ruleCheck(j);
+  }
+
+  /// Как опознан агрегат следующего осмотра: nameplate, manual или qr (POST /inspections, identified_by).
+  static final Map<String, String> identifiedBy = {};
 
   @override
   Future<List<ChecklistItem>> checklist(String inspectionId) => mock.checklist(inspectionId);
@@ -517,7 +570,7 @@ class ApiInspectionRepository implements InspectionRepository {
 
   @override
   Future<Inspection> start(String unitId) async {
-    final Map<String, dynamic> j = await api.postJson('/inspections', {'equipment_id': unitId}) as Map<String, dynamic>;
+    final Map<String, dynamic> j = await api.postJson('/inspections', {'equipment_id': unitId, 'identified_by': ?identifiedBy[unitId]}) as Map<String, dynamic>;
     if (!Json.flag(j, 'resumed')) {
       _marks.remove(unitId);
     }
@@ -585,6 +638,10 @@ class ApiInspectionRepository implements InspectionRepository {
     'coupling_guard_shifted',
     'crack',
     'damage',
+    'noise_high',
+    'noise_impulsive',
+    'noise_tonal',
+    'cavitation_noise',
   };
 
   /// Находка со сканера по классу детектора [cls]: признак дефекта передаётся серверу как sign, узел - кодом.
@@ -598,7 +655,11 @@ class ApiInspectionRepository implements InspectionRepository {
       'node': ?code,
       if (serverSigns.contains(cls)) 'sign': cls,
     };
-    return _postFinding(inspectionId, fields);
+    final Finding f = await _postFinding(inspectionId, fields);
+    if (code != null) {
+      _marks.putIfAbsent(ins.unitId, () => {})[code] = (result: severity >= 2 ? 'bad' : 'warn', note: comment ?? '');
+    }
+    return f;
   }
 
   /// Правило [ruleId] сейчас срабатывает в диагнозе осмотра (для узла [node], если он известен).
@@ -661,7 +722,11 @@ class ApiInspectionRepository implements InspectionRepository {
   }
 
   @override
-  Future<List<Finding>> findings({String? status, String? unitId}) => mock.findings(status: status, unitId: unitId);
+  Future<List<Finding>> findings({String? status, String? unitId}) async {
+    final List<dynamic> rows = await api.getJson('/inspections/findings', {'equipment_id': ?unitId}) as List<dynamic>;
+    final List<Finding> all = [for (final Map<String, dynamic> r in rows.whereType<Map<String, dynamic>>()) ApiMap.finding(r)];
+    return status == null ? all : all.where((Finding f) => f.status == status).toList();
+  }
 
   @override
   Future<Finding> finding(String id) async {
@@ -671,21 +736,66 @@ class ApiInspectionRepository implements InspectionRepository {
     return ApiMap.finding(await api.getJson('/inspections/findings/$id') as Map<String, dynamic>);
   }
 
-  @override
-  Future<Finding> confirmFinding(String id, {bool keepRunning = false, String? justification}) =>
-      mock.confirmFinding(id, keepRunning: keepRunning, justification: justification);
+  Future<Finding> _state(String id, String state, String? comment) async =>
+      ApiMap.finding(await api.postJson('/inspections/findings/$id/state', {'state': state, 'comment': ?comment}) as Map<String, dynamic>);
+
+  Future<Finding> _decide(String id, List<String> states, String comment) async {
+    Finding f = await finding(id);
+    for (final String st in states) {
+      f = await _state(id, st, comment);
+    }
+    feed
+      ..notify(KvDomain.findings)
+      ..notify(KvDomain.inspections);
+    return f;
+  }
 
   @override
-  Future<Finding> rejectFinding(String id, {required String reason, required String note}) => mock.rejectFinding(id, reason: reason, note: note);
+  Future<Finding> confirmFinding(String id, {bool keepRunning = false, String? justification}) {
+    if (!isServerId(id)) {
+      return mock.confirmFinding(id, keepRunning: keepRunning, justification: justification);
+    }
+    final String note = [
+      'Подтверждено мастером',
+      if (keepRunning) 'агрегат оставлен в работе',
+      if (justification != null && justification.isNotEmpty) justification,
+    ].join('. ');
+    return _decide(id, const ['in_work'], note);
+  }
 
   @override
-  Future<Finding> scheduleFinding(String id, {required String when}) => mock.scheduleFinding(id, when: when);
+  Future<Finding> rejectFinding(String id, {required String reason, required String note}) {
+    if (!isServerId(id)) {
+      return mock.rejectFinding(id, reason: reason, note: note);
+    }
+    return _decide(id, const ['rejected'], [reason, if (note.isNotEmpty) note].join('. '));
+  }
 
   @override
-  Future<Finding> commentFinding(String id, String text) => mock.commentFinding(id, text);
+  Future<Finding> scheduleFinding(String id, {required String when}) {
+    if (!isServerId(id)) {
+      return mock.scheduleFinding(id, when: when);
+    }
+    return _decide(id, const ['in_work'], 'Запланировано: $when');
+  }
 
   @override
-  Future<Finding> reopenFinding(String id) => mock.reopenFinding(id);
+  Future<Finding> commentFinding(String id, String text) async {
+    if (!isServerId(id)) {
+      return mock.commentFinding(id, text);
+    }
+    final Finding f = ApiMap.finding(await api.postJson('/inspections/findings/$id/comment', {'text': text}) as Map<String, dynamic>);
+    feed.notify(KvDomain.findings);
+    return f;
+  }
+
+  @override
+  Future<Finding> reopenFinding(String id) async {
+    if (!isServerId(id)) {
+      return mock.reopenFinding(id);
+    }
+    throw const KvApiException(KvFailure.validation, 'Сервер не возвращает закрытые находки на подтверждение');
+  }
 }
 
 /// Отчёты: отчёт по осмотру формирует настоящий сервер (PDF или Excel), остальные - демонстрационные.
@@ -771,4 +881,194 @@ class ApiAssistantRepository implements AssistantRepository {
     feed.notify(KvDomain.assistant);
     return a;
   }
+}
+
+/// Задания и уведомления с настоящего сервера (GET /tasks/my, /notifications). План ТО и сообщения о неисправностях
+/// других ролей пока демонстрационные; в режиме сервера план пуст, чтобы не показывать вымышленные работы.
+class ApiWorkflowRepository implements WorkflowRepository {
+  /// Создаёт репозиторий.
+  ApiWorkflowRepository(this.api, this.mock);
+
+  /// Клиент сервера.
+  final ApiClient api;
+
+  /// Демонстрационные разделы других ролей.
+  final WorkflowRepository mock;
+
+  @override
+  Future<List<InspectionTask>> tasks({String? assignee}) async {
+    try {
+      final List<dynamic> rows = await api.getJson('/tasks/my') as List<dynamic>;
+      return [for (final Map<String, dynamic> r in rows.whereType<Map<String, dynamic>>()) InspectionTask.fromJson(r)];
+    } on KvApiException catch (e) {
+      if (e.failure == KvFailure.forbidden || e.failure == KvFailure.notFound) {
+        return const <InspectionTask>[];
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<InspectionTask> task(String id) async {
+    if (!isServerId(id)) {
+      return mock.task(id);
+    }
+    return InspectionTask.fromJson(await api.getJson('/tasks/$id') as Map<String, dynamic>);
+  }
+
+  @override
+  Future<InspectionTask> assignInspection({
+    required String unitId,
+    required String assignee,
+    required String reason,
+    required String due,
+    String priority = 'normal',
+    String? faultReportId,
+  }) =>
+      mock.assignInspection(unitId: unitId, assignee: assignee, reason: reason, due: due, priority: priority, faultReportId: faultReportId);
+
+  Map<String, String>? _signs;
+
+  Future<Map<String, String>> _signCodes() async => _signs ??= {
+        for (final Map<String, dynamic> e in ((await api.getJson('/fault-reports/signs')) as List<dynamic>).whereType<Map<String, dynamic>>())
+          Json.str(e, 'title'): Json.str(e, 'code'),
+      };
+
+  FaultReport _report(Map<String, dynamic> j) {
+    final FaultReport r = FaultReport.fromJson(j);
+    final String at = Json.str(j, 'created_at');
+    return FaultReport(
+      id: r.id,
+      unitId: r.unitId,
+      author: r.author,
+      date: ApiMap.date(at),
+      time: ApiMap.time(at),
+      kind: r.kind,
+      text: r.text,
+      status: r.status,
+      statusLabel: r.statusLabel,
+    );
+  }
+
+  @override
+  Future<List<String>> faultKinds() async => (await _signCodes()).keys.toList();
+
+  @override
+  Future<List<FaultReport>> faultReports({String? author}) async {
+    List<dynamic> rows;
+    try {
+      rows = await api.getJson('/fault-reports') as List<dynamic>;
+    } on KvApiException catch (e) {
+      if (e.failure != KvFailure.forbidden) {
+        rethrow;
+      }
+      rows = await api.getJson('/fault-reports/my') as List<dynamic>;
+    }
+    return [for (final Map<String, dynamic> r in rows.whereType<Map<String, dynamic>>()) _report(r)];
+  }
+
+  @override
+  Future<FaultReport> faultReport(String id) async {
+    if (!isServerId(id)) {
+      return mock.faultReport(id);
+    }
+    return _report(await api.getJson('/fault-reports/$id') as Map<String, dynamic>);
+  }
+
+  @override
+  Future<FaultReport> reportFault({required String unitId, required String kind, required String text, required String author}) async {
+    final Map<String, String> codes = await _signCodes();
+    final String code = codes[kind] ?? 'other';
+    final Map<String, dynamic> j = await api.postJson('/fault-reports', {
+      'equipment_id': unitId,
+      'signs': [code],
+      'comment': code == 'other' && text.trim().isEmpty ? kind : text,
+    }) as Map<String, dynamic>;
+    return _report(j);
+  }
+
+  @override
+  Future<List<AppNotification>> notifications(String roleKey) async {
+    try {
+      final List<dynamic> rows = await api.getJson('/notifications') as List<dynamic>;
+      return [
+        for (final Map<String, dynamic> r in rows.whereType<Map<String, dynamic>>())
+          AppNotification(
+            id: Json.str(r, 'id'),
+            time: '${ApiMap.date(Json.strOrNull(r, 'at'))} ${ApiMap.time(Json.strOrNull(r, 'at'))}'.trim(),
+            kind: Json.str(r, 'kind'),
+            title: Json.str(r, 'title'),
+            text: Json.str(r, 'text'),
+          ),
+      ];
+    } on KvApiException catch (e) {
+      if (e.failure == KvFailure.forbidden) {
+        return const <AppNotification>[];
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> markNotificationsRead(String roleKey) async {}
+
+  @override
+  Future<List<PlanItem>> plan() async => const <PlanItem>[];
+
+  @override
+  Future<PlanItem> movePlanItem(String id, {required String date, required String time}) => mock.movePlanItem(id, date: date, time: time);
+
+  @override
+  Future<PlanItem> assignPlanItem(String id, String who) => mock.assignPlanItem(id, who);
+}
+
+/// Площадка на настоящем сервере: имя сервера и его доступность; справочник сотрудников - демонстрационный.
+class ApiSiteRepository implements SiteRepository {
+  /// Создаёт репозиторий.
+  ApiSiteRepository(this.api, this.mock);
+
+  /// Клиент сервера.
+  final ApiClient api;
+
+  /// Справочник сотрудников других ролей.
+  final SiteRepository mock;
+
+  @override
+  Future<Site> site() async {
+    try {
+      final Map<String, dynamic> j = await api.getJson('/site') as Map<String, dynamic>;
+      return Site(
+        name: Json.str(j, 'name'),
+        shift: [Json.str(j, 'shift_title'), Json.str(j, 'shift')].where((String x) => x.isNotEmpty).join(' · '),
+        shiftShort: 'смена ${Json.str(j, 'shift')}',
+        server: Json.str(j, 'server_name'),
+        wifi: '',
+      );
+    } on KvApiException catch (e) {
+      if (e.failure != KvFailure.notFound) {
+        rethrow;
+      }
+    }
+    final String host = Uri.tryParse(api.baseUrl)?.host ?? api.baseUrl;
+    final List<dynamic> rows = await api.getJson('/equipment') as List<dynamic>;
+    final Set<String> places = {
+      for (final Map<String, dynamic> r in rows.whereType<Map<String, dynamic>>()) Json.str(r, 'location').split(',').first.trim(),
+    }..removeWhere((String p) => p.isEmpty);
+    return Site(
+      name: places.isEmpty ? host : places.join(', '),
+      shift: '',
+      shiftShort: host,
+      server: host,
+      wifi: '',
+    );
+  }
+
+  @override
+  Future<Map<String, Person>> people() => mock.people();
+
+  @override
+  Future<List<Person>> engineers() => mock.engineers();
+
+  @override
+  Future<int> ping() => api.ping();
 }

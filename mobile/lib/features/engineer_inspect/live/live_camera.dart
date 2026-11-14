@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../../../core/kv.dart';
@@ -75,14 +76,18 @@ const Map<String, String> kLiveClassLabels = {
   'motor': 'Двигатель',
   'pump_casing': 'Корпус насоса',
   'flange': 'Фланец',
-  'coupling_guard': 'Защита муфты',
-  'coupling_no_guard': 'Муфта без защиты',
+  'coupling_guard': 'Кожух муфты',
+  'coupling_no_guard': 'Нет кожуха муфты',
   'terminal_box': 'Клеммная коробка',
-  'terminal_box_burnt': 'Нагар на клеммной коробке',
+  'terminal_box_burnt': 'Следы подгорания',
   'nameplate': 'Шильдик',
   'gauge': 'Манометр',
   'leak': 'Подтёк',
   'corrosion': 'Коррозия',
+  'damage': 'Повреждение',
+  'crack': 'Трещина',
+  'anchor_bolt_loose': 'Анкерный болт',
+  'oil_dark': 'Тёмное масло',
 };
 
 /// Русская подпись класса детектора [cls]; неизвестный класс - как есть.
@@ -98,8 +103,8 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
   LiveCamera({
     required this.client,
     this.preset = ResolutionPreset.medium,
-    this.maxSide = 640,
-    this.quality = 70,
+    this.maxSide = 720,
+    this.quality = 80,
     this.minInterval = const Duration(milliseconds: 170),
     this.onReply,
   }) {
@@ -139,13 +144,16 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
   /// Рамки последнего ответа.
   List<LiveBox> boxes = const <LiveBox>[];
 
+  /// Следы рамок для плавного показа между ответами.
+  final List<LiveTrack> tracks = [];
+
   /// Размер кадра последнего ответа.
   Size frameSize = Size.zero;
 
   /// Кадров в секунду по ответам сервера.
   double fps = 0;
 
-  /// Время от отправки кадра до ответа, мс.
+  /// Полная задержка: от снятия кадра до прихода рамок, мс.
   int roundTripMs = 0;
 
   /// Время работы детектора на сервере, мс.
@@ -173,24 +181,27 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _debugTick;
   Timer? _debugSwitch;
 
-  late int _side = maxSide;
-  late int _quality = quality;
   int _attempts = 0;
   Timer? _pingTimer;
 
   String? _wsPath;
   IOWebSocketChannel? _socket;
   StreamSubscription<dynamic>? _sub;
-  bool _inFlight = false;
+  final List<DateTime> _pending = [];
+
+  /// Сколько кадров может одновременно ждать ответа сервера.
+  static const int maxInFlight = 2;
+
+  bool get _full => _pending.length >= maxInFlight;
   bool _encoding = false;
   DateTime _lastSent = DateTime.fromMillisecondsSinceEpoch(0);
-  DateTime _sentAt = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _flightTimer;
   Timer? _retryTimer;
   final List<DateTime> _replies = [];
   bool _disposed = false;
   bool _starting = false;
   bool _torch = false;
+  bool _suspended = false;
 
   /// Путь потока кадров: «/ws/inspect/12» или «/ws/detect»; null - только просмотр.
   String? get wsPath => _wsPath;
@@ -288,9 +299,9 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _debugTick?.cancel();
     _debugTick = Timer.periodic(minInterval, (_) {
       final Uint8List? frame = debugImage;
-      if (frame != null && !_inFlight) {
+      if (frame != null && !_full) {
         lastJpeg = frame;
-        _send(frame);
+        _send(frame, DateTime.now());
       }
     });
     _debugSwitch?.cancel();
@@ -298,18 +309,44 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       src.next();
       debugImage = src.current;
       boxes = const <LiveBox>[];
+    tracks.clear();
+      tracks.clear();
       _notify();
     });
     return true;
   }
 
+  /// Приостановить камеру и поток кадров, пока поверх сканера открыт другой экран.
+  Future<void> suspend() async {
+    _suspended = true;
+    _closeSocket();
+    await _stopCamera();
+  }
+
+  /// Продолжить после [suspend]: камера и поток кадров по прежнему адресу осмотра.
+  Future<void> resume() async {
+    if (_disposed || !_suspended) {
+      return;
+    }
+    _suspended = false;
+    await start();
+    if (_wsPath != null && _socket == null) {
+      unawaited(_openSocket());
+    }
+  }
+
+  /// Закрывает камеру. Сначала просмотр убирается из дерева виджетов и проходит кадр отрисовки, затем контроллер
+  /// освобождается: иначе просмотр успевает перестроиться на освобождённом контроллере и экран остаётся чёрным.
   Future<void> _stopCamera() async {
     _debugTick?.cancel();
     _debugSwitch?.cancel();
+    debugImage = null;
     final CameraController? c = controller;
     controller = null;
     _encoding = false;
     if (c != null) {
+      _notify();
+      await WidgetsBinding.instance.endOfFrame;
       try {
         if (c.value.isStreamingImages) {
           await c.stopImageStream();
@@ -326,7 +363,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _closeSocket();
       _stopCamera();
-    } else if (state == AppLifecycleState.resumed && controller == null && !_disposed) {
+    } else if (state == AppLifecycleState.resumed && controller == null && !_disposed && !_suspended) {
       start();
       if (_wsPath != null) {
         connect(_wsPath);
@@ -338,7 +375,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     final DateTime now = DateTime.now();
     final bool streaming = _wsPath != null;
     final Duration gap = streaming ? minInterval : const Duration(milliseconds: 700);
-    if (_encoding || (streaming && _inFlight) || now.difference(_lastSent) < gap) {
+    if (_encoding || (streaming && _full) || now.difference(_lastSent) < gap) {
       return;
     }
     final RawFormat? format = switch (image.format.group) {
@@ -359,9 +396,9 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       planes: [for (final Plane p in image.planes) Uint8List.fromList(p.bytes)],
       rowStrides: [for (final Plane p in image.planes) p.bytesPerRow],
       pixelStrides: [for (final Plane p in image.planes) p.bytesPerPixel ?? 1],
-      rotation: controller?.description.sensorOrientation ?? 90,
-      maxSide: _side,
-      quality: _quality,
+      rotation: frameRotation(image.width, image.height, controller?.description.sensorOrientation ?? 90),
+      maxSide: maxSide,
+      quality: quality,
     );
     encodeFrameInBackground(raw).then((Uint8List jpeg) {
       _encoding = false;
@@ -369,27 +406,27 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
         return;
       }
       lastJpeg = jpeg;
-      _send(jpeg);
+      _send(jpeg, now);
     }).catchError((Object _) {
       _encoding = false;
     });
   }
 
-  void _send(Uint8List jpeg) {
+  /// Отправляет кадр, снятый в момент [captured]; ответы приходят по порядку отправки.
+  void _send(Uint8List jpeg, DateTime captured) {
     final IOWebSocketChannel? s = _socket;
-    if (s == null || !connected || _inFlight) {
+    if (s == null || !connected || _full) {
       return;
     }
-    _inFlight = true;
-    _sentAt = DateTime.now();
+    _pending.add(captured);
     s.sink.add(jpeg);
     _flightTimer?.cancel();
-    _flightTimer = Timer(replyTimeout, () => _inFlight = false);
+    _flightTimer = Timer(replyTimeout, () => _pending.removeWhere((DateTime t) => DateTime.now().difference(t) >= replyTimeout));
   }
 
   Future<void> _openSocket() async {
     final String? path = _wsPath;
-    if (path == null || _disposed || _socket != null) {
+    if (path == null || _disposed || _suspended || _socket != null) {
       return;
     }
     _retryTimer?.cancel();
@@ -416,10 +453,10 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
         reconnecting = false;
         connectionProblem = null;
         _attempts = 0;
-        _inFlight = false;
+        _pending.clear();
         _pingTimer?.cancel();
         _pingTimer = Timer.periodic(keepAlive, (_) {
-          if (identical(_socket, ch) && connected && !_inFlight) {
+          if (identical(_socket, ch) && connected && _pending.isEmpty) {
             ch.sink.add('ping');
           }
         });
@@ -437,17 +474,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     try {
       _handle(jsonDecode(data) as Map<String, dynamic>);
     } on Object {
-      _inFlight = false;
-    }
-  }
-
-  void _adapt() {
-    if (roundTripMs > 1500 && _side > 480) {
-      _side = 480;
-      _quality = math.min(quality, 60);
-    } else if (roundTripMs > 0 && roundTripMs < 700 && _side < maxSide) {
-      _side = maxSide;
-      _quality = quality;
+      _pending.clear();
     }
   }
 
@@ -457,19 +484,19 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       lastClose = '${j['status'] ?? ''} ${j['detail'] ?? ''}'.trim();
     }
     if (type == 'frame' || type == 'error') {
-      _inFlight = false;
-      _flightTimer?.cancel();
       final DateTime now = DateTime.now();
-      roundTripMs = now.difference(_sentAt).inMilliseconds;
+      if (_pending.isNotEmpty) {
+        roundTripMs = now.difference(_pending.removeAt(0)).inMilliseconds;
+      }
       _replies.add(now);
       _replies.removeWhere((DateTime t) => now.difference(t) > const Duration(seconds: 2));
       fps = _replies.length / 2;
-      _adapt();
     }
     if (type == 'frame') {
       serverMs = (j['ms'] as num?)?.round() ?? 0;
       frameSize = Size((j['w'] as num?)?.toDouble() ?? 0, (j['h'] as num?)?.toDouble() ?? 0);
       boxes = [for (final dynamic b in (j['boxes'] as List<dynamic>? ?? const <dynamic>[])) LiveBox.fromJson(b as Map<String, dynamic>)];
+      matchTracks(tracks, boxes, DateTime.now());
     }
     onReply?.call(j);
     _notify();
@@ -485,7 +512,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _sub = null;
     _pingTimer?.cancel();
     connected = false;
-    _inFlight = false;
+    _pending.clear();
     if (code == 4401) {
       client.refreshNow().then((bool ok) {
         if (ok) {
@@ -517,11 +544,12 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _socket = null;
     _pingTimer?.cancel();
     connected = false;
-    _inFlight = false;
+    _pending.clear();
     _attempts++;
     reconnecting = retry;
     connectionProblem = !retry || _attempts >= 3 ? (lastClose == null ? why : '$why · $lastClose') : null;
     boxes = const <LiveBox>[];
+    tracks.clear();
     _notify();
     _retryTimer?.cancel();
     if (retry && _wsPath != null) {
@@ -547,7 +575,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     _socket?.sink.close();
     _socket = null;
     connected = false;
-    _inFlight = false;
+    _pending.clear();
   }
 
   void _notify() {
@@ -565,6 +593,11 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     super.dispose();
   }
 }
+
+/// Поворот сырого кадра камеры до портретного кадра для сервера. Android отдаёт кадр датчика в альбомной ориентации
+/// (поворот на угол датчика), iOS - уже повёрнутым в портрет: портретный кадр не поворачивается, иначе рамки сервера
+/// окажутся в чужих координатах.
+int frameRotation(int width, int height, int sensorOrientation) => width > height ? sensorOrientation % 360 : 0;
 
 /// Рамки ответа сервера в процентах области [stage] при заполнении области кадром [frame] с обрезкой краёв.
 List<Rect> coverPercentRects(List<LiveBox> boxes, Size frame, Size stage) {
@@ -585,40 +618,177 @@ List<Rect> coverPercentRects(List<LiveBox> boxes, Size frame, Size stage) {
   ];
 }
 
-/// Живое видео с рамками ответа сервера поверх: красные - дефект, жёлтые - «проверить», синие - узлы.
-class LiveCameraStage extends StatelessWidget {
+/// Рамка на экране между ответами сервера: плавно движется к последнему положению, появляется и гаснет.
+class LiveTrack {
+  /// Создаёт след рамки [box], впервые увиденной в момент [now].
+  LiveTrack(this.box, DateTime now)
+      : shown = box.rect,
+        born = now,
+        seen = now;
+
+  /// Последняя рамка от сервера.
+  LiveBox box;
+
+  /// Положение на экране сейчас, в пикселях кадра.
+  Rect shown;
+
+  /// Когда рамка появилась.
+  final DateTime born;
+
+  /// Когда сервер видел её последний раз.
+  DateTime seen;
+
+  /// Сколько ответов подряд сервер видит эту рамку.
+  int hits = 1;
+
+  /// Рамку можно показывать: узлы - сразу; признак дефекта - после двух ответов подряд или при уверенности от 0,5,
+  /// чтобы случайная рамка на одном кадре не мелькала.
+  bool get confirmed => !(box.isDefect || box.isCheck) || hits >= 2 || box.conf >= 0.5;
+
+  /// Прозрачность: появление за 150 мс, после пропажи рамка держится 200 мс и гаснет ещё за 400 мс.
+  double opacity(DateTime now) {
+    final double fadeIn = (now.difference(born).inMilliseconds / 150).clamp(0, 1).toDouble();
+    final int gone = now.difference(seen).inMilliseconds;
+    final double fadeOut = gone <= 200 ? 1 : (1 - (gone - 200) / 400).clamp(0, 1).toDouble();
+    return math.min(fadeIn, fadeOut);
+  }
+}
+
+/// Пересечение двух рамок к их объединению.
+double _iou(Rect a, Rect b) {
+  final Rect i = a.intersect(b);
+  if (i.width <= 0 || i.height <= 0) {
+    return 0;
+  }
+  final double inter = i.width * i.height;
+  return inter / (a.width * a.height + b.width * b.height - inter);
+}
+
+/// Сопоставляет рамки нового ответа [boxes] со следами [tracks]: тот же класс и наибольшее пересечение или близкий
+/// центр. Несопоставленные рамки становятся новыми следами; следы без рамки дольше 600 мс удаляются.
+void matchTracks(List<LiveTrack> tracks, List<LiveBox> boxes, DateTime now) {
+  final Set<LiveTrack> used = {};
+  for (final LiveBox b in boxes) {
+    LiveTrack? best;
+    double score = 0;
+    for (final LiveTrack t in tracks) {
+      if (t.box.cls != b.cls || used.contains(t)) {
+        continue;
+      }
+      final double iou = _iou(t.box.rect, b.rect);
+      final double near = (t.box.rect.center - b.rect.center).distance < math.max(b.rect.width, b.rect.height) ? 0.05 : 0;
+      final double sc = math.max(iou, near);
+      if (sc > score) {
+        score = sc;
+        best = t;
+      }
+    }
+    if (best == null) {
+      final LiveTrack t = LiveTrack(b, now);
+      tracks.add(t);
+      used.add(t);
+    } else {
+      best
+        ..box = b
+        ..seen = now
+        ..hits += 1;
+      used.add(best);
+    }
+  }
+  for (final LiveTrack t in tracks) {
+    if (!used.contains(t)) {
+      t.hits = 0;
+    }
+  }
+  tracks.removeWhere((LiveTrack t) => now.difference(t.seen) > const Duration(milliseconds: 600));
+}
+
+/// Живое видео с рамками ответа сервера поверх: красные - дефект, жёлтые - «проверить», синие - узлы. Рамки
+/// плавно перемещаются между ответами (около 150 мс), появляются и гаснут, чтобы не мигать.
+class LiveCameraStage extends StatefulWidget {
   /// Создаёт видео камеры [camera]; [onBoxTap] - касание рамки.
-  const LiveCameraStage({super.key, required this.camera, this.onBoxTap});
+  const LiveCameraStage({super.key, required this.camera, this.onBoxTap, this.filter});
 
   /// Камера.
   final LiveCamera camera;
+
+  /// Отбор рамок для показа; null - все рамки ответа.
+  final List<LiveBox> Function(List<LiveBox> boxes)? filter;
 
   /// Касание рамки; null - рамки не нажимаются.
   final VoidCallback? Function(LiveBox box)? onBoxTap;
 
   @override
+  State<LiveCameraStage> createState() => _LiveCameraStageState();
+}
+
+class _LiveCameraStageState extends State<LiveCameraStage> with SingleTickerProviderStateMixin {
+  late final Ticker _ticker = createTicker(_tick);
+  Duration _last = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _tick(Duration elapsed) {
+    final double dt = (elapsed - _last).inMicroseconds / 1000;
+    _last = elapsed;
+    final List<LiveTrack> tracks = widget.camera.tracks;
+    if (tracks.isEmpty) {
+      return;
+    }
+    final double k = 1 - math.exp(-dt / 50);
+    for (final LiveTrack t in tracks) {
+      t.shown = Rect.lerp(t.shown, t.box.rect, k)!;
+    }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
+    final LiveCamera camera = widget.camera;
     return ListenableBuilder(
       listenable: camera,
       builder: (BuildContext context, Widget? _) => LayoutBuilder(
         builder: (BuildContext context, BoxConstraints box) {
           final Size stage = box.biggest;
-          final CameraController? ctl = camera.controller;
-          final List<LiveBox> found = [...camera.boxes]..sort((LiveBox a, LiveBox b) => _rank(a).compareTo(_rank(b)));
-          final List<Rect> rects = coverPercentRects(found, camera.frameSize, stage);
+          final DateTime now = DateTime.now();
+          final Set<LiveBox> allowed = (widget.filter?.call([for (final LiveTrack t in camera.tracks) t.box]) ??
+                  [for (final LiveTrack t in camera.tracks) t.box])
+              .toSet();
+          final List<LiveTrack> found = [
+            for (final LiveTrack t in camera.tracks)
+              if (allowed.contains(t.box) && t.confirmed && t.opacity(now) > 0) t,
+          ]..sort((LiveTrack a, LiveTrack b) => _rank(a.box).compareTo(_rank(b.box)));
+          final List<Rect> rects = coverPercentRects(
+            [for (final LiveTrack t in found) LiveBox(cls: t.box.cls, conf: t.box.conf, rect: t.shown, status: t.box.status)],
+            camera.frameSize,
+            stage,
+          );
           final List<KvArBoxData> boxes = [
             for (int i = 0; i < found.length; i++)
               KvArBoxData(
                 rects[i],
-                kind: found[i].isDefect ? KvArKind.defect : KvArKind.part,
-                color: found[i].isCheck ? c.warn : null,
-                label: found[i].isCheck ? '${liveClassLabel(found[i].cls)} · проверить' : liveClassLabel(found[i].cls),
-                semanticLabel: liveClassLabel(found[i].cls),
-                onTap: onBoxTap?.call(found[i]),
+                kind: found[i].box.isDefect ? KvArKind.defect : KvArKind.part,
+                color: (found[i].box.isCheck ? c.warn : (found[i].box.isDefect ? c.arDefect : c.arPart))
+                    .withValues(alpha: found[i].opacity(now)),
+                label: found[i].box.isCheck ? '${liveClassLabel(found[i].box.cls)} · проверить' : liveClassLabel(found[i].box.cls),
+                semanticLabel: liveClassLabel(found[i].box.cls),
+                onTap: widget.onBoxTap?.call(found[i].box),
               ),
           ];
-          return KvArStage(background: _preview(ctl), boxes: boxes);
+          return KvArStage(background: _preview(camera.controller), boxes: boxes);
         },
       ),
     );
@@ -627,7 +797,7 @@ class LiveCameraStage extends StatelessWidget {
   static int _rank(LiveBox b) => b.isDefect ? 2 : (b.isCheck ? 1 : 0);
 
   Widget _preview(CameraController? ctl) {
-    final Uint8List? still = camera.debugImage;
+    final Uint8List? still = widget.camera.debugImage;
     if (still != null) {
       return SizedBox.expand(child: Image.memory(still, fit: BoxFit.cover, gaplessPlayback: true));
     }

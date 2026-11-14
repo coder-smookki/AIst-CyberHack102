@@ -14,30 +14,23 @@ import '../../../data/api/api_repositories.dart';
 import '../../../data/providers.dart';
 import '../../../data/repositories/inspection_repository.dart';
 import '../inspect_actions.dart';
-import '../inspect_catalog.dart';
 import '../scanner_screen.dart';
 import '../widgets/inspect_camera.dart';
 import 'live_camera.dart';
-
-/// Подпись рамки сканера, по которой открывается готовый сценарий признака дефекта.
-const Map<String, String> kLiveDefectFlows = {'leak': 'Течь у вала', 'terminal_box_burnt': 'Следы перегрева клемм'};
-
-/// Узел агрегата по классу детектора, если сервер не прислал узел.
-const Map<String, String> kLiveClassNodes = {
-  'leak': 'seal',
-  'corrosion': 'casing',
-  'coupling_no_guard': 'coupling',
-  'terminal_box_burnt': 'terminal_box',
-};
+import 'live_detection.dart';
+import 'sound_sheet.dart';
 
 /// Живой сканер на настоящем сервере: камера, поток кадров осмотра на /ws/inspect, рамки узлов и дефектов,
 /// полнота обхода и запись находки с кадром камеры.
 class LiveScannerScreen extends ConsumerStatefulWidget {
   /// Создаёт сканер агрегата [unitId].
-  const LiveScannerScreen({super.key, required this.unitId});
+  const LiveScannerScreen({super.key, required this.unitId, this.byNameplate = false});
 
   /// Агрегат.
   final String unitId;
+
+  /// Агрегат определён по шильдику; false - выбран вручную.
+  final bool byNameplate;
 
   @override
   ConsumerState<LiveScannerScreen> createState() => _LiveScannerScreenState();
@@ -46,9 +39,7 @@ class LiveScannerScreen extends ConsumerStatefulWidget {
 class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
   late final ApiClient _client = ref.read(apiClientProvider);
   late final LiveCamera _camera = LiveCamera(client: _client, onReply: _onReply);
-  String? _inspectionId;
   Map<String, dynamic>? _coverage;
-  bool _saving = false;
 
   @override
   void initState() {
@@ -59,11 +50,11 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
 
   Future<void> _openInspection() async {
     try {
+      ApiInspectionRepository.identifiedBy[widget.unitId] = widget.byNameplate ? 'nameplate' : 'manual';
       final Inspection insp = await ensureInspection(ref, widget.unitId);
       if (!mounted) {
         return;
       }
-      _inspectionId = insp.id;
       _camera.connect('/ws/inspect/${insp.id}');
     } on Object {
       if (mounted) {
@@ -72,7 +63,38 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
     }
   }
 
+  DateTime _plateAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _plateBusy = false;
+  String? _otherUnit;
+
+  /// Шильдик в кадре во время осмотра: раз в 5 с стоп-кадр уходит на распознавание; если это другой агрегат,
+  /// сканер предлагает перейти к нему (осмотр и полнота обхода относятся к агрегату по шильдику).
+  Future<void> _checkPlate(Map<String, dynamic> j) async {
+    final List<dynamic> boxes = j['boxes'] as List<dynamic>? ?? const <dynamic>[];
+    final bool plate = boxes.any((dynamic b) => b is Map<String, dynamic> && b['cls'] == 'nameplate' && ((b['conf'] as num?) ?? 0) >= 0.5);
+    final Uint8List? frame = _camera.lastJpeg;
+    if (!plate || frame == null || _plateBusy || DateTime.now().difference(_plateAt) < const Duration(seconds: 5)) {
+      return;
+    }
+    _plateBusy = true;
+    _plateAt = DateTime.now();
+    try {
+      final Map<String, dynamic> r = (await _client.postForm('/recognize/nameplate', frame: frame)) as Map<String, dynamic>;
+      final String? id = (r['match'] as Map<String, dynamic>?)?['equipment_id']?.toString();
+      if (mounted && r['found'] == true && id != null && id != widget.unitId) {
+        setState(() => _otherUnit = id);
+      }
+    } on KvApiException {
+      _plateAt = DateTime.now();
+    } finally {
+      _plateBusy = false;
+    }
+  }
+
   void _onReply(Map<String, dynamic> j) {
+    if (j['type'] == 'frame') {
+      unawaited(_checkPlate(j));
+    }
     final Object? cov = j['coverage'];
     if (cov is Map<String, dynamic>) {
       _coverage = cov;
@@ -92,69 +114,62 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
     super.dispose();
   }
 
-  /// Касание рамки: признак дефекта открывает готовый сценарий или сразу записывается находкой с кадром.
+  /// Касание рамки признака открывает решение инженера (b-scan-defect); рамки узлов не нажимаются.
   VoidCallback? _tapOf(LiveBox b) {
     if (!b.isDefect && !b.isCheck) {
       return null;
     }
-    return () => _record(b);
+    return () => _review(b);
   }
 
-  Future<void> _record(LiveBox? box) async {
-    final LiveBox? b = box ??
-        _camera.boxes.where((LiveBox x) => x.isDefect).firstOrNull ??
-        _camera.boxes.where((LiveBox x) => x.isCheck).firstOrNull;
-    if (b == null) {
+  /// Рамки ответа без признаков, которые инженер отметил «не дефект».
+  List<LiveBox> _visible(List<LiveBox> boxes) {
+    final LiveReviewController review = ref.read(liveReviewProvider.notifier);
+    return [for (final LiveBox b in boxes) if (!(b.isDefect || b.isCheck) || !review.isDismissed(widget.unitId, b.cls, b.node)) b];
+  }
+
+  /// Открывает признак [box] (или первый признак в кадре) для решения инженера. В осмотр ничего не записывается,
+  /// пока инженер не подтвердит дефект.
+  Future<void> _review(LiveBox? box) async {
+    final List<LiveBox> shown = _visible(_camera.boxes);
+    final LiveBox? b = box ?? shown.where((LiveBox x) => x.isDefect).firstOrNull ?? shown.where((LiveBox x) => x.isCheck).firstOrNull;
+    final Uint8List? frame = _camera.lastJpeg;
+    if (b == null || frame == null) {
       showKvToast(context, title: 'Признаков в кадре нет', text: 'Наведите камеру на признак дефекта', kind: KvToastKind.info);
       return;
     }
-    final Uint8List? frame = _camera.lastJpeg;
-    _client.lastFrame = frame;
-    final String? flow = kLiveDefectFlows[b.cls];
-    final DefectClass? cls = flow == null ? null : kDefectClasses[flow];
-    if (cls != null) {
-      if (cls.closeUp) {
-        unawaited(context.kvPush(EngineerInspectPaths.scanDefectFor(widget.unitId, flow)));
-      } else {
-        unawaited(context.kvPush(EngineerInspectPaths.rule(cls.ruleId, widget.unitId)));
-      }
-      return;
-    }
-    if (_saving) {
-      return;
-    }
-    _saving = true;
-    final BuildContext screen = context;
-    try {
-      final String id = _inspectionId ?? (await ensureInspection(ref, widget.unitId)).id;
-      _inspectionId = id;
-      final InspectionRepository repo = ref.read(inspectionRepositoryProvider);
-      final String node = b.node ?? kLiveClassNodes[b.cls] ?? 'casing';
-      if (repo is ApiInspectionRepository) {
-        await repo.addCameraFinding(
-          id,
-          cls: b.cls,
-          node: node,
-          severity: b.isDefect ? 2 : 1,
-          comment: '${liveClassLabel(b.cls)}: зафиксировано со сканера',
+    ref.read(liveReviewProvider.notifier).open(
+          LiveDetection(unitId: widget.unitId, jpeg: frame, frameSize: _camera.frameSize, box: b, at: DateTime.now()),
         );
-      } else {
-        await repo.addFinding(id, node: node, title: liveClassLabel(b.cls), ruleId: '', severity: b.isDefect ? 2 : 1, comment: 'Зафиксировано со сканера');
-      }
-      if (screen.mounted) {
-        showKvSnack(screen, text: 'Находка сохранена');
-      }
-    } on KvApiException catch (e) {
-      if (screen.mounted) {
-        showKvToast(screen, title: 'Не удалось сохранить', text: e.message);
-      }
-    } finally {
-      _saving = false;
+    await _open(EngineerInspectPaths.scanDefectFor(widget.unitId, liveClassLabel(b.cls)));
+  }
+
+  /// Запись шума агрегата: камера на это время останавливается, после листа видео продолжается.
+  Future<void> _sound() async {
+    final String id = (await ensureInspection(ref, widget.unitId)).id;
+    await _camera.suspend();
+    if (!mounted) {
+      return;
+    }
+    await showSoundSheet(context, inspectionId: id, unitId: widget.unitId);
+    if (mounted) {
+      await _camera.resume();
+    }
+  }
+
+  /// Открывает экран поверх сканера: камера и поток кадров на это время останавливаются и продолжаются после возврата.
+  Future<void> _open(String path) async {
+    await _camera.suspend();
+    if (!mounted) {
+      return;
+    }
+    await context.kvPush<void>(path);
+    if (mounted) {
+      await _camera.resume();
     }
   }
 
   void _finish() {
-    final BuildContext screen = context;
     final int done = (_coverage?['inspected'] as num?)?.toInt() ?? 0;
     final int total = (_coverage?['total'] as num?)?.toInt() ?? 0;
     showKvDialog<void>(
@@ -169,7 +184,8 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
             'Завершить',
             onPressed: () {
               Navigator.of(dialog).pop();
-              screen.kvPush(EngineerServicePaths.cSummary);
+              ref.read(liveReviewProvider.notifier).reset();
+              _open(EngineerServicePaths.cSummary);
             },
           ),
         ],
@@ -185,7 +201,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
     return ListenableBuilder(
       listenable: _camera,
       builder: (BuildContext context, Widget? _) {
-        final int defects = _camera.boxes.where((LiveBox b) => b.isDefect).length;
+        final int defects = _visible(_camera.boxes).where((LiveBox b) => b.isDefect).length;
         final int done = (_coverage?['inspected'] as num?)?.toInt() ?? 0;
         final int total = (_coverage?['total'] as num?)?.toInt() ?? 0;
         final int percent = (_coverage?['percent'] as num?)?.round() ?? 0;
@@ -194,7 +210,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
             ? 'Анализ видео · ${KvFormat.num(_camera.fps, 1)} кадр/с · ${_camera.roundTripMs} мс'
             : (_camera.wsPath == null ? 'Подготовка осмотра' : (_camera.reconnecting ? 'Переподключение…' : 'Подключение к серверу'));
         return ArCameraScreen(
-          stage: LiveCameraStage(camera: _camera, onBoxTap: _tapOf),
+          stage: LiveCameraStage(camera: _camera, onBoxTap: _tapOf, filter: _visible),
           top: ArTopBar(
             pill: pill,
             spinning: !_camera.connected,
@@ -204,6 +220,33 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
           layers: [
             if (_camera.state == LiveCameraState.denied || _camera.state == LiveCameraState.failed)
               Positioned(left: KvSpace.gutter, right: KvSpace.gutter, top: top + 78, child: LiveCameraProblem(camera: _camera))
+            else if (_otherUnit != null)
+              Positioned(
+                left: KvSpace.gutter,
+                right: KvSpace.gutter,
+                top: top + 60,
+                child: KvGlass(
+                  borderRadius: BorderRadius.circular(KvRadius.card),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(KvSpace.s4, 6, 6, 6),
+                    decoration: BoxDecoration(color: c.arGlass, borderRadius: BorderRadius.circular(KvRadius.card)),
+                    child: Row(
+                      children: [
+                        KvIcon(KvIcons.tag, size: 20, color: c.arText),
+                        const SizedBox(width: KvSpace.s2),
+                        Expanded(
+                          child: Text(
+                            'Шильдик другого агрегата: ${ref.watch(unitProvider(_otherUnit!)).value?.code ?? _otherUnit}',
+                            maxLines: 2,
+                            style: context.kvText.sm.copyWith(color: c.arText, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        KvButton('Перейти', small: true, onPressed: () => context.kvFade(EngineerInspectPaths.scannerFor(_otherUnit!, via: 'nameplate'))),
+                      ],
+                    ),
+                  ),
+                ),
+              )
             else if (_camera.connectionProblem != null)
               Positioned(
                 left: KvSpace.gutter,
@@ -216,23 +259,25 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
             children: [
               ArPanelTitle(
                 title: unit == null ? ' ' : '${unit.code} · ${unit.modelShort}',
-                caption: unit == null ? ' ' : 'По шильдику · № ${unit.serial}',
+                caption: unit == null ? ' ' : '${widget.byNameplate ? 'По шильдику' : 'Выбран вручную'} · № ${unit.serial}',
                 chip: defects == 0 ? null : KvChip('$defects ${KvFormat.plural(defects, 'признак', 'признака', 'признаков')}', status: KvStatus.bad),
                 chipLabel: 'Признаки дефектов',
-                onChip: () => _record(null),
+                onChip: () => _review(null),
               ),
               NextNodeCard(
                 done: done,
                 total: total == 0 ? 1 : total,
                 title: hint.isNotEmpty ? hint : (total > 0 && done >= total ? 'Все узлы осмотрены' : 'Обойдите агрегат с камерой'),
                 subtitle: 'Осмотрено $done из $total узлов · $percent %',
-                onTap: () => context.kvPush(EngineerInspectPaths.routeFor(widget.unitId)),
+                onTap: () => _open(EngineerInspectPaths.routeFor(widget.unitId)),
               ),
               Row(
                 children: [
                   Expanded(
-                    child: KvButton('Зафиксировать', kind: KvButtonKind.secondary, icon: KvIcons.camera, small: true, onPressed: () => _record(null)),
+                    child: KvButton('Зафиксировать', kind: KvButtonKind.secondary, icon: KvIcons.camera, small: true, onPressed: () => _review(null)),
                   ),
+                  const SizedBox(width: KvSpace.s3),
+                  Expanded(child: KvButton('Записать шум', kind: KvButtonKind.secondary, icon: KvIcons.mic, small: true, onPressed: _sound)),
                 ],
               ),
               Row(
@@ -241,7 +286,7 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
                     child: KvButton(
                       'Карточка',
                       kind: KvButtonKind.secondary,
-                      onPressed: () => context.kvPush(EngineerInspectPaths.card(widget.unitId)),
+                      onPressed: () => _open(EngineerInspectPaths.card(widget.unitId)),
                     ),
                   ),
                   const SizedBox(width: KvSpace.s3),
@@ -261,7 +306,10 @@ class _LiveScannerScreenState extends ConsumerState<LiveScannerScreen> {
 /// и сам каждые 2,5 с; найденный агрегат открывает карточку, ручной выбор - «Ввести номер».
 class LiveScanSearchScreen extends ConsumerStatefulWidget {
   /// Создаёт экран.
-  const LiveScanSearchScreen({super.key});
+  const LiveScanSearchScreen({super.key, this.expected});
+
+  /// Агрегат, с карточки которого начат осмотр; null - центральная кнопка «Сканер».
+  final String? expected;
 
   @override
   ConsumerState<LiveScanSearchScreen> createState() => _LiveScanSearchScreenState();
@@ -273,6 +321,8 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
   Timer? _auto;
   bool _busy = false;
   bool _done = false;
+  String? _unitId;
+  bool _byNameplate = true;
 
   @override
   void initState() {
@@ -311,7 +361,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
       final Map<String, dynamic>? match = j['match'] as Map<String, dynamic>?;
       final String? id = match?['equipment_id']?.toString();
       if (j['found'] == true && id != null) {
-        _found(id);
+        unawaited(_found(id));
         return;
       }
       final List<Map<String, dynamic>> cands = [for (final dynamic e in (j['candidates'] as List<dynamic>? ?? const <dynamic>[])) e as Map<String, dynamic>];
@@ -321,7 +371,8 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
       if (cands.isNotEmpty) {
         _pick(cands);
       } else {
-        showKvToast(context, title: 'Шильдик не распознан', text: j['message']?.toString(), kind: KvToastKind.warn);
+        showKvToast(context, title: 'Шильдик не распознан', text: 'Выберите агрегат из списка вручную', kind: KvToastKind.warn);
+        _pickUnit();
       }
     } on KvApiException catch (e) {
       if (manual && mounted) {
@@ -336,13 +387,72 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
     }
   }
 
-  void _found(String id) {
+  /// Агрегат определён: видео останавливается на кадре, снизу - агрегат и выбор «Карточка» или «Начать осмотр».
+  /// Если шильдик принадлежит другому агрегату, чем карточка, с которой начат осмотр, инженер подтверждает переход.
+  Future<void> _found(String id, {bool byNameplate = true}) async {
     if (_done) {
       return;
     }
     _done = true;
     _auto?.cancel();
-    context.kvFade(EngineerInspectPaths.card(id));
+    final String? expected = widget.expected;
+    if (byNameplate && expected != null && expected != id) {
+      final bool? go = await showKvDialog<bool>(
+        context,
+        builder: (BuildContext dialog) => KvDialog(
+          icon: KvIcons.alert,
+          tone: KvStatus.warn,
+          title: 'Это другой агрегат',
+          text: 'По шильдику это ${_codeOf(id)}, а осмотр начат с карточки ${_codeOf(expected)}. Перейти к ${_codeOf(id)}?',
+          actions: [
+            KvButton('Сканировать снова', kind: KvButtonKind.secondary, onPressed: () => Navigator.of(dialog).pop(false)),
+            KvButton('Перейти к ${_codeOf(id)}', onPressed: () => Navigator.of(dialog).pop(true)),
+          ],
+        ),
+      );
+      if (go != true) {
+        _done = false;
+        _auto = Timer.periodic(const Duration(milliseconds: 2500), (_) => _recognize(manual: false));
+        return;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _unitId = id;
+      _byNameplate = byNameplate;
+    });
+    await _camera.suspend();
+  }
+
+  String _codeOf(String id) => ref.read(unitsProvider).value?.where((Equipment e) => e.id == id).firstOrNull?.code ?? id;
+
+  /// Ручной выбор агрегата из списка (шильдик не читается): агрегат помечается «Выбран вручную».
+  void _pickUnit() {
+    final List<Equipment> units = ref.read(unitsProvider).value ?? const <Equipment>[];
+    showKvSheet<void>(
+      context,
+      builder: (BuildContext sheet) => KvSheet(
+        title: 'Выберите агрегат',
+        children: [
+          KvList(
+            children: [
+              for (final Equipment u in units)
+                KvRow(
+                  title: '${u.code} · ${u.modelShort}',
+                  subtitle: KvFormat.typo('${u.location} · № ${u.serial}'),
+                  chevron: true,
+                  onTap: () {
+                    Navigator.of(sheet).pop();
+                    unawaited(_found(u.id, byNameplate: false));
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   void _pick(List<Map<String, dynamic>> cands) {
@@ -362,7 +472,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
                   onTap: () {
                     Navigator.of(sheet).pop();
                     if (screen.mounted) {
-                      _found(e['id'].toString());
+                      unawaited(_found(e['id'].toString(), byNameplate: false));
                     }
                   },
                 ),
@@ -373,11 +483,47 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
     );
   }
 
+  Widget _identified(String id) {
+    final Equipment? unit = ref.watch(unitProvider(id)).value;
+    final String how = _byNameplate ? 'По шильдику' : 'Выбран вручную';
+    return ArPanel(
+      children: [
+        ArPanelTitle(
+          title: unit == null ? id : '${unit.code} · ${unit.modelShort}',
+          caption: unit == null ? how : '$how · № ${unit.serial}',
+          chip: _byNameplate ? const KvChip('Шильдик', status: KvStatus.ok) : null,
+        ),
+        Row(
+          children: [
+            Expanded(child: KvButton('Карточка', kind: KvButtonKind.secondary, onPressed: () => context.kvPush(EngineerInspectPaths.card(id)))),
+            const SizedBox(width: KvSpace.s3),
+            Expanded(
+              child: KvButton(
+                widget.expected == null ? 'Начать осмотр' : 'Продолжить',
+                onPressed: () => context.kvFade(EngineerInspectPaths.scannerFor(id, via: _byNameplate ? 'nameplate' : 'manual')),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
     final Size size = MediaQuery.sizeOf(context);
     final double top = MediaQuery.paddingOf(context).top;
+    final String? found = _unitId;
+    if (found != null) {
+      return ArCameraScreen(
+        stage: _camera.lastJpeg == null
+            ? const ColoredBox(color: Color(0xFF0E141C))
+            : SizedBox.expand(child: Image.memory(_camera.lastJpeg!, fit: BoxFit.cover, gaplessPlayback: true)),
+        top: ArTopBar(pill: 'Агрегат определён', onBack: () => context.kvBack(EngineerInspectPaths.objects)),
+        panel: _identified(found),
+      );
+    }
     return ListenableBuilder(
       listenable: _camera,
       builder: (BuildContext context, Widget? _) => ArCameraScreen(
@@ -397,7 +543,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
               left: KvSpace.gutter,
               right: KvSpace.gutter,
               top: size.height * 0.22,
-              child: const Center(child: ScanHintPill(icon: KvIcons.target, text: 'Наведите рамку на шильдик')),
+              child: const Center(child: ScanHintPill(icon: KvIcons.target, text: 'Наведите камеру на шильдик')),
             ),
             Positioned(
               left: size.width * 0.12,
@@ -438,7 +584,7 @@ class _LiveScanSearchScreenState extends ConsumerState<LiveScanSearchScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 ScanCamAction(icon: KvIcons.scan, label: 'Распознать', onTap: () => _recognize(manual: true)),
-                ScanCamAction(icon: KvIcons.list, label: 'Из списка', onTap: () => context.kvBack(EngineerInspectPaths.objects)),
+                ScanCamAction(icon: KvIcons.list, label: 'Из списка', onTap: _pickUnit),
                 ScanCamAction(icon: KvIcons.hash, label: 'Ввести номер', onTap: () => context.kvPush(EngineerInspectPaths.search)),
               ],
             ),
