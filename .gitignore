@@ -12,6 +12,7 @@ data/web_testset/images/
 data/customer/
 .DS_Store
 data/open/
+data/equipment_ds_v*/
 .pytest_cache/
 data/runtime/
 .idea/
