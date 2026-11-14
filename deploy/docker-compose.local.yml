@@ -1,0 +1,32 @@
+name: kst-vizor-local
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    build:
+      context: ./src
+      dockerfile: deploy/Dockerfile
+    image: kst-vizor-server:local
+    container_name: kst-vizor-local
+    restart: unless-stopped
+    environment:
+      KST_DB: /app/data/runtime/kst.db
+    volumes:
+      - kst-local-runtime:/app/data/runtime
+    ports:
+      - "0.0.0.0:8765:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json, urllib.request; json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4))['ok'] or exit(1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    logging: *logging
+
+volumes:
+  kst-local-runtime:

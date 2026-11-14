@@ -15,3 +15,4 @@ data/open/
 .pytest_cache/
 data/runtime/
 .idea/
+deploy/.local-build/
