@@ -640,8 +640,8 @@ def test_finish_returns_summary_and_is_idempotent(api):
         assert stored.status == "finished" and stored.summary == summary
 
 
-def test_finish_records_camera_defects_the_engineer_did_not_fix(api):
-    """Дефект, увиденный камерой и не зафиксированный инженером, при завершении записывается автоматически."""
+def test_finish_does_not_record_camera_defects_the_engineer_did_not_confirm(api):
+    """Признаки дефектов, увиденные только камерой, не попадают ни в диагноз, ни в находки без решения инженера."""
     inspection = api.start()
     number = inspection["id"]
     with db.SessionLocal() as session:
@@ -649,27 +649,17 @@ def test_finish_records_camera_defects_the_engineer_did_not_fix(api):
         show(tracker, 1, box("terminal_box_burnt", 0.9, 0.03))
         show(tracker, 6, box("leak", 0.7, 0.02), box("motor", 0.9, 0.2))
         diagnosis = service.current_diagnosis(session, service.get_inspection(session, number))
-    assert {"R01", "R04"} <= {found["rule_id"] for found in diagnosis["findings"]}
+    assert "R04" not in {found["rule_id"] for found in diagnosis["findings"]}
+    assert not any(line["source"] == "camera" and line["met"] for found in diagnosis["findings"] for line in found["evidence"])
     finished = api.finish(number).json()
-    by_rule = {found["rule_id"]: found for found in finished["findings"]}
-    assert set(by_rule) == {"R01", "R04"}
-    burnt = by_rule["R04"]
-    assert burnt["automatic"] is True and burnt["source"] == "camera" and burnt["node_code"] == "terminal_box"
-    assert burnt["status"] == "defect" and burnt["state"] == "open" and burnt["confidence"] == 0.9
-    assert any(line["source"] == "camera" and line["met"] for line in burnt["evidence"])
-    assert burnt["missing"] and burnt["comment"] is None
-    assert by_rule["R01"]["comment"].startswith("Повторно: замечание № ") and "27.10.2026" in by_rule["R01"]["comment"]
-    assert finished["summary"]["by_status"] == {"ok": 0, "check": 0, "defect": 2}
-    assert finished["summary"]["coverage"]["nodes"]["seal"]["defect_classes"] == {"leak": 0.7}
+    assert not any(found.get("source") == "camera" for found in finished["findings"])
+    assert "R04" not in {found["rule_id"] for found in finished["findings"]}
     assert finished["summary"]["coverage"]["nodes"]["motor"]["inspected"] is True
     assert finished["summary"]["coverage"]["frames"] == 7
-    board = api.client.get("/inspections/findings", params={"state": "open", "equipment_id": "N-101"}).json()
-    assert {found["id"] for found in board} >= {burnt["id"], by_rule["R01"]["id"]}
     with db.SessionLocal() as session:
         with pytest.raises(Exception) as refusal:
             service.tracker_for(session, service.get_inspection(session, number))
         assert refusal.value.status_code == 409
-
 
 def test_diagnosis_uses_telemetry_and_gauge_reading(api, monkeypatch):
     """Диагноз осмотра учитывает датчики, а считанное камерой показание манометра включает правило R05."""

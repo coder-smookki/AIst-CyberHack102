@@ -84,6 +84,7 @@ def reports(tmp_path_factory):
             for _ in range(6):
                 tracker.observe([box("terminal_box", 0.9, 0.03), box("motor", 0.8, 0.2)], 1280, 720)
             tracker.observe([box("terminal_box_burnt", 0.86, 0.03)], 1280, 720)
+            service.add_finding(session, inspection, engineer, kind="defect", node="terminal_box", sign="terminal_box_burnt")
             service.add_finding(session, inspection, engineer, kind="defect", node="seal", sign="leak",
                                 comment=TRICKY_COMMENT, frame=jpeg())
             service.add_finding(session, inspection, engineer, kind="checked", node="flanges", comment=FORMULA_COMMENT)
@@ -227,7 +228,7 @@ def test_xlsx_findings_with_evidence(reports, book):
     assert leak[header.index("Снимок")] == "есть" and leak[header.index("Устранение")] == "Открыто"
     assert isinstance(leak[header.index("Время")], datetime)
     burnt = by_rule["R04"]
-    assert burnt[header.index("Источник")] == "Камера" and burnt[header.index("Уверенность")] == 0.86
+    assert burnt[header.index("Источник")] == "Инженер"
     assert burnt[header.index("Осталось проверить")] != "-"
     evidence = sheet_rows(book["Основания"])
     assert evidence[0] == ["№ находки", "Находка", "Источник", "Условие", "Значение", "Уставка", "Итог"]

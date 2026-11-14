@@ -331,7 +331,9 @@ def _assess(session: Session, inspection: Inspection, extra_marks: frozenset = f
     if live["gauge"] is not None:
         readings = {**readings, GAUGE_READING: live["gauge"]}
     marks = _manual_marks(inspection) | extra_marks
-    diagnosis = diagnose(card, readings, trends, live["tracker"].visual, marks)
+    signs = defect_signs()
+    seen = {cls: conf for cls, conf in live["tracker"].visual.items() if cls not in signs}
+    diagnosis = diagnose(card, readings, trends, seen, marks)
     return {"card": card, "moment": moment, "run_hours": run_hours, "diagnosis": diagnosis,
             "today": moment.date() if moment else date.today()}
 

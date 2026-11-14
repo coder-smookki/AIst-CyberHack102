@@ -203,10 +203,8 @@ def test_inspection_end_to_end(server, monkeypatch):
         leak = socket.receive_json()
         statuses = {item["cls"]: (item["status"], item["node"]) for item in leak["boxes"]}
         assert statuses == {"leak": ("defect", "seal"), "pump_casing": ("unsure", "casing")}
-        assert leak["diagnosis_changed"] is True
-        r01 = next(found for found in leak["findings"] if found["rule_id"] == "R01")
-        assert r01["status"] == "defect"
-        assert any(item["source"] == "camera" and item["met"] for item in r01["evidence"])
+        assert leak["diagnosis_changed"] is False
+        assert not any(item["source"] == "camera" and item["met"] for found in leak["findings"] for item in found["evidence"])
 
         socket.send_text("ping")
         assert socket.receive_json() == {"type": "pong"}
@@ -229,7 +227,7 @@ def test_inspection_end_to_end(server, monkeypatch):
         assert resumed["coverage"]["visual"]["leak"] == 0.82
 
     live = client.get(f"/equipment/N-101/diagnosis?inspection_id={inspection_id}", headers=engineer).json()
-    assert next(found for found in live["findings"] if found["rule_id"] == "R01")["status"] == "defect"
+    assert not any(item["source"] == "camera" and item["met"] for found in live["findings"] for item in found["evidence"])
     assert live["nodes"]["motor"]["status"] == "ok" and live["nodes"]["casing"]["status"] == "unknown"
 
     gauge = {"ok": True, "value": 6.2, "reason": None, "angle_deg": 32.4, "contrast": 90.0}
