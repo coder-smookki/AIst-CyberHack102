@@ -1,6 +1,40 @@
+import '../../models/admin.dart';
 import '../../models/inspection.dart';
+import '../../models/people.dart';
 import '../../models/workflow.dart';
 import '../mock_db.dart';
+
+/// Сценарий Г прототипа на 09:40: администратор ИБ Д. Захаров создал роль «Старший инженер» по шаблону и назначил
+/// её Елене Титовой. Для снимков и тестов экранов старшего инженера; в обычном запуске роль создаёт сам
+/// администратор ИБ на своих экранах.
+void seedSeniorRoleScenario(MockDb db) {
+  final Role? template = db.seniorRoleTemplate;
+  if (template == null) {
+    return;
+  }
+  if (!db.roles.any((Role r) => r.id == template.id)) {
+    db.roles.add(template.copyWith(users: 1));
+  }
+  final int i = db.users.indexWhere((AdminUser u) => u.name == db.seniorRoleAssignee);
+  if (i < 0) {
+    return;
+  }
+  final AdminUser u = db.users[i];
+  db.users[i] = u.copyWith(roleCode: template.id, roleLabel: template.name);
+  db.seclog.insert(
+    0,
+    SecLogEntry(
+      time: '09:40',
+      level: 'info',
+      who: 'Дмитрий Захаров',
+      text: '${u.name}: роль изменена на «${template.name}»',
+      kind: 'change',
+      title: 'Изменена роль',
+      details: [('Кто изменил', 'Дмитрий Захаров'), ('Учётная запись', u.email), ('Роль', '${u.roleLabel} → ${template.name}')],
+      userId: u.id,
+    ),
+  );
+}
 
 /// Дополнения демонстрационных данных раздела «Инженер: итоги и сервис» поверх истории 14.11.2026.
 ///
@@ -99,27 +133,204 @@ void seedEngineerService(MockDb db) {
   });
 
   db.activity.addAll(const [
-    HistoryEvent(date: '14.11.2026', time: '09:34', status: 'bad', title: 'Н-101 · осмотр', text: '2 дефекта, R01', who: 'Алексей Смирнов', unitId: 'N-101', kind: 'inspection', label: 'Дефект', target: '/engineer/c-report'),
-    HistoryEvent(date: '14.11.2026', time: '08:12', status: 'warn', title: 'Н-101 · правило R08', text: 'вибрация 3,1 мм/с', who: 'Система', unitId: 'N-101', kind: 'rule', label: 'Внимание', target: '/engineer/objects/diagnostics'),
-    HistoryEvent(date: '14.11.2026', time: '07:30', status: 'info', title: 'АМС-2 · ремонт назначен', text: 'на 15.11, 08:00', who: 'Марина Орлова', unitId: 'AMS-2', kind: 'plan', label: 'План', target: '/engineer/objects/card/AMS-2'),
-    HistoryEvent(date: '14.11.2026', time: '07:05', status: 'bad', title: 'АМС-2 · осмотр', text: 'течь уплотнения', who: 'Алексей Смирнов', unitId: 'AMS-2', kind: 'inspection', label: 'Дефект', target: '/engineer/objects/card/AMS-2'),
-    HistoryEvent(date: '14.11.2026', time: '06:44', status: 'bad', title: 'АМС-2 · остановка, S05', text: 'обмотка 112 °C', who: 'Система', unitId: 'AMS-2', kind: 'alarm', label: 'Авария', target: '/engineer/objects/card/AMS-2'),
-    HistoryEvent(date: '13.11.2026', time: '16:40', status: 'warn', title: 'Н-101 · плановый осмотр', text: 'шум подшипника', who: 'Алексей Смирнов', unitId: 'N-101', kind: 'inspection', label: 'Внимание', target: '/engineer/objects/card/N-101/history'),
-    HistoryEvent(date: '12.11.2026', time: '10:20', status: 'ok', title: 'АМС-1 · плановый осмотр', text: 'замечание снято', who: 'Елена Титова', unitId: 'AMS-1', kind: 'inspection', label: 'Закрыто', target: '/engineer/objects/card/AMS-1'),
-    HistoryEvent(date: '12.11.2026', time: '10:05', status: 'warn', title: 'Н-101 · подшипник 76 °C', text: 'правило S04', who: 'Система', unitId: 'N-101', kind: 'reading', label: 'Внимание', target: '/engineer/objects/card/N-101/charts'),
-    HistoryEvent(date: '10.11.2026', time: '11:30', status: 'unk', title: 'Н-101 · осмотр после тревоги', text: 'дефектов не выявлено', who: 'Алексей Смирнов', unitId: 'N-101', kind: 'inspection', label: 'Без находок', target: '/engineer/objects/card/N-101/history'),
-    HistoryEvent(date: '10.11.2026', time: '08:20', status: 'bad', title: 'Н-101 · вибрация 4,8 мм/с', text: 'уставка 4,5 мм/с', who: 'Система', unitId: 'N-101', kind: 'alarm', label: 'Авария', target: '/engineer/objects/card/N-101/charts'),
-    HistoryEvent(date: '28.10.2026', time: '14:10', status: 'unk', title: 'АМС-1 · плановый осмотр', text: 'отклонений не выявлено', who: 'Елена Титова', unitId: 'AMS-1', kind: 'inspection', label: 'Без находок', target: '/engineer/objects/card/AMS-1'),
-    HistoryEvent(date: '28.10.2026', time: '14:35', status: 'unk', title: 'АМС-2 · плановый осмотр', text: 'отклонений не выявлено', who: 'Елена Титова', unitId: 'AMS-2', kind: 'inspection', label: 'Без находок', target: '/engineer/objects/card/AMS-2'),
+    HistoryEvent(
+      date: '14.11.2026',
+      time: '09:34',
+      status: 'bad',
+      title: 'Н-101 · осмотр',
+      text: '2 дефекта, R01',
+      who: 'Алексей Смирнов',
+      unitId: 'N-101',
+      kind: 'inspection',
+      label: 'Дефект',
+      target: '/engineer/c-report',
+    ),
+    HistoryEvent(
+      date: '14.11.2026',
+      time: '08:12',
+      status: 'warn',
+      title: 'Н-101 · правило R08',
+      text: 'вибрация 3,1 мм/с',
+      who: 'Система',
+      unitId: 'N-101',
+      kind: 'rule',
+      label: 'Внимание',
+      target: '/engineer/objects/diagnostics',
+    ),
+    HistoryEvent(
+      date: '14.11.2026',
+      time: '07:30',
+      status: 'info',
+      title: 'АМС-2 · ремонт назначен',
+      text: 'на 15.11, 08:00',
+      who: 'Марина Орлова',
+      unitId: 'AMS-2',
+      kind: 'plan',
+      label: 'План',
+      target: '/engineer/objects/card/AMS-2',
+    ),
+    HistoryEvent(
+      date: '14.11.2026',
+      time: '07:05',
+      status: 'bad',
+      title: 'АМС-2 · осмотр',
+      text: 'течь уплотнения',
+      who: 'Алексей Смирнов',
+      unitId: 'AMS-2',
+      kind: 'inspection',
+      label: 'Дефект',
+      target: '/engineer/objects/card/AMS-2',
+    ),
+    HistoryEvent(
+      date: '14.11.2026',
+      time: '06:44',
+      status: 'bad',
+      title: 'АМС-2 · остановка, S05',
+      text: 'обмотка 112 °C',
+      who: 'Система',
+      unitId: 'AMS-2',
+      kind: 'alarm',
+      label: 'Авария',
+      target: '/engineer/objects/card/AMS-2',
+    ),
+    HistoryEvent(
+      date: '13.11.2026',
+      time: '16:40',
+      status: 'warn',
+      title: 'Н-101 · плановый осмотр',
+      text: 'шум подшипника',
+      who: 'Алексей Смирнов',
+      unitId: 'N-101',
+      kind: 'inspection',
+      label: 'Внимание',
+      target: '/engineer/objects/card/N-101/history',
+    ),
+    HistoryEvent(
+      date: '12.11.2026',
+      time: '10:20',
+      status: 'ok',
+      title: 'АМС-1 · плановый осмотр',
+      text: 'замечание снято',
+      who: 'Елена Титова',
+      unitId: 'AMS-1',
+      kind: 'inspection',
+      label: 'Закрыто',
+      target: '/engineer/objects/card/AMS-1',
+    ),
+    HistoryEvent(
+      date: '12.11.2026',
+      time: '10:05',
+      status: 'warn',
+      title: 'Н-101 · подшипник 76 °C',
+      text: 'правило S04',
+      who: 'Система',
+      unitId: 'N-101',
+      kind: 'reading',
+      label: 'Внимание',
+      target: '/engineer/objects/card/N-101/charts',
+    ),
+    HistoryEvent(
+      date: '10.11.2026',
+      time: '11:30',
+      status: 'unk',
+      title: 'Н-101 · осмотр после тревоги',
+      text: 'дефектов не выявлено',
+      who: 'Алексей Смирнов',
+      unitId: 'N-101',
+      kind: 'inspection',
+      label: 'Без находок',
+      target: '/engineer/objects/card/N-101/history',
+    ),
+    HistoryEvent(
+      date: '10.11.2026',
+      time: '08:20',
+      status: 'bad',
+      title: 'Н-101 · вибрация 4,8 мм/с',
+      text: 'уставка 4,5 мм/с',
+      who: 'Система',
+      unitId: 'N-101',
+      kind: 'alarm',
+      label: 'Авария',
+      target: '/engineer/objects/card/N-101/charts',
+    ),
+    HistoryEvent(
+      date: '28.10.2026',
+      time: '14:10',
+      status: 'unk',
+      title: 'АМС-1 · плановый осмотр',
+      text: 'отклонений не выявлено',
+      who: 'Елена Титова',
+      unitId: 'AMS-1',
+      kind: 'inspection',
+      label: 'Без находок',
+      target: '/engineer/objects/card/AMS-1',
+    ),
+    HistoryEvent(
+      date: '28.10.2026',
+      time: '14:35',
+      status: 'unk',
+      title: 'АМС-2 · плановый осмотр',
+      text: 'отклонений не выявлено',
+      who: 'Елена Титова',
+      unitId: 'AMS-2',
+      kind: 'inspection',
+      label: 'Без находок',
+      target: '/engineer/objects/card/AMS-2',
+    ),
   ]);
 
   db.notifications['engineer'] = [
-    const AppNotification(id: 'n-e1', time: '09:12', kind: 'info', title: 'Новое задание от мастера', text: 'Н-101 · осмотр по R08 до 10:00', target: '/engineer/task/T-318'),
-    const AppNotification(id: 'n-e2', time: '08:12', kind: 'warn', title: 'Н-101: сработало правило R08', text: 'Вибрация 1X 3,1 мм/с · подшипник 78 °C', target: '/engineer/objects/diagnostics'),
-    const AppNotification(id: 'n-e3', time: '08:00', kind: 'warn', title: 'Н-101: ТО-2 через 10 ч', text: 'Наработка 19 190 из 19 200 ч · план 15.11, 10:00', target: '/engineer/objects/card/N-101'),
-    const AppNotification(id: 'n-e4', time: '09:35', kind: 'ok', title: 'Синхронизация завершена', text: 'INS-2209 на сервере цеха', target: '/engineer/c-queue-ok', read: true),
-    const AppNotification(id: 'n-e5', time: '06:52', kind: 'info', title: 'Задание: осмотр АМС-2', text: 'Течь под агрегатом · О. Кузнецова', target: '/engineer/task/T-317', read: true),
-    const AppNotification(id: 'n-e6', time: '06:44', kind: 'bad', title: 'АМС-2: тревога S05, остановка', text: 'Обмотка 112 °C, аварийная уставка 110 °C', target: '/engineer/objects/card/AMS-2', read: true),
+    const AppNotification(
+      id: 'n-e1',
+      time: '09:12',
+      kind: 'info',
+      title: 'Новое задание от мастера',
+      text: 'Н-101 · осмотр по R08 до 10:00',
+      target: '/engineer/task/T-318',
+    ),
+    const AppNotification(
+      id: 'n-e2',
+      time: '08:12',
+      kind: 'warn',
+      title: 'Н-101: сработало правило R08',
+      text: 'Вибрация 1X 3,1 мм/с · подшипник 78 °C',
+      target: '/engineer/objects/diagnostics',
+    ),
+    const AppNotification(
+      id: 'n-e3',
+      time: '08:00',
+      kind: 'warn',
+      title: 'Н-101: ТО-2 через 10 ч',
+      text: 'Наработка 19 190 из 19 200 ч · план 15.11, 10:00',
+      target: '/engineer/objects/card/N-101',
+    ),
+    const AppNotification(
+      id: 'n-e4',
+      time: '09:35',
+      kind: 'ok',
+      title: 'Синхронизация завершена',
+      text: 'INS-2209 на сервере цеха',
+      target: '/engineer/c-queue-ok',
+      read: true,
+    ),
+    const AppNotification(
+      id: 'n-e5',
+      time: '06:52',
+      kind: 'info',
+      title: 'Задание: осмотр АМС-2',
+      text: 'Течь под агрегатом · О. Кузнецова',
+      target: '/engineer/task/T-317',
+      read: true,
+    ),
+    const AppNotification(
+      id: 'n-e6',
+      time: '06:44',
+      kind: 'bad',
+      title: 'АМС-2: тревога S05, остановка',
+      text: 'Обмотка 112 °C, аварийная уставка 110 °C',
+      target: '/engineer/objects/card/AMS-2',
+      read: true,
+    ),
   ];
 
   const Map<String, (String, String)> taskDetails = {
@@ -133,6 +344,17 @@ void seedEngineerService(MockDb db) {
     }
   }
 
+  db.people['titova'] = const Person(
+    id: 'u-106',
+    name: 'Елена Титова',
+    roleCode: 'engineer',
+    roleLabel: 'Инженер',
+    title: 'Инженер-диагност',
+    email: 'e.titova@kst-energo.ru',
+    phone: '+7 912 405-16-58',
+    shift: 'Смена 1',
+  );
+
   db.assistantDialog
     ..clear()
     ..addAll(const [
@@ -140,7 +362,8 @@ void seedEngineerService(MockDb db) {
       AssistantMessage(
         fromUser: false,
         time: '09:38',
-        text: 'Вибрация 1X выросла с 2,4 до 3,1 мм/с за 3 суток, подшипник - с 71 до 78 °C, ток в норме. '
+        text:
+            'Вибрация 1X выросла с 2,4 до 3,1 мм/с за 3 суток, подшипник - с 71 до 78 °C, ток в норме. '
             'Это признаки возможного износа подшипника, рекомендуется проверка смазки.',
         refs: ['R08'],
         links: [

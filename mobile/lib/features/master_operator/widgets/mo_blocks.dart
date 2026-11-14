@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show PathMetric;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -20,8 +21,19 @@ class MoLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool inSheet = KvSheetScope.maybeOf(context) != null;
     return Padding(
-      padding: EdgeInsets.fromLTRB(KvSpace.s1, inSheet ? 2 : KvSpace.s2, KvSpace.s1, 0),
-      child: Text(text, style: context.kvText.caption.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(13))),
+      padding: EdgeInsets.fromLTRB(
+        KvSpace.s1,
+        inSheet ? 2 : KvSpace.s2,
+        KvSpace.s1,
+        0,
+      ),
+      child: Text(
+        text,
+        style: context.kvText.caption.copyWith(
+          fontWeight: FontWeight.w500,
+          height: KvTextStyles.normalHeight(13),
+        ),
+      ),
     );
   }
 }
@@ -29,7 +41,15 @@ class MoLabel extends StatelessWidget {
 /// Плашка-баннер раздела (.d-banner): значок в белом квадрате, заголовок 14 и подпись, шеврон при касании.
 class MoBanner extends StatelessWidget {
   /// Создаёт баннер.
-  const MoBanner({super.key, required this.icon, required this.title, this.subtitle, this.tone, this.iconStatus, this.onTap});
+  const MoBanner({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.tone,
+    this.iconStatus,
+    this.onTap,
+  });
 
   /// Значок.
   final KvIcons icon;
@@ -63,7 +83,11 @@ class MoBanner extends StatelessWidget {
     final Widget body = Container(
       constraints: const BoxConstraints(minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(color: bg, borderRadius: radius, boxShadow: tone == null ? c.shadow1 : null),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: radius,
+        boxShadow: tone == null ? c.shadow1 : null,
+      ),
       child: Row(
         children: [
           KvRowIcon(icon: icon, status: iconStatus, background: c.surface),
@@ -73,7 +97,13 @@ class MoBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: t.sm.copyWith(fontWeight: FontWeight.w600, height: 1.3)),
+                Text(
+                  title,
+                  style: t.sm.copyWith(
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!, style: t.caption.copyWith(height: 1.35)),
@@ -81,14 +111,23 @@ class MoBanner extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null) ...[const SizedBox(width: KvSpace.s3), KvIcon(KvIcons.chevronRight, size: 20, color: c.text3)],
+          if (onTap != null) ...[
+            const SizedBox(width: KvSpace.s3),
+            KvIcon(KvIcons.chevronRight, size: 20, color: c.text3),
+          ],
         ],
       ),
     );
     if (onTap == null) {
       return body;
     }
-    return KvPressable(onTap: onTap, borderRadius: radius, pressedScale: 0.985, semanticLabel: title, child: body);
+    return KvPressable(
+      onTap: onTap,
+      borderRadius: radius,
+      pressedScale: 0.985,
+      semanticLabel: title,
+      child: body,
+    );
   }
 }
 
@@ -97,7 +136,12 @@ class MoBanner extends StatelessWidget {
 /// Блоки сначала измеряются по содержимому, затем раскладываются в общую высоту, как ячейки CSS-сетки.
 class MoGridRow extends MultiChildRenderObjectWidget {
   /// Создаёт ряд из блоков [children] с промежутком [gap].
-  const MoGridRow({super.key, required super.children, this.gap = KvSpace.s3, this.minHeight = 0});
+  const MoGridRow({
+    super.key,
+    required super.children,
+    this.gap = KvSpace.s3,
+    this.minHeight = 0,
+  });
 
   /// Промежуток между блоками.
   final double gap;
@@ -106,25 +150,32 @@ class MoGridRow extends MultiChildRenderObjectWidget {
   final double minHeight;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderGridRow(gap, minHeight);
+  RenderObject createRenderObject(BuildContext context) =>
+      MoRenderGridRow(gap, minHeight);
 
   @override
-  void updateRenderObject(BuildContext context, _RenderGridRow renderObject) {
+  void updateRenderObject(BuildContext context, MoRenderGridRow renderObject) {
     renderObject
       ..gap = gap
       ..minHeight = minHeight;
   }
 }
 
-class _GridRowData extends ContainerBoxParentData<RenderBox> {}
+/// Данные положения блока в ряду [MoGridRow].
+class MoGridRowData extends ContainerBoxParentData<RenderBox> {}
 
-class _RenderGridRow extends RenderBox
-    with ContainerRenderObjectMixin<RenderBox, _GridRowData>, RenderBoxContainerDefaultsMixin<RenderBox, _GridRowData> {
-  _RenderGridRow(this._gap, this._minHeight);
+/// Раскладка ряда [MoGridRow]: блоки одной ширины и общей высоты по самому высокому.
+class MoRenderGridRow extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, MoGridRowData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, MoGridRowData> {
+  /// Создаёт раскладку с промежутком и наименьшей высотой.
+  MoRenderGridRow(this._gap, this._minHeight);
 
   double _gap;
   double _minHeight;
 
+  /// Промежуток между блоками.
   set gap(double v) {
     if (v != _gap) {
       _gap = v;
@@ -132,6 +183,7 @@ class _RenderGridRow extends RenderBox
     }
   }
 
+  /// Наименьшая высота ряда.
   set minHeight(double v) {
     if (v != _minHeight) {
       _minHeight = v;
@@ -141,8 +193,8 @@ class _RenderGridRow extends RenderBox
 
   @override
   void setupParentData(RenderBox child) {
-    if (child.parentData is! _GridRowData) {
-      child.parentData = _GridRowData();
+    if (child.parentData is! MoGridRowData) {
+      child.parentData = MoGridRowData();
     }
   }
 
@@ -157,7 +209,10 @@ class _RenderGridRow extends RenderBox
     double h = _minHeight;
     RenderBox? child = firstChild;
     while (child != null) {
-      child.layout(BoxConstraints(minWidth: w, maxWidth: w), parentUsesSize: true);
+      child.layout(
+        BoxConstraints(minWidth: w, maxWidth: w),
+        parentUsesSize: true,
+      );
       h = math.max(h, child.size.height);
       child = childAfter(child);
     }
@@ -165,7 +220,7 @@ class _RenderGridRow extends RenderBox
     double x = 0;
     while (child != null) {
       child.layout(BoxConstraints.tightFor(width: w, height: h));
-      (child.parentData! as _GridRowData).offset = Offset(x, 0);
+      (child.parentData! as MoGridRowData).offset = Offset(x, 0);
       x += w + _gap;
       child = childAfter(child);
     }
@@ -173,10 +228,12 @@ class _RenderGridRow extends RenderBox
   }
 
   @override
-  void paint(PaintingContext context, Offset offset) => defaultPaint(context, offset);
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
 
   @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) => defaultHitTestChildren(result, position: position);
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
 }
 
 /// Полоса состояния агрегатов (.d-sbar): по сегменту на агрегат цвета его статуса.
@@ -198,7 +255,10 @@ class MoStatusBar extends StatelessWidget {
             if (i > 0) const SizedBox(width: 3),
             Expanded(
               child: DecoratedBox(
-                decoration: BoxDecoration(color: items[i] == null ? c.surface3 : c.status(items[i]!), borderRadius: BorderRadius.circular(4)),
+                decoration: BoxDecoration(
+                  color: items[i] == null ? c.surface3 : c.status(items[i]!),
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
           ],
@@ -221,8 +281,14 @@ class MoRing extends StatefulWidget {
 }
 
 class _MoRingState extends State<MoRing> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1150));
-  late final Animation<double> _t = CurvedAnimation(parent: _c, curve: const Interval(150 / 1150, 1, curve: KvMotion.ease));
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1150),
+  );
+  late final Animation<double> _t = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(150 / 1150, 1, curve: KvMotion.ease),
+  );
   bool _started = false;
 
   @override
@@ -257,12 +323,22 @@ class _MoRingState extends State<MoRing> with SingleTickerProviderStateMixin {
             Positioned.fill(
               child: AnimatedBuilder(
                 animation: _t,
-                builder: (BuildContext context, Widget? _) => CustomPaint(painter: _RingPainter(widget.percent / 100 * _t.value, c.surface3, c.brand)),
+                builder: (BuildContext context, Widget? _) => CustomPaint(
+                  painter: _RingPainter(
+                    widget.percent / 100 * _t.value,
+                    c.surface3,
+                    c.brand,
+                  ),
+                ),
               ),
             ),
             Text(
               '${widget.percent.round()}%',
-              style: context.kvText.label.copyWith(fontWeight: FontWeight.w600, color: c.brand, height: KvTextStyles.normalHeight(12)),
+              style: context.kvText.label.copyWith(
+                fontWeight: FontWeight.w600,
+                color: c.brand,
+                height: KvTextStyles.normalHeight(12),
+              ),
             ),
           ],
         ),
@@ -281,29 +357,56 @@ class _RingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double k = size.width / 54;
-    final Rect r = Rect.fromCircle(center: size.center(Offset.zero), radius: 22 * k);
-    canvas.drawArc(r, 0, math.pi * 2, false, Paint()
-      ..color = track
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 6 * k);
-    if (fraction > 0) {
-      canvas.drawArc(r, -math.pi / 2, math.pi * 2 * fraction, false, Paint()
-        ..color = value
+    final Rect r = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: 22 * k,
+    );
+    canvas.drawArc(
+      r,
+      0,
+      math.pi * 2,
+      false,
+      Paint()
+        ..color = track
         ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = 6 * k);
+        ..strokeWidth = 6 * k,
+    );
+    if (fraction > 0) {
+      canvas.drawArc(
+        r,
+        -math.pi / 2,
+        math.pi * 2 * fraction,
+        false,
+        Paint()
+          ..color = value
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = 6 * k,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.fraction != fraction || old.track != track || old.value != value;
+  bool shouldRepaint(_RingPainter old) =>
+      old.fraction != fraction || old.track != track || old.value != value;
 }
 
 /// Плитка-счётчик сводки смены (.tile.d-kpi): подпись, крупное число с пояснением, спарклайн, полоса или кольцо,
 /// подпись внизу. Высота плитки задаётся рядом [MoGridRow]; подпись прижимается к низу.
 class MoKpiTile extends StatelessWidget {
   /// Создаёт плитку.
-  const MoKpiTile({super.key, required this.label, required this.value, this.unit, required this.sub, this.subWarn = false, this.spark, this.bar, this.ring, this.onTap});
+  const MoKpiTile({
+    super.key,
+    required this.label,
+    required this.value,
+    this.unit,
+    required this.sub,
+    this.subWarn = false,
+    this.spark,
+    this.bar,
+    this.ring,
+    this.onTap,
+  });
 
   /// Подпись сверху.
   final String label;
@@ -342,8 +445,18 @@ class MoKpiTile extends StatelessWidget {
       height: onTap != null ? 18 : 17,
       child: Row(
         children: [
-          Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.caption.copyWith(height: KvTextStyles.normalHeight(13)))),
-          if (onTap != null) ...[const SizedBox(width: 6), KvIcon(KvIcons.chevronRight, size: 18, color: c.text3)],
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: t.caption.copyWith(height: KvTextStyles.normalHeight(13)),
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 6),
+            KvIcon(KvIcons.chevronRight, size: 18, color: c.text3),
+          ],
         ],
       ),
     );
@@ -351,11 +464,26 @@ class MoKpiTile extends StatelessWidget {
       padding: const EdgeInsets.only(top: 2),
       child: Row(
         children: [
-          Text(value, maxLines: 1, softWrap: false, style: t.numL.copyWith(fontSize: narrow ? 32 : 36, height: 1, color: c.text)),
+          Text(
+            value,
+            maxLines: 1,
+            softWrap: false,
+            style: t.numL.copyWith(
+              fontSize: narrow ? 32 : 36,
+              height: 1,
+              color: c.text,
+            ),
+          ),
           if (unit != null) ...[
             const SizedBox(width: 5),
             Flexible(
-              child: Text(unit!, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: t.unit.copyWith(height: KvTextStyles.normalHeight(13))),
+              child: Text(
+                unit!,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.clip,
+                style: t.unit.copyWith(height: KvTextStyles.normalHeight(13)),
+              ),
             ),
           ],
           if (ring != null) ...[const Spacer(), MoRing(ring!)],
@@ -364,7 +492,11 @@ class MoKpiTile extends StatelessWidget {
     );
     final Widget body = Container(
       padding: EdgeInsets.symmetric(horizontal: narrow ? 12 : 14, vertical: 12),
-      decoration: BoxDecoration(color: c.surface, borderRadius: radius, boxShadow: c.shadow1),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: radius,
+        boxShadow: c.shadow1,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -382,11 +514,15 @@ class MoKpiTile extends StatelessWidget {
                 SizedBox(
                   height: 34,
                   child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints box) => OverflowBox(
-                      minWidth: box.maxWidth + 4,
-                      maxWidth: box.maxWidth + 4,
-                      child: KvSparkline(data: KvSeriesData(values: spark!), height: 34),
-                    ),
+                    builder: (BuildContext context, BoxConstraints box) =>
+                        OverflowBox(
+                          minWidth: box.maxWidth + 4,
+                          maxWidth: box.maxWidth + 4,
+                          child: KvSparkline(
+                            data: KvSeriesData(values: spark!),
+                            height: 34,
+                          ),
+                        ),
                   ),
                 ),
               ],
@@ -398,21 +534,43 @@ class MoKpiTile extends StatelessWidget {
               const SizedBox(height: 4),
             ],
           ),
-          Text(sub, style: t.label.copyWith(fontWeight: FontWeight.w400, height: 1.3, color: subWarn ? c.warnText : c.text2)),
+          Text(
+            sub,
+            style: t.label.copyWith(
+              fontWeight: FontWeight.w400,
+              height: 1.3,
+              color: subWarn ? c.warnText : c.text2,
+            ),
+          ),
         ],
       ),
     );
     if (onTap == null) {
       return body;
     }
-    return KvPressable(onTap: onTap, borderRadius: radius, pressedScale: 0.985, semanticLabel: label, child: body);
+    return KvPressable(
+      onTap: onTap,
+      borderRadius: radius,
+      pressedScale: 0.985,
+      semanticLabel: label,
+      child: body,
+    );
   }
 }
 
 /// Строка «до работы осталось» (.d-next): крупное число часов с единицей, пояснение и полоса прогресса.
 class MoNext extends StatelessWidget {
   /// Создаёт строку.
-  const MoNext({super.key, required this.value, required this.unit, required this.title, required this.text, this.tone = KvStatus.warn, this.progress, this.progressStatus});
+  const MoNext({
+    super.key,
+    required this.value,
+    required this.unit,
+    required this.title,
+    required this.text,
+    this.tone = KvStatus.warn,
+    this.progress,
+    this.progressStatus,
+  });
 
   /// Число.
   final String value;
@@ -457,9 +615,27 @@ class MoNext extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(value, maxLines: 1, softWrap: false, style: t.numXl.copyWith(fontSize: size, letterSpacing: -0.02 * size, color: color)),
+                Text(
+                  value,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: t.numXl.copyWith(
+                    fontSize: size,
+                    letterSpacing: -0.02 * size,
+                    color: color,
+                  ),
+                ),
                 const SizedBox(width: 6),
-                Text(unit, maxLines: 1, softWrap: false, style: t.title.copyWith(fontWeight: FontWeight.w300, height: 1, color: color)),
+                Text(
+                  unit,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: t.title.copyWith(
+                    fontWeight: FontWeight.w300,
+                    height: 1,
+                    color: color,
+                  ),
+                ),
               ],
             ),
             const SizedBox(width: 14),
@@ -467,7 +643,14 @@ class MoNext extends StatelessWidget {
               child: Text.rich(
                 TextSpan(
                   children: [
-                    TextSpan(text: '$title\n', style: t.sm.copyWith(fontWeight: FontWeight.w500, color: c.text, height: 1.38)),
+                    TextSpan(
+                      text: '$title\n',
+                      style: t.sm.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: c.text,
+                        height: 1.38,
+                      ),
+                    ),
                     TextSpan(text: text),
                   ],
                 ),
@@ -476,7 +659,10 @@ class MoNext extends StatelessWidget {
             ),
           ],
         ),
-        if (progress != null) ...[const SizedBox(height: 10), KvProgress(value: progress!, status: progressStatus)],
+        if (progress != null) ...[
+          const SizedBox(height: 10),
+          KvProgress(value: progress!, status: progressStatus),
+        ],
       ],
     );
   }
@@ -485,7 +671,16 @@ class MoNext extends StatelessWidget {
 /// Строка работы плана ТО (.d-mt): название с интервалом, остаток часов цветом срока и тонкая полоса.
 class MoMtRow extends StatelessWidget {
   /// Создаёт строку.
-  const MoMtRow({super.key, required this.name, this.every, required this.left, required this.fraction, required this.tone, this.first = false, this.last = false});
+  const MoMtRow({
+    super.key,
+    required this.name,
+    this.every,
+    required this.left,
+    required this.fraction,
+    required this.tone,
+    this.first = false,
+    this.last = false,
+  });
 
   /// Название работы.
   final String name;
@@ -515,8 +710,8 @@ class MoMtRow extends StatelessWidget {
     final String lbl = left <= 0
         ? 'просрочено'
         : tone == KvStatus.unk
-            ? 'пауза · ${KvFormat.num(left)} ч'
-            : 'через ${KvFormat.num(left)} ч';
+        ? 'пауза · ${KvFormat.num(left)} ч'
+        : 'через ${KvFormat.num(left)} ч';
     final Color lc = switch (tone) {
       KvStatus.warn => c.warnText,
       KvStatus.bad => c.bad,
@@ -525,7 +720,11 @@ class MoMtRow extends StatelessWidget {
     };
     return Container(
       padding: EdgeInsets.only(top: 11, bottom: last ? 2 : 11),
-      decoration: first ? null : BoxDecoration(border: Border(top: BorderSide(color: c.divider))),
+      decoration: first
+          ? null
+          : BoxDecoration(
+              border: Border(top: BorderSide(color: c.divider)),
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -539,18 +738,41 @@ class MoMtRow extends StatelessWidget {
                   TextSpan(
                     children: [
                       TextSpan(text: name),
-                      if (every != null) TextSpan(text: ' · ${KvFormat.typo(every!)}', style: TextStyle(color: c.text2, fontWeight: FontWeight.w400)),
+                      if (every != null)
+                        TextSpan(
+                          text: ' · ${KvFormat.typo(every!)}',
+                          style: TextStyle(
+                            color: c.text2,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
                     ],
                   ),
-                  style: t.sm.copyWith(fontWeight: FontWeight.w500, height: 1.3),
+                  style: t.sm.copyWith(
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
-              Text(KvFormat.typo(lbl), maxLines: 1, softWrap: false, style: t.sm.copyWith(fontWeight: FontWeight.w600, color: lc, height: KvTextStyles.normalHeight(14))),
+              Text(
+                KvFormat.typo(lbl),
+                maxLines: 1,
+                softWrap: false,
+                style: t.sm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: lc,
+                  height: KvTextStyles.normalHeight(14),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 7),
-          KvProgress(value: fraction, status: tone == KvStatus.warn || tone == KvStatus.bad ? tone : null, thin: true),
+          KvProgress(
+            value: fraction,
+            status: tone == KvStatus.warn || tone == KvStatus.bad ? tone : null,
+            thin: true,
+          ),
         ],
       ),
     );
@@ -560,7 +782,12 @@ class MoMtRow extends StatelessWidget {
 /// Серая плашка с пояснением (.d-repair): значок 18 фирменного цвета, полужирная первая строка и подпись.
 class MoRepairNote extends StatelessWidget {
   /// Создаёт плашку.
-  const MoRepairNote({super.key, required this.icon, required this.title, required this.text});
+  const MoRepairNote({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
 
   /// Значок.
   final KvIcons icon;
@@ -577,7 +804,10 @@ class MoRepairNote extends StatelessWidget {
     final KvTextStyles t = context.kvText;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: c.surface2,
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Row(
         children: [
           KvIcon(icon, size: 18, color: c.brand),
@@ -586,7 +816,13 @@ class MoRepairNote extends StatelessWidget {
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: '${KvFormat.typo(title)}\n', style: TextStyle(color: c.text, fontWeight: FontWeight.w500)),
+                  TextSpan(
+                    text: '${KvFormat.typo(title)}\n',
+                    style: TextStyle(
+                      color: c.text,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   TextSpan(text: KvFormat.typo(text)),
                 ],
               ),
@@ -616,7 +852,16 @@ class MoLiveLine extends StatelessWidget {
         children: [
           const MoPulseDot(),
           const SizedBox(width: KvSpace.s2),
-          Flexible(child: Text(KvFormat.typo(text), maxLines: 1, overflow: TextOverflow.ellipsis, style: context.kvText.caption.copyWith(height: KvTextStyles.normalHeight(13)))),
+          Flexible(
+            child: Text(
+              KvFormat.typo(text),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.kvText.caption.copyWith(
+                height: KvTextStyles.normalHeight(13),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -632,8 +877,12 @@ class MoPulseDot extends StatefulWidget {
   State<MoPulseDot> createState() => _MoPulseDotState();
 }
 
-class _MoPulseDotState extends State<MoPulseDot> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800));
+class _MoPulseDotState extends State<MoPulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
 
   @override
   void didChangeDependencies() {
@@ -666,7 +915,14 @@ class _MoPulseDotState extends State<MoPulseDot> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: ok,
               shape: BoxShape.circle,
-              boxShadow: on ? [BoxShadow(color: ok.withValues(alpha: 0.5 * (1 - p)), spreadRadius: 8 * p)] : null,
+              boxShadow: on
+                  ? [
+                      BoxShadow(
+                        color: ok.withValues(alpha: 0.5 * (1 - p)),
+                        spreadRadius: 8 * p,
+                      ),
+                    ]
+                  : null,
             ),
           );
         },
@@ -679,7 +935,12 @@ class _MoPulseDotState extends State<MoPulseDot> with SingleTickerProviderStateM
 /// появляется с лёгким увеличением, галочка дорисовывается.
 class MoResultIcon extends StatefulWidget {
   /// Создаёт значок; без [icon] рисуется галочка.
-  const MoResultIcon({super.key, this.icon, this.tone = KvStatus.ok, this.iconSize = 36});
+  const MoResultIcon({
+    super.key,
+    this.icon,
+    this.tone = KvStatus.ok,
+    this.iconSize = 36,
+  });
 
   /// Значок; null - анимированная галочка.
   final KvIcons? icon;
@@ -694,14 +955,36 @@ class MoResultIcon extends StatefulWidget {
   State<MoResultIcon> createState() => _MoResultIconState();
 }
 
-class _MoResultIconState extends State<MoResultIcon> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 850));
-  late final Animation<double> _pop = TweenSequence<double>([
-    TweenSequenceItem<double>(tween: Tween<double>(begin: 0.6, end: 1.06), weight: 70),
-    TweenSequenceItem<double>(tween: Tween<double>(begin: 1.06, end: 1), weight: 30),
-  ]).animate(CurvedAnimation(parent: _c, curve: const Interval(120 / 850, 670 / 850, curve: KvMotion.ease)));
-  late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: const Interval(120 / 850, 505 / 850));
-  late final Animation<double> _draw = CurvedAnimation(parent: _c, curve: const Interval(400 / 850, 1, curve: KvMotion.ease));
+class _MoResultIconState extends State<MoResultIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 850),
+  );
+  late final Animation<double> _pop =
+      TweenSequence<double>([
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 0.6, end: 1.06),
+          weight: 70,
+        ),
+        TweenSequenceItem<double>(
+          tween: Tween<double>(begin: 1.06, end: 1),
+          weight: 30,
+        ),
+      ]).animate(
+        CurvedAnimation(
+          parent: _c,
+          curve: const Interval(120 / 850, 670 / 850, curve: KvMotion.ease),
+        ),
+      );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(120 / 850, 505 / 850),
+  );
+  late final Animation<double> _draw = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(400 / 850, 1, curve: KvMotion.ease),
+  );
   bool _started = false;
 
   @override
@@ -744,10 +1027,17 @@ class _MoResultIconState extends State<MoResultIcon> with SingleTickerProviderSt
               width: 72,
               height: 72,
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: bg, shape: BoxShape.circle, boxShadow: [BoxShadow(color: halo, spreadRadius: 12)]),
+              decoration: BoxDecoration(
+                color: bg,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: halo, spreadRadius: 12)],
+              ),
               child: widget.icon != null
                   ? KvIcon(widget.icon!, size: widget.iconSize, color: fg)
-                  : CustomPaint(size: Size.square(widget.iconSize), painter: _CheckPainter(_draw.value, fg)),
+                  : CustomPaint(
+                      size: Size.square(widget.iconSize),
+                      painter: _CheckPainter(_draw.value, fg),
+                    ),
             ),
           ),
         ),
@@ -796,7 +1086,15 @@ class _CheckPainter extends CustomPainter {
 /// Блок результата (.d-done / .d-status): значок, заголовок 22 и текст по центру.
 class MoResult extends StatelessWidget {
   /// Создаёт блок результата.
-  const MoResult({super.key, required this.title, this.text, this.icon, this.tone = KvStatus.ok, this.iconSize = 36, this.status = false});
+  const MoResult({
+    super.key,
+    required this.title,
+    this.text,
+    this.icon,
+    this.tone = KvStatus.ok,
+    this.iconSize = 36,
+    this.status = false,
+  });
 
   /// Заголовок.
   final String title;
@@ -821,19 +1119,29 @@ class MoResult extends StatelessWidget {
     final KvColors c = context.kv;
     final KvTextStyles t = context.kvText;
     return Padding(
-      padding: status ? const EdgeInsets.fromLTRB(16, 22, 16, 18) : const EdgeInsets.fromLTRB(8, 4, 8, 2),
+      padding: status
+          ? const EdgeInsets.fromLTRB(16, 22, 16, 18)
+          : const EdgeInsets.fromLTRB(8, 4, 8, 2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 12),
           MoResultIcon(icon: icon, tone: tone, iconSize: iconSize),
           SizedBox(height: (status ? 14 : 18) + 6.0),
-          Text(KvFormat.typo(title), textAlign: TextAlign.center, style: t.title.copyWith(height: 1.25)),
+          Text(
+            KvFormat.typo(title),
+            textAlign: TextAlign.center,
+            style: t.title.copyWith(height: 1.25),
+          ),
           if (text != null) ...[
             const SizedBox(height: 6),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 310),
-              child: Text(KvFormat.typo(text!), textAlign: TextAlign.center, style: t.sm.copyWith(color: c.text2, height: 1.45)),
+              child: Text(
+                KvFormat.typo(text!),
+                textAlign: TextAlign.center,
+                style: t.sm.copyWith(color: c.text2, height: 1.45),
+              ),
             ),
           ],
         ],
@@ -856,7 +1164,10 @@ class MoKvCard extends StatelessWidget {
     final KvTextStyles t = context.kvText;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-      decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(KvRadius.card)),
+      decoration: BoxDecoration(
+        color: c.surface2,
+        borderRadius: BorderRadius.circular(KvRadius.card),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -864,17 +1175,30 @@ class MoKvCard extends StatelessWidget {
           for (int i = 0; i < pairs.length; i++)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: i == 0 ? null : BoxDecoration(border: Border(top: BorderSide(color: c.border))),
+              decoration: i == 0
+                  ? null
+                  : BoxDecoration(
+                      border: Border(top: BorderSide(color: c.border)),
+                    ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(pairs[i].$1, style: t.sm.copyWith(color: c.text2, height: KvTextStyles.normalHeight(14))),
+                  Text(
+                    pairs[i].$1,
+                    style: t.sm.copyWith(
+                      color: c.text2,
+                      height: KvTextStyles.normalHeight(14),
+                    ),
+                  ),
                   const SizedBox(width: KvSpace.s3),
                   Expanded(
                     child: Text(
                       KvFormat.typo(pairs[i].$2),
                       textAlign: TextAlign.right,
-                      style: t.sm.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(14)),
+                      style: t.sm.copyWith(
+                        fontWeight: FontWeight.w500,
+                        height: KvTextStyles.normalHeight(14),
+                      ),
                     ),
                   ),
                 ],
@@ -889,7 +1213,15 @@ class MoKvCard extends StatelessWidget {
 /// Лист результата (doneSheet прототипа): значок, заголовок, текст, серая карточка значений и кнопки.
 class MoDoneSheet extends StatelessWidget {
   /// Создаёт лист.
-  const MoDoneSheet({super.key, required this.title, this.text, this.icon, this.tone = KvStatus.ok, this.pairs, required this.actions});
+  const MoDoneSheet({
+    super.key,
+    required this.title,
+    this.text,
+    this.icon,
+    this.tone = KvStatus.ok,
+    this.pairs,
+    required this.actions,
+  });
 
   /// Заголовок.
   final String title;
@@ -912,11 +1244,11 @@ class MoDoneSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return KvSheet(
+      actions: actions,
       children: [
         MoResult(title: title, text: text, icon: icon, tone: tone),
         if (pairs != null) MoKvCard(pairs!),
       ],
-      actions: actions,
     );
   }
 }
@@ -939,12 +1271,19 @@ class MoRadio extends StatelessWidget {
       width: 22,
       height: 22,
       alignment: Alignment.center,
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: on ? c.brand : c.border, width: 2)),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: on ? c.brand : c.border, width: 2),
+      ),
       child: AnimatedScale(
         duration: d,
         curve: KvMotion.ease,
         scale: on ? 1 : 0,
-        child: Container(width: 10, height: 10, decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle)),
+        child: Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
+        ),
       ),
     );
   }
@@ -953,7 +1292,16 @@ class MoRadio extends StatelessWidget {
 /// Строка выбора одного варианта (radioRow прототипа): значок или аватар, текст и кружок справа.
 class MoRadioRow extends StatelessWidget {
   /// Создаёт строку.
-  const MoRadioRow({super.key, required this.title, this.subtitle, this.icon, this.iconStatus, this.avatar, required this.on, required this.onTap});
+  const MoRadioRow({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.iconStatus,
+    this.avatar,
+    required this.on,
+    required this.onTap,
+  });
 
   /// Заголовок.
   final String title;
@@ -997,7 +1345,15 @@ class MoRadioRow extends StatelessWidget {
 /// Строка с переключателем (switchRow прототипа).
 class MoSwitchRow extends StatelessWidget {
   /// Создаёт строку.
-  const MoSwitchRow({super.key, required this.title, this.subtitle, this.icon, this.iconStatus, required this.value, required this.onChanged});
+  const MoSwitchRow({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.iconStatus,
+    required this.value,
+    required this.onChanged,
+  });
 
   /// Заголовок.
   final String title;
@@ -1025,7 +1381,11 @@ class MoSwitchRow extends StatelessWidget {
       icon: icon,
       iconStatus: iconStatus,
       chevron: false,
-      trailing: KvToggle(value: value, onChanged: onChanged, semanticLabel: title),
+      trailing: KvToggle(
+        value: value,
+        onChanged: onChanged,
+        semanticLabel: title,
+      ),
     );
   }
 }
@@ -1033,7 +1393,14 @@ class MoSwitchRow extends StatelessWidget {
 /// Цитата сотрудника (.d-quote): аватар, подпись автора, текст и чипы под ним.
 class MoQuote extends StatelessWidget {
   /// Создаёт цитату.
-  const MoQuote({super.key, required this.avatar, required this.who, required this.text, this.chips = const <Widget>[], this.large = false});
+  const MoQuote({
+    super.key,
+    required this.avatar,
+    required this.who,
+    required this.text,
+    this.chips = const <Widget>[],
+    this.large = false,
+  });
 
   /// Имя или инициалы для аватара.
   final String avatar;
@@ -1063,12 +1430,24 @@ class MoQuote extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(KvFormat.typo(who), style: t.caption.copyWith(height: KvTextStyles.normalHeight(13))),
+              Text(
+                KvFormat.typo(who),
+                style: t.caption.copyWith(
+                  height: KvTextStyles.normalHeight(13),
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(KvFormat.typo(text), style: large ? t.body.copyWith(height: 1.45) : t.sm),
+              Text(
+                KvFormat.typo(text),
+                style: large ? t.body.copyWith(height: 1.45) : t.sm,
+              ),
               if (chips.isNotEmpty) ...[
                 const SizedBox(height: KvSpace.s2),
-                Wrap(spacing: KvSpace.s2, runSpacing: KvSpace.s2, children: chips),
+                Wrap(
+                  spacing: KvSpace.s2,
+                  runSpacing: KvSpace.s2,
+                  children: chips,
+                ),
               ],
             ],
           ),
@@ -1081,7 +1460,14 @@ class MoQuote extends StatelessWidget {
 /// Карточка профиля (.card.d-prof): крупный аватар, имя, должность, почта и чипы роли и смены.
 class MoProfileCard extends StatelessWidget {
   /// Создаёт карточку.
-  const MoProfileCard({super.key, required this.name, required this.title, required this.email, required this.role, required this.shift});
+  const MoProfileCard({
+    super.key,
+    required this.name,
+    required this.title,
+    required this.email,
+    required this.role,
+    required this.shift,
+  });
 
   /// Имя.
   final String name;
@@ -1118,7 +1504,10 @@ class MoProfileCard extends StatelessWidget {
             alignment: WrapAlignment.center,
             spacing: KvSpace.s2,
             runSpacing: KvSpace.s2,
-            children: [KvChip(role, status: KvStatus.info), KvChip(shift, dot: false)],
+            children: [
+              KvChip(role, status: KvStatus.info),
+              KvChip(shift, dot: false),
+            ],
           ),
         ],
       ),
@@ -1129,7 +1518,12 @@ class MoProfileCard extends StatelessWidget {
 /// Пункт-подсказка с переносом текста (.d-sugg .fchip): таблетка 36 в области 44, при выборе - синяя.
 class MoSuggestChip extends StatelessWidget {
   /// Создаёт пункт.
-  const MoSuggestChip({super.key, required this.label, this.on = false, required this.onTap});
+  const MoSuggestChip({
+    super.key,
+    required this.label,
+    this.on = false,
+    required this.onTap,
+  });
 
   /// Текст.
   final String label;
@@ -1157,9 +1551,23 @@ class MoSuggestChip extends StatelessWidget {
           curve: KvMotion.ease,
           constraints: const BoxConstraints(minHeight: 36),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(color: on ? c.btnPrimary : c.surface, borderRadius: BorderRadius.circular(KvRadius.pill), boxShadow: c.shadow1),
-          child: Text(KvFormat.typo(label), style: context.kvText.sm.copyWith(fontWeight: FontWeight.w500, height: 1.25, color: fg)),
+          decoration: BoxDecoration(
+            color: on ? c.btnPrimary : c.surface,
+            borderRadius: BorderRadius.circular(KvRadius.pill),
+            boxShadow: c.shadow1,
+          ),
+          child: Align(
+            widthFactor: 1,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              KvFormat.typo(label),
+              style: context.kvText.sm.copyWith(
+                fontWeight: FontWeight.w500,
+                height: 1.25,
+                color: fg,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -1175,5 +1583,6 @@ class MoSuggestChips extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Wrap(spacing: KvSpace.s2, children: children);
+  Widget build(BuildContext context) =>
+      Wrap(spacing: KvSpace.s2, children: children);
 }

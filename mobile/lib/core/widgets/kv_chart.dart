@@ -526,13 +526,15 @@ class KvBars extends StatelessWidget {
                 children: [
                   Text(KvFormat.num(items[i].value, digits), maxLines: 1, softWrap: false, style: t.micro.copyWith(color: c.text2)),
                   const SizedBox(height: 6),
-                  LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints box) => Container(
-                      width: math.min(30, box.maxWidth),
-                      height: height * math.max(4, items[i].value / top * 100 * 0.78) / 100,
-                      decoration: BoxDecoration(
-                        color: items[i].highlight ? c.btnPrimary : c.tint,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8), bottom: Radius.circular(4)),
+                  Flexible(
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints box) => Container(
+                        width: math.min(30, box.maxWidth),
+                        height: math.min(box.maxHeight, height * math.max(4, items[i].value / top * 100 * 0.78) / 100),
+                        decoration: BoxDecoration(
+                          color: items[i].highlight ? c.btnPrimary : c.tint,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(8), bottom: Radius.circular(4)),
+                        ),
                       ),
                     ),
                   ),

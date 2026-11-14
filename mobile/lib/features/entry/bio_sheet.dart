@@ -112,11 +112,11 @@ class _EntryBioSheetState extends ConsumerState<EntryBioSheet> {
       _Bio.wait => ('Вход по биометрии', 'Приложите палец к сканеру отпечатка или посмотрите в камеру.'),
       _Bio.ok => ('Личность подтверждена', _okText(account)),
       _Bio.fail => (
-          'Отпечаток не распознан',
-          left > 0
-              ? 'Приложите палец ещё раз или войдите с паролем. Осталось $left ${KvFormat.plural(left, 'попытка', 'попытки', 'попыток')}.'
-              : 'Попытки закончились - войдите с паролем.',
-        ),
+        'Отпечаток не распознан',
+        left > 0
+            ? 'Приложите палец ещё раз или войдите с паролем. Осталось $left ${KvFormat.plural(left, 'попытка', 'попытки', 'попыток')}.'
+            : 'Попытки закончились - войдите с паролем.',
+      ),
     };
     final Widget password = KvButton('Войти с паролем', kind: KvButtonKind.secondary, onPressed: () => Navigator.of(context).maybePop());
     return AnimatedSize(
@@ -124,26 +124,21 @@ class _EntryBioSheetState extends ConsumerState<EntryBioSheet> {
       curve: KvMotion.ease,
       alignment: Alignment.bottomCenter,
       child: KvSheet(
-        children: [
-          _BioBody(state: _state, title: title, text: text, shake: _shake, onRing: _onRing),
-        ],
         actions: switch (_state) {
           _Bio.wait => [password],
           _Bio.ok => const <Widget>[],
-          _Bio.fail => [
-              if (left > 0) KvButton('Повторить', icon: KvIcons.refresh, onPressed: _retry),
-              password,
-            ],
+          _Bio.fail => [if (left > 0) KvButton('Повторить', icon: KvIcons.refresh, onPressed: _retry), password],
         },
+        children: [_BioBody(state: _state, title: title, text: text, shake: _shake, onRing: _onRing)],
       ),
     );
   }
 
   VoidCallback? get _onRing => switch (_state) {
-        _Bio.wait => _scan,
-        _Bio.ok => _continue,
-        _Bio.fail => null,
-      };
+    _Bio.wait => _scan,
+    _Bio.ok => _continue,
+    _Bio.fail => null,
+  };
 
   /// «Алексей Смирнов, инженер-диагност. Открываем объекты смены.»
   String _okText(SavedAccount? a) {
@@ -186,12 +181,13 @@ class _BioBody extends StatelessWidget {
           const SizedBox(height: KvSpace.s2),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 300),
-            child: Text(text, textAlign: TextAlign.center, style: t.sm.copyWith(color: c.text2, height: 1.45)),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: t.sm.copyWith(color: c.text2, height: 1.45),
+            ),
           ),
-          if (state == _Bio.ok) ...[
-            const SizedBox(height: KvSpace.s2 + KvSpace.s3),
-            const _BioBar(),
-          ],
+          if (state == _Bio.ok) ...[const SizedBox(height: KvSpace.s2 + KvSpace.s3), const _BioBar()],
         ],
       ),
     );
@@ -214,10 +210,10 @@ class _BioRingState extends State<_BioRing> with SingleTickerProviderStateMixin 
   late final AnimationController _c = AnimationController(vsync: this, duration: _duration);
 
   Duration get _duration => switch (widget.state) {
-        _Bio.wait => const Duration(milliseconds: 2000),
-        _Bio.ok => const Duration(milliseconds: 120 + 500),
-        _Bio.fail => const Duration(milliseconds: 180 + 450),
-      };
+    _Bio.wait => const Duration(milliseconds: 2000),
+    _Bio.ok => const Duration(milliseconds: 120 + 500),
+    _Bio.fail => const Duration(milliseconds: 180 + 450),
+  };
 
   @override
   void didChangeDependencies() {
@@ -258,7 +254,10 @@ class _BioRingState extends State<_BioRing> with SingleTickerProviderStateMixin 
           Widget inner = coreCircle;
           if (widget.state == _Bio.ok && !_c.isCompleted) {
             final double p = kEntryPopCurve.transform(((v * 620 - 120) / 500).clamp(0.0, 1.0));
-            inner = Opacity(opacity: p.clamp(0.0, 1.0), child: Transform.scale(scale: 0.4 + 0.6 * p, child: coreCircle));
+            inner = Opacity(
+              opacity: p.clamp(0.0, 1.0),
+              child: Transform.scale(scale: 0.4 + 0.6 * p, child: coreCircle),
+            );
           }
           Widget ringWidget = Container(
             width: 128,
@@ -281,7 +280,10 @@ class _BioRingState extends State<_BioRing> with SingleTickerProviderStateMixin 
                     child: Container(
                       width: 128,
                       height: 128,
-                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.brand, width: 2)),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: c.brand, width: 2),
+                      ),
                     ),
                   ),
                 ),
@@ -347,7 +349,10 @@ class _BioBarState extends State<_BioBar> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
-    final Animation<double> t = CurvedAnimation(parent: _c, curve: const Interval(200 / 1800, 1, curve: KvMotion.ease));
+    final Animation<double> t = CurvedAnimation(
+      parent: _c,
+      curve: const Interval(200 / 1800, 1, curve: KvMotion.ease),
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(2),
       child: SizedBox(

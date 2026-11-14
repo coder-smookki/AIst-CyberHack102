@@ -128,10 +128,10 @@ abstract final class AdminsPaths {
 }
 
 GoRoute _route(String path, String name, Widget Function(GoRouterState s) build, {KvTransition transition = KvTransition.push}) => GoRoute(
-      path: path,
-      name: name,
-      pageBuilder: (BuildContext context, GoRouterState s) => KvPage<void>.of(s, build(s), transition: transition),
-    );
+  path: path,
+  name: name,
+  pageBuilder: (BuildContext context, GoRouterState s) => KvPage<void>.of(s, build(s), transition: transition),
+);
 
 /// Экраны раздела внутри оболочки администратора (с панелью вкладок).
 final List<RouteBase> adminsAdminShellRoutes = <RouteBase>[
@@ -146,7 +146,12 @@ final List<RouteBase> adminsAdminShellRoutes = <RouteBase>[
 final List<RouteBase> adminsSecShellRoutes = <RouteBase>[
   _route(AdminsPaths.secUsers, 'sec-users', (_) => const SecUsersScreen(), transition: KvTransition.fade),
   _route(AdminsPaths.secRoles, 'sec-roles', (_) => const SecRolesScreen(), transition: KvTransition.fade),
-  _route(AdminsPaths.secLog, 'sec-log', (GoRouterState s) => SecLogScreen(open: s.uri.queryParameters['open']), transition: KvTransition.fade),
+  _route(
+    AdminsPaths.secLog,
+    'sec-log',
+    (GoRouterState s) => SecLogScreen(open: s.uri.queryParameters['open']),
+    transition: KvTransition.fade,
+  ),
   _route(AdminsPaths.secPolicy, 'sec-policy', (_) => const SecPolicyScreen(), transition: KvTransition.fade),
   _route(AdminsPaths.secProfile, 'sec-profile', (_) => const SecProfileScreen(), transition: KvTransition.fade),
 ];
@@ -175,7 +180,12 @@ final List<RouteBase> adminsRootRoutes = <RouteBase>[
     (GoRouterState s) => SecUserScreen(userId: s.pathParameters['userId']!, assigned: s.uri.queryParameters['assigned'] == '1'),
   ),
   _route(AdminsPaths.eUserNew, 'e-user-new', (_) => const SecUserNewScreen()),
-  _route('/sec/e-user-new-done', 'e-user-new-done', (GoRouterState s) => SecUserNewDoneScreen(userId: s.uri.queryParameters['user']), transition: KvTransition.fade),
+  _route(
+    '/sec/e-user-new-done',
+    'e-user-new-done',
+    (GoRouterState s) => SecUserNewDoneScreen(userId: s.uri.queryParameters['user']),
+    transition: KvTransition.fade,
+  ),
   _route(
     '/sec/e-role/:roleId',
     'e-role-master',

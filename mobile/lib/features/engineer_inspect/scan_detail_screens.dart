@@ -17,7 +17,7 @@ import 'widgets/inspect_camera.dart';
 /// Признак дефекта крупным планом (b-scan-defect): рамка признака, правило, основания и решение инженера.
 class ScanDefectScreen extends ConsumerWidget {
   /// Создаёт экран признака [label] агрегата [unitId].
-  const ScanDefectScreen({super.key, this.unitId = kInspectDefaultUnit, this.label = 'Течь у вала'});
+  const ScanDefectScreen({super.key, this.unitId = kInspectDefaultUnit, this.label = kDefaultSign});
 
   /// Агрегат.
   final String unitId;

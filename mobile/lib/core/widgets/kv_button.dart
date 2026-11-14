@@ -151,14 +151,14 @@ class _KvButtonState extends State<KvButton> {
     final Widget box = Container(
       height: height,
       width: expand ? double.infinity : null,
-      padding: EdgeInsets.symmetric(horizontal: widget.small ? KvSpace.s4 : KvSpace.s5),
-      alignment: Alignment.center,
+      padding: expand ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: widget.small ? KvSpace.s4 : KvSpace.s5),
+      alignment: expand ? Alignment.center : null,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(radius),
         border: border == null ? null : Border.all(color: border),
       ),
-      child: label,
+      child: expand ? label : Center(widthFactor: 1, child: label),
     );
     return Semantics(
       button: true,

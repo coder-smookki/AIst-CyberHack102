@@ -501,9 +501,10 @@ class SecurityPolicy {
   final bool twoFactorAdmins;
 
   /// Копия с изменениями.
-  SecurityPolicy copyWith({int? pwdMin, int? lockAfter, int? lockMinutes, int? sessionHours, int? idleMinutes, bool? biometrics}) => SecurityPolicy(
+  SecurityPolicy copyWith({int? pwdMin, String? pwdClasses, int? lockAfter, int? lockMinutes, int? sessionHours, int? idleMinutes, bool? biometrics}) =>
+      SecurityPolicy(
         pwdMin: pwdMin ?? this.pwdMin,
-        pwdClasses: pwdClasses,
+        pwdClasses: pwdClasses ?? this.pwdClasses,
         pwdExpireDays: pwdExpireDays,
         lockAfter: lockAfter ?? this.lockAfter,
         lockMinutes: lockMinutes ?? this.lockMinutes,

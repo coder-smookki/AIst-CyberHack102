@@ -19,7 +19,8 @@ class MoSheetSwap extends StatelessWidget {
       reverseDuration: reduce ? Duration.zero : const Duration(milliseconds: 180),
       switchInCurve: KvMotion.ease,
       switchOutCurve: KvMotion.easeOut,
-      layoutBuilder: (Widget? current, List<Widget> previous) => Stack(alignment: Alignment.bottomCenter, children: [...previous, ?current]),
+      layoutBuilder: (Widget? current, List<Widget> previous) =>
+          Stack(alignment: Alignment.bottomCenter, children: [...previous, ?current]),
       transitionBuilder: (Widget c, Animation<double> a) {
         final bool incoming = c.key == child.key;
         if (!incoming) {

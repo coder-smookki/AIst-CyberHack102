@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -98,7 +100,7 @@ class ScannerScreen extends ConsumerWidget {
   /// Касание рамки: признак для подтверждения - крупный план, признак только камеры - разбор правила, манометр - чтение шкалы.
   VoidCallback? _tapOf(BuildContext context, Detection d) {
     if (d.kind == 'gauge') {
-      return () => context.kvPush(EngineerInspectPaths.bScanGauge);
+      return () => context.kvPush(EngineerInspectPaths.scanGaugeFor(unitId));
     }
     final DefectClass? cls = kDefectClasses[d.label];
     if (d.kind != 'defect' || cls == null) {

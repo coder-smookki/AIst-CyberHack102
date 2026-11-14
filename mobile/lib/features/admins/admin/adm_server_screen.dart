@@ -24,7 +24,12 @@ class AdmServerScreen extends ConsumerWidget {
         onBack: () => context.kvBack(AdminsPaths.admSystem),
         onMore: () => showServerMenu(context, ref),
       ),
-      foot: KvButton('Перезапустить службы', kind: KvButtonKind.secondary, icon: KvIcons.refresh, onPressed: () => showRestartDialog(context, ref)),
+      foot: KvButton(
+        'Перезапустить службы',
+        kind: KvButtonKind.secondary,
+        icon: KvIcons.refresh,
+        onPressed: () => showRestartDialog(context, ref),
+      ),
       children: s == null
           ? const [KvSkeleton.card(height: 260), KvSkeleton.card(height: 110)]
           : [
@@ -66,7 +71,12 @@ class AdmServerScreen extends ConsumerWidget {
               ),
               KvCard(
                 title: 'Подключение',
-                child: KvKeyValues([('Адрес', s.ip), ('Сеть Wi-Fi', s.wifi), ('Версия сервера', s.version), ('Устройств в сети', '${s.clients}')]),
+                child: KvKeyValues([
+                  ('Адрес', s.ip),
+                  ('Сеть Wi-Fi', s.wifi),
+                  ('Версия сервера', s.version),
+                  ('Устройств в сети', '${s.clients}'),
+                ]),
               ),
             ],
     );
@@ -92,14 +102,21 @@ class AdmServerScreen extends ConsumerWidget {
               KvRow(
                 icon: KvIcons.archive,
                 title: 'Обновления и резерв',
-                subtitle: s?.updateAvailable == null ? 'Установлена последняя версия' : ty('Версия ${s!.updateAvailable} готова к установке'),
+                subtitle: s?.updateAvailable == null
+                    ? 'Установлена последняя версия'
+                    : ty('Версия ${s!.updateAvailable} готова к установке'),
                 onTap: () => admCloseThen(sheet, () => screen.kvPush(AdminsPaths.eAdmMaint)),
               ),
               KvRow(
                 icon: KvIcons.file,
                 title: 'Собрать диагностический пакет',
                 subtitle: ty('Логи служб за 24 ч'),
-                onTap: () => showKvToast(sheet, title: 'Пакет собран', text: ty('diag_KST-SRV-02_14-11.zip · 18 МБ на сервере'), kind: KvToastKind.ok),
+                onTap: () => showKvToast(
+                  sheet,
+                  title: 'Пакет собран',
+                  text: ty('diag_KST-SRV-02_14-11.zip · 18 МБ на сервере'),
+                  kind: KvToastKind.ok,
+                ),
               ),
               KvRow(
                 icon: KvIcons.refresh,
@@ -124,7 +141,9 @@ class AdmServerScreen extends ConsumerWidget {
         icon: KvIcons.refresh,
         tone: KvStatus.warn,
         title: 'Перезапустить службы?',
-        text: ty('Опрос датчиков и распознавание остановятся примерно на 40 с. Телефоны продолжат работу офлайн и передадут данные после перезапуска.'),
+        text: ty(
+          'Опрос датчиков и распознавание остановятся примерно на 40 с. Телефоны продолжат работу офлайн и передадут данные после перезапуска.',
+        ),
         actions: [
           AdmDialogActions(
             okText: 'Перезапустить',
@@ -132,7 +151,8 @@ class AdmServerScreen extends ConsumerWidget {
             work: () => ref.read(adminRepositoryProvider).restartServer(),
             onDone: () => admCloseThen(
               dialog,
-              () => showKvToast(screen, title: 'Службы перезапущены', text: ty('Опрос датчиков восстановлен за 38 с'), kind: KvToastKind.ok),
+              () =>
+                  showKvToast(screen, title: 'Службы перезапущены', text: ty('Опрос датчиков восстановлен за 38 с'), kind: KvToastKind.ok),
             ),
           ),
         ],

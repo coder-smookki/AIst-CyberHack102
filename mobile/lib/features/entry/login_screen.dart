@@ -22,10 +22,14 @@ import 'entry_state.dart';
 /// заполняются готовыми данными сценария. [checking] - экран «Вход · проверка»: повторяет последнюю попытку входа.
 class LoginScreen extends ConsumerStatefulWidget {
   /// Создаёт экран входа.
-  const LoginScreen({super.key, this.scenario, this.checking = false});
+  const LoginScreen({super.key, this.scenario, this.checking = false, this.email});
 
   /// Идентификатор скрытого варианта входа или null.
   final String? scenario;
+
+  /// Почта, с которой открывается вход (после завершённого сеанса): готовые данные сценария тогда не подставляются,
+  /// пароль сотрудник вводит сам; null - пустое поле или данные сценария.
+  final String? email;
 
   /// Экран проверки учётной записи: вход повторяется сам.
   final bool checking;
@@ -45,8 +49,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _busy = widget.checking;
+    _email.text = widget.email ?? '';
     final String? scenario = widget.scenario;
-    if (scenario != null) {
+    if (scenario != null && widget.email == null) {
       unawaited(ref.read(authRepositoryProvider).scenarioLogin(scenario).then(_applyPreset));
     }
     if (widget.checking) {
@@ -222,7 +227,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     final Widget sheet = Container(
       padding: EdgeInsets.fromLTRB(20, 26, 20, bottomPad),
-      decoration: BoxDecoration(color: c.surface, borderRadius: const BorderRadius.vertical(top: Radius.circular(KvRadius.sheet))),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(KvRadius.sheet)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -263,11 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         builder: (BuildContext context, BoxConstraints box) => SingleChildScrollView(
           padding: EdgeInsets.only(bottom: keyboard),
           physics: const ClampingScrollPhysics(),
-          child: KvHeroSheetLayout(
-            minHeight: math.max(0, box.maxHeight - keyboard),
-            hero: hero,
-            sheet: sheet,
-          ),
+          child: KvHeroSheetLayout(minHeight: math.max(0, box.maxHeight - keyboard), hero: hero, sheet: sheet),
         ),
       ),
     );

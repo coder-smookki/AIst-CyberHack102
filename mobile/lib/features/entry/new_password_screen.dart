@@ -127,6 +127,7 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
         status: KvStatus.info,
         onBack: _back,
       ),
+      foot: KvButton('Сохранить и войти', loading: _busy, onPressed: () => _save(rules, temp)),
       children: [
         KvNote(icon: KvIcons.key, text: 'Вы вошли по временному паролю. Задайте свой$until.'),
         AutofillGroup(
@@ -140,6 +141,7 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                 focusNode: _firstFocus,
                 lead: KvIcons.lock,
                 obscure: true,
+                reveal: pw.isNotEmpty,
                 error: showError,
                 enabled: !_busy,
                 textInputAction: TextInputAction.next,
@@ -153,6 +155,7 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                 controller: _second,
                 lead: KvIcons.lock,
                 obscure: true,
+                reveal: repeat.isNotEmpty,
                 error: _attempted && repeat.isNotEmpty && repeat != pw,
                 enabled: !_busy,
                 textInputAction: TextInputAction.done,
@@ -178,20 +181,27 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (int i = 0; i < list.length; i++) EntryStaggerItem(index: i + 1, child: _RuleRow(state: list[i].$1, text: list[i].$2)),
+                    for (int i = 0; i < list.length; i++)
+                      EntryStaggerItem(
+                        index: i + 1,
+                        child: _RuleRow(state: list[i].$1, text: list[i].$2),
+                      ),
                   ],
                 ),
               ),
               const SizedBox(height: KvSpace.s2 + KvSpace.s1),
               Text(
                 'Задано политикой администратора ИБ',
-                style: context.kvText.label.copyWith(fontWeight: FontWeight.w400, color: context.kv.text3, height: KvTextStyles.normalHeight(12)),
+                style: context.kvText.label.copyWith(
+                  fontWeight: FontWeight.w400,
+                  color: context.kv.text3,
+                  height: KvTextStyles.normalHeight(12),
+                ),
               ),
             ],
           ),
         ),
       ],
-      foot: KvButton('Сохранить и войти', loading: _busy, onPressed: () => _save(rules, temp)),
     );
   }
 }
@@ -225,7 +235,11 @@ class _Meter extends StatelessWidget {
           const SizedBox(width: 4 + 6),
           Text(
             ok ? 'Надёжный' : 'Слабый',
-            style: context.kvText.label.copyWith(fontWeight: FontWeight.w600, color: ok ? c.ok : c.bad, height: KvTextStyles.normalHeight(12)),
+            style: context.kvText.label.copyWith(
+              fontWeight: FontWeight.w600,
+              color: ok ? c.ok : c.bad,
+              height: KvTextStyles.normalHeight(12),
+            ),
           ),
         ],
       ],
@@ -260,7 +274,9 @@ class _RuleRow extends StatelessWidget {
             child: KvIcon(icon, size: 14, color: fg),
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: context.kvText.sm.copyWith(color: color, height: 1.3))),
+          Expanded(
+            child: Text(text, style: context.kvText.sm.copyWith(color: color, height: 1.3)),
+          ),
         ],
       ),
     );

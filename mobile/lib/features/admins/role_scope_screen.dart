@@ -27,7 +27,10 @@ class RoleScopeScreen extends ConsumerWidget {
     final Role? role = ref.watch(rolesProvider).value?.where((Role r) => r.id == roleId).firstOrNull;
     final List<Permission> perms = ref.watch(permissionsProvider).value ?? const <Permission>[];
     if (role == null || perms.isEmpty) {
-      return KvScreen(header: KvHeader(title: 'Права роли', subtitle: ' ', onBack: () => context.kvBack(back)), children: const [KvSkeleton.card(height: 300)]);
+      return KvScreen(
+        header: KvHeader(title: 'Права роли', subtitle: ' ', onBack: () => context.kvBack(back)),
+        children: const [KvSkeleton.card(height: 300)],
+      );
     }
     final List<Widget> on = [];
     final List<Widget> off = [];
@@ -38,8 +41,7 @@ class RoleScopeScreen extends ConsumerWidget {
       }
       if (has.isEmpty) {
         final List<String> labels = [
-          for (int i = 0; i < g.keys.length; i++)
-            i == 0 ? admPermLabel(perms, g.keys[i]) : _lowerFirst(admPermLabel(perms, g.keys[i])),
+          for (int i = 0; i < g.keys.length; i++) i == 0 ? admPermLabel(perms, g.keys[i]) : _lowerFirst(admPermLabel(perms, g.keys[i])),
         ];
         off.add(
           KvRow(
@@ -54,7 +56,12 @@ class RoleScopeScreen extends ConsumerWidget {
     }
     final bool sec = role.id == 'security_admin' || role.id == 'sec';
     return KvScreen(
-      header: KvHeader(title: 'Права роли', subtitle: '${role.name} · ${admRights(role.permissions.length)}', status: KvStatus.info, onBack: () => context.kvBack(back)),
+      header: KvHeader(
+        title: 'Права роли',
+        subtitle: '${role.name} · ${admRights(role.permissions.length)}',
+        status: KvStatus.info,
+        onBack: () => context.kvBack(back),
+      ),
       children: [
         KvNote(
           icon: KvIcons.info,
@@ -98,6 +105,7 @@ void showAdmLogout(BuildContext context, WidgetRef ref, {required String text}) 
   );
 }
 
+/// Завершает сеанс и открывает экран входа.
 Future<void> _logout(WidgetRef ref, BuildContext screen) async {
   await ref.read(sessionProvider.notifier).logout();
   if (screen.mounted) {

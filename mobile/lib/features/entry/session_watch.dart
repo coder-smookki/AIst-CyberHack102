@@ -76,7 +76,10 @@ Future<void> showEntryKickedDialog(BuildContext root, {required String email}) {
             'Ко входу',
             onPressed: () async {
               Navigator.of(dialog).pop();
-              root.go(EntryPaths.aBlockedLogin, extra: KvNavExtra(transition: KvTransition.fade, data: email));
+              root.go(
+                EntryPaths.aBlockedLogin,
+                extra: KvNavExtra(transition: KvTransition.fade, data: email),
+              );
               await ref.read(sessionProvider.notifier).logout();
             },
           ),

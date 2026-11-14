@@ -23,7 +23,7 @@ class AdmProfileScreen extends ConsumerWidget {
     return KvScreen(
       header: KvRootHeader(title: 'Профиль', subtitle: me == null ? ' ' : ty(me.shift)),
       children: [
-        if (me == null) const KvSkeleton.card(height: 120) else AdmProfileCard(person: me, roleLabel: 'Админ'),
+        if (me == null) const KvSkeleton.card() else AdmProfileCard(person: me, roleLabel: 'Админ'),
         KvList(
           children: [
             KvRow(
@@ -32,12 +32,25 @@ class AdmProfileScreen extends ConsumerWidget {
               subtitle: s?.updateAvailable == null ? 'Установлена последняя версия' : 'Доступна версия ${s!.updateAvailable}',
               onTap: () => context.kvPush(AdminsPaths.eAdmMaint),
             ),
-            KvRow(icon: KvIcons.phone, title: 'Устройства', subtitle: '$devices в сети', onTap: () => context.kvPush(AdminsPaths.eAdmDevices)),
-            KvRow(icon: KvIcons.key, title: 'Права роли', subtitle: 'Доступные разделы', onTap: () => context.kvPush(AdminsPaths.eAdmScope)),
+            KvRow(
+              icon: KvIcons.phone,
+              title: 'Устройства',
+              subtitle: '$devices в сети',
+              onTap: () => context.kvPush(AdminsPaths.eAdmDevices),
+            ),
+            KvRow(
+              icon: KvIcons.key,
+              title: 'Права роли',
+              subtitle: 'Доступные разделы',
+              onTap: () => context.kvPush(AdminsPaths.eAdmScope),
+            ),
           ],
         ),
         const AdmThemeCard(),
-        KvNote(icon: KvIcons.shield, text: ty('Учётными записями и ролями управляет администратор ИБ - ${sec?.name ?? 'Дмитрий Захаров'}.')),
+        KvNote(
+          icon: KvIcons.shield,
+          text: ty('Учётными записями и ролями управляет администратор ИБ - ${sec?.name ?? 'Дмитрий Захаров'}.'),
+        ),
         KvButton(
           'Выйти из учётной записи',
           kind: KvButtonKind.secondary,

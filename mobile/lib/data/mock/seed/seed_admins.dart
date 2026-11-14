@@ -8,17 +8,13 @@ import '../mock_db.dart';
 /// сеанс 720 ч), полный системный журнал и журнал безопасности с подробностями, все устройства смены
 /// с версиями приложения и открытые сеансы со способом входа.
 void seedAdmins(MockDb db) {
-  db.policy = const SecurityPolicy(
+  db.policy = db.policy?.copyWith(
     pwdMin: 10,
     pwdClasses: 'буквы и цифры',
-    pwdExpireDays: 0,
     lockAfter: 10,
     lockMinutes: 5,
     sessionHours: 720,
-    idleMinutes: 0,
     biometrics: true,
-    tempPwdHours: 24,
-    twoFactorAdmins: false,
   );
 
   db.syslog
@@ -77,8 +73,20 @@ void seedAdmins(MockDb db) {
         details: [('Длительность', '7 мин'), ('Хранится копий', '14')],
         ref: 'maint',
       ),
-      SysLogEntry(time: '03:00', level: 'info', source: 'Резерв', text: 'Запуск резервного копирования по расписанию', details: [('Расписание', 'ежедневно 03:00')]),
-      SysLogEntry(time: '00:00', level: 'info', source: 'Отчёты', text: 'Суточный отчёт сформирован', details: [('Форматы', 'PDF и Excel'), ('Агрегатов', '3')]),
+      SysLogEntry(
+        time: '03:00',
+        level: 'info',
+        source: 'Резерв',
+        text: 'Запуск резервного копирования по расписанию',
+        details: [('Расписание', 'ежедневно 03:00')],
+      ),
+      SysLogEntry(
+        time: '00:00',
+        level: 'info',
+        source: 'Отчёты',
+        text: 'Суточный отчёт сформирован',
+        details: [('Форматы', 'PDF и Excel'), ('Агрегатов', '3')],
+      ),
     ]);
 
   db.seclog
@@ -91,7 +99,12 @@ void seedAdmins(MockDb db) {
         text: '3 неудачных входа подряд с 10.20.4.77',
         kind: 'fail',
         title: '3 неудачных входа',
-        details: [('Учётная запись', 'v.panov@kst-energo.ru'), ('Адрес', '10.20.4.77 · KV-T11'), ('Попыток', '3 за 40 с'), ('Результат', 'отказ: заблокирована с 02.11')],
+        details: [
+          ('Учётная запись', 'v.panov@kst-energo.ru'),
+          ('Адрес', '10.20.4.77 · KV-T11'),
+          ('Попыток', '3 за 40 с'),
+          ('Результат', 'отказ: заблокирована с 02.11'),
+        ],
         userId: 'u-111',
       ),
       SecLogEntry(
@@ -111,7 +124,12 @@ void seedAdmins(MockDb db) {
         text: 'Создана учётная запись p.ershov@kst-energo.ru, роль Инженер',
         kind: 'change',
         title: 'Создана учётная запись',
-        details: [('Кто изменил', 'Дмитрий Захаров'), ('Учётная запись', 'p.ershov@kst-energo.ru'), ('Роль', 'нет → Инженер'), ('Пароль', 'временный до 15.11, 09:08')],
+        details: [
+          ('Кто изменил', 'Дмитрий Захаров'),
+          ('Учётная запись', 'p.ershov@kst-energo.ru'),
+          ('Роль', 'нет → Инженер'),
+          ('Пароль', 'временный до 15.11, 09:08'),
+        ],
         userId: 'u-110',
       ),
       SecLogEntry(
@@ -151,7 +169,12 @@ void seedAdmins(MockDb db) {
         text: 'Заблокирована учётная запись v.panov@kst-energo.ru',
         kind: 'block',
         title: 'Блокировка входа',
-        details: [('Кто изменил', 'Дмитрий Захаров'), ('Учётная запись', 'v.panov@kst-energo.ru'), ('Статус', 'активна → заблокирована'), ('Причина', 'Перевод на другой участок')],
+        details: [
+          ('Кто изменил', 'Дмитрий Захаров'),
+          ('Учётная запись', 'v.panov@kst-energo.ru'),
+          ('Статус', 'активна → заблокирована'),
+          ('Причина', 'Перевод на другой участок'),
+        ],
         userId: 'u-111',
       ),
     ]);

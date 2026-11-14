@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/providers.dart';
+import '../../data/repositories/inspection_repository.dart';
 
 /// Агрегат по умолчанию для экранов осмотра, открытых без параметра: насос из задания мастера.
 const String kInspectDefaultUnit = 'N-101';

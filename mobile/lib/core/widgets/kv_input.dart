@@ -35,7 +35,11 @@ class KvField extends StatefulWidget {
     this.readOnly = false,
     this.onTap,
     this.fieldKey,
+    this.height,
   });
+
+  /// Высота однострочного поля вместо стандартных 52 (поле поиска - 48).
+  final double? height;
 
   /// Подпись над полем.
   final String? label;
@@ -159,8 +163,8 @@ class _KvFieldState extends State<KvField> {
     final Widget box = AnimatedContainer(
       duration: KvMotion.std,
       curve: KvMotion.ease,
-      constraints: BoxConstraints(minHeight: widget.area ? 96 : 52),
-      height: widget.area ? null : 52,
+      constraints: BoxConstraints(minHeight: widget.area ? 96 : (widget.height ?? 52)),
+      height: widget.area ? null : (widget.height ?? 52),
       padding: widget.area
           ? const EdgeInsets.symmetric(horizontal: KvSpace.s4, vertical: 14)
           : EdgeInsets.only(left: KvSpace.s4, right: endButton == null ? KvSpace.s4 : 6),

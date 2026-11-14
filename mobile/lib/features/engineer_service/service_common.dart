@@ -27,6 +27,55 @@ final inspectionSummaryProvider = FutureProvider.autoDispose.family<InspectionSu
   return ref.watch(inspectionRepositoryProvider).summary(id);
 });
 
+/// Итоги сегодняшних осмотров сотрудника, новые сверху: очередь отправки и отправленное за день.
+final FutureProvider<List<InspectionSummary>> todaySummariesProvider = FutureProvider.autoDispose<List<InspectionSummary>>((Ref ref) async {
+  final String? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.name));
+  final DateTime now = ref.watch(clockProvider).now();
+  final String today = '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}';
+  final List<Inspection> all = await ref.watch(inspectionsProvider(null).future);
+  final List<InspectionSummary> out = [];
+  for (final Inspection i in all.where((Inspection i) => me == null || i.who == me)) {
+    try {
+      final InspectionSummary s = await ref.watch(inspectionSummaryProvider(i.id).future);
+      if (s.date == today) {
+        out.add(s);
+      }
+    } on KvApiException {
+      continue;
+    }
+  }
+  out.sort((InspectionSummary a, InspectionSummary b) => b.start.compareTo(a.start));
+  return out;
+});
+
+/// Когда и кем сотруднику последний раз изменили роль: «14.11, 09:40» и «Д. Захаров, администратор ИБ»
+/// (запись «Изменена роль» журнала безопасности); null - роль не менялась.
+final FutureProvider<({String when, String by})?> roleChangeProvider = FutureProvider.autoDispose<({String when, String by})?>((
+  Ref ref,
+) async {
+  final String? id = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.id));
+  if (id == null) {
+    return null;
+  }
+  final List<SecLogEntry> log = await ref.watch(securityLogProvider.future);
+  final SecLogEntry? e = log.where((SecLogEntry e) => e.userId == id && e.title == 'Изменена роль').firstOrNull;
+  if (e == null) {
+    return null;
+  }
+  final DateTime now = ref.read(clockProvider).now();
+  final String when = e.time.contains('.')
+      ? e.time
+      : '${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}, ${e.time}';
+  final Map<String, Person> people = await ref.watch(peopleProvider.future);
+  final Person? who = people.values.where((Person p) => p.name == e.who).firstOrNull;
+  final String role = switch (who?.roleCode) {
+    'security_admin' || 'sec' => 'администратор ИБ',
+    'admin' => 'администратор',
+    final String? other => (who?.roleLabel ?? other ?? '').toLowerCase(),
+  };
+  return (when: when, by: role.isEmpty ? ServiceFormat.short(e.who) : '${ServiceFormat.short(e.who)}, $role');
+});
+
 /// Общая лента осмотров и событий по всем агрегатам для вкладки «История».
 final FutureProvider<List<HistoryEvent>> activityProvider = FutureProvider.autoDispose<List<HistoryEvent>>((Ref ref) {
   ref.watch(revisionProvider(KvDomain.inspections));
@@ -187,7 +236,18 @@ final NotifierProvider<ServiceSettingsController, ServiceSettings> serviceSettin
 /// Общие преобразования данных для экранов раздела.
 abstract final class ServiceFormat {
   static const List<String> _months = [
-    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+    'января',
+    'февраля',
+    'марта',
+    'апреля',
+    'мая',
+    'июня',
+    'июля',
+    'августа',
+    'сентября',
+    'октября',
+    'ноября',
+    'декабря',
   ];
 
   /// Сокращённое имя «А. Смирнов»; «Система» и одно слово - без изменений.
@@ -214,10 +274,10 @@ abstract final class ServiceFormat {
 
   /// Группа тяжести находки итога: подпись и тон чипа.
   static (String, KvStatus) severity(String s) => switch (s) {
-        'critical' => ('Критично', KvStatus.bad),
-        'planned' => ('Планово', KvStatus.warn),
-        _ => ('Проверить', KvStatus.info),
-      };
+    'critical' => ('Критично', KvStatus.bad),
+    'planned' => ('Планово', KvStatus.warn),
+    _ => ('Проверить', KvStatus.info),
+  };
 
   /// Значок строки уведомления по его виду и теме: задание, правило, ТО, синхронизация, тревога.
   static KvIcons notificationIcon(AppNotification n) {
@@ -249,9 +309,9 @@ abstract final class ServiceFormat {
 
   /// Тон значка уведомления: синий для заданий и сведений.
   static KvStatus? notificationTone(AppNotification n) => switch (n.kind) {
-        'ok' => KvStatus.ok,
-        'warn' => KvStatus.warn,
-        'bad' => KvStatus.bad,
-        _ => null,
-      };
+    'ok' => KvStatus.ok,
+    'warn' => KvStatus.warn,
+    'bad' => KvStatus.bad,
+    _ => null,
+  };
 }

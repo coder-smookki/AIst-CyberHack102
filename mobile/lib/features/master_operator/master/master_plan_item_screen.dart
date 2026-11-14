@@ -5,12 +5,20 @@ import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/master_operator_routes.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
+import '../../../data/repositories/workflow_repository.dart';
 import '../widgets/mo_blocks.dart';
 import '../widgets/mo_common.dart';
 import '../widgets/mo_sheet_swap.dart';
 
 /// Короткие названия работ плана для заголовка экрана.
-const Map<String, String> _short = {'P-499': 'Поверка', 'P-501': 'Ремонт', 'P-502': 'ТО-2', 'P-503': 'Подшипники', 'P-504': 'ТО', 'P-505': 'Ревизия'};
+const Map<String, String> _short = {
+  'P-499': 'Поверка',
+  'P-501': 'Ремонт',
+  'P-502': 'ТО-2',
+  'P-503': 'Подшипники',
+  'P-504': 'ТО',
+  'P-505': 'Ревизия',
+};
 
 /// Работа плана ТО: остаток наработки или просрочка, пояснение о сроках, состав и исполнитель, объём работ
 /// и действие по статусу: перенос ТО-2, назначение просроченной поверки, утверждение черновика.
@@ -40,8 +48,8 @@ class MasterPlanItemScreen extends ConsumerWidget {
     final (String, KvStatus) st = over
         ? ('Просрочено на $lateDays дн', KvStatus.bad)
         : p.status == 'planned'
-            ? ('Запланировано · ${moDay(p.date)}, ${p.time}', KvStatus.info)
-            : ('Черновик · ${moDay(p.date)}', KvStatus.unk);
+        ? ('Запланировано · ${moDay(p.date)}, ${p.time}', KvStatus.info)
+        : ('Черновик · ${moDay(p.date)}', KvStatus.unk);
     final String work = switch (p.id) {
       'P-502' => '${u.maintenance.length > 1 ? u.maintenance[1].work : p.work}; замена торцевого уплотнения по F-1043',
       'P-505' => u.maintenance.length > 2 ? u.maintenance[2].work : p.work,
@@ -61,7 +69,12 @@ class MasterPlanItemScreen extends ConsumerWidget {
           await repo.movePlanItem(p.id, date: KvFormat.date(now), time: '15:00');
           await repo.assignPlanItem(p.id, 'Елена Титова');
           if (context.mounted) {
-            showKvToast(context, kind: KvToastKind.ok, title: 'Поверка назначена', text: KvFormat.typo('Елена Титова · ${KvFormat.dayMonth(now)}, 15:00'));
+            showKvToast(
+              context,
+              kind: KvToastKind.ok,
+              title: 'Поверка назначена',
+              text: KvFormat.typo('Елена Титова · ${KvFormat.dayMonth(now)}, 15:00'),
+            );
           }
         },
       );
@@ -73,7 +86,12 @@ class MasterPlanItemScreen extends ConsumerWidget {
         onPressed: () async {
           await ref.read(workflowRepositoryProvider).assignPlanItem(p.id, p.who);
           if (context.mounted) {
-            showKvToast(context, kind: KvToastKind.ok, title: 'Работа утверждена', text: KvFormat.typo('${u.code} · ${moDay(p.date)}, ${p.time}'));
+            showKvToast(
+              context,
+              kind: KvToastKind.ok,
+              title: 'Работа утверждена',
+              text: KvFormat.typo('${u.code} · ${moDay(p.date)}, ${p.time}'),
+            );
           }
         },
       );
@@ -89,11 +107,17 @@ class MasterPlanItemScreen extends ConsumerWidget {
       children: [
         KvCard(child: _hours(p, u, lateDays)),
         if (over)
-          KvNote(tone: KvStatus.bad, icon: KvIcons.alert, text: KvFormat.typo('Срок поверки прошёл. До поверки сверяйте манометр с датчиком давления: сейчас 4,6 и 4,6 бар.'))
+          KvNote(
+            tone: KvStatus.bad,
+            icon: KvIcons.alert,
+            text: KvFormat.typo('Срок поверки прошёл. До поверки сверяйте манометр с датчиком давления: сейчас 4,6 и 4,6 бар.'),
+          )
         else
           KvNote(
             icon: KvIcons.timer,
-            text: KvFormat.typo('Сроки считаются по наработке: пока агрегат остановлен, часы не начисляются. Дата - прогноз по средней наработке 23 ч/сут.'),
+            text: KvFormat.typo(
+              'Сроки считаются по наработке: пока агрегат остановлен, часы не начисляются. Дата - прогноз по средней наработке 23 ч/сут.',
+            ),
           ),
         KvCard(
           child: KvKeyValues([
@@ -121,53 +145,62 @@ class MasterPlanItemScreen extends ConsumerWidget {
   Widget _hours(PlanItem p, Equipment u, int lateDays) {
     return switch (p.id) {
       'P-502' => MoNext(
-          value: KvFormat.num(u.nextTo.inHours),
-          unit: 'ч',
-          title: KvFormat.typo('до ${u.nextTo.code} по наработке'),
-          text: KvFormat.typo('${KvFormat.num(u.runHours)} из ${KvFormat.num(u.nextTo.atHours)} ч · интервал 8 000 ч'),
-          progress: u.runHours / u.nextTo.atHours,
-          progressStatus: KvStatus.warn,
-        ),
+        value: KvFormat.num(u.nextTo.inHours),
+        unit: 'ч',
+        title: KvFormat.typo('до ${u.nextTo.code} по наработке'),
+        text: KvFormat.typo('${KvFormat.num(u.runHours)} из ${KvFormat.num(u.nextTo.atHours)} ч · интервал 8 000 ч'),
+        progress: u.runHours / u.nextTo.atHours,
+        progressStatus: KvStatus.warn,
+      ),
       'P-503' => MoNext(
-          value: KvFormat.num(u.resource.left),
-          unit: 'ч',
-          tone: KvStatus.info,
-          title: 'ресурс подшипников',
-          text: KvFormat.typo('${KvFormat.num(u.resource.used)} из ${KvFormat.num(u.resource.total)} ч наработки'),
-          progress: 0.96,
-          progressStatus: KvStatus.warn,
-        ),
+        value: KvFormat.num(u.resource.left),
+        unit: 'ч',
+        tone: KvStatus.info,
+        title: 'ресурс подшипников',
+        text: KvFormat.typo('${KvFormat.num(u.resource.used)} из ${KvFormat.num(u.resource.total)} ч наработки'),
+        progress: 0.96,
+        progressStatus: KvStatus.warn,
+      ),
       'P-504' => MoNext(
-          value: KvFormat.num(u.resource.left),
-          unit: 'ч',
-          tone: KvStatus.info,
-          title: 'до ТО агрегата',
-          text: KvFormat.typo('${KvFormat.num(u.resource.used)} из ${KvFormat.num(u.resource.total)} ч наработки'),
-          progress: 0.89,
-        ),
+        value: KvFormat.num(u.resource.left),
+        unit: 'ч',
+        tone: KvStatus.info,
+        title: 'до ТО агрегата',
+        text: KvFormat.typo('${KvFormat.num(u.resource.used)} из ${KvFormat.num(u.resource.total)} ч наработки'),
+        progress: 0.89,
+      ),
       'P-505' => MoNext(
-          value: KvFormat.num(u.maintenance.length > 2 ? u.maintenance[2].inHours : 0),
-          unit: 'ч',
-          tone: KvStatus.info,
-          title: 'до ревизии',
-          text: KvFormat.typo('при 22 000 ч наработки'),
-          progress: 0.82,
-        ),
-      'P-501' => MoNext(value: '0', unit: 'ч', tone: KvStatus.unk, title: 'наработка остановлена', text: KvFormat.typo('${u.code} на ремонте с 06:44')),
+        value: KvFormat.num(u.maintenance.length > 2 ? u.maintenance[2].inHours : 0),
+        unit: 'ч',
+        tone: KvStatus.info,
+        title: 'до ревизии',
+        text: KvFormat.typo('при 22 000 ч наработки'),
+        progress: 0.82,
+      ),
+      'P-501' => MoNext(
+        value: '0',
+        unit: 'ч',
+        tone: KvStatus.unk,
+        title: 'наработка остановлена',
+        text: KvFormat.typo('${u.code} на ремонте с 06:44'),
+      ),
       _ when p.status == 'overdue' => MoNext(
-          value: '$lateDays',
-          unit: 'дн',
-          tone: KvStatus.bad,
-          title: 'просрочено',
-          text: 'срок поверки ${p.date}',
-          progress: 1,
-          progressStatus: KvStatus.bad,
-        ),
+        value: '$lateDays',
+        unit: 'дн',
+        tone: KvStatus.bad,
+        title: 'просрочено',
+        text: 'срок поверки ${p.date}',
+        progress: 1,
+        progressStatus: KvStatus.bad,
+      ),
       _ => MoNext(value: moDay(p.date), unit: '', tone: KvStatus.info, title: 'по плану', text: KvFormat.typo('${p.time} · ${p.who}')),
     };
   }
 
-  Future<void> _move(BuildContext context, PlanItem p, Equipment u) => showKvSheet<void>(context, builder: (BuildContext sheet) => _MoveSheet(item: p, unit: u));
+  Future<void> _move(BuildContext context, PlanItem p, Equipment u) => showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _MoveSheet(item: p, unit: u),
+  );
 }
 
 /// Лист переноса ТО-2: новая дата, превышение интервала по наработке и причина; итог - в том же листе.
@@ -225,19 +258,25 @@ class _MoveSheetState extends ConsumerState<_MoveSheet> {
           : KvSheet(
               key: const ValueKey<String>('form'),
               title: KvFormat.typo('Перенести $title'),
+              actions: [KvButton('Перенести', wait: true, onPressed: _apply)],
               children: [
                 const MoLabel('Новая дата'),
-                KvFilterChips(items: [for (final (String, String, String, int) d in _dates) KvFilterItem(d.$1)], selected: _on, onSelected: (int i) => setState(() => _on = i)),
+                KvFilterChips(
+                  items: [for (final (String, String, String, int) d in _dates) KvFilterItem(d.$1)],
+                  selected: _on,
+                  onSelected: (int i) => setState(() => _on = i),
+                ),
                 KvNote(
                   tone: KvStatus.warn,
                   icon: KvIcons.timer,
-                  text: KvFormat.typo(over == 0
-                      ? '${u.nextTo.code} привязано к ${KvFormat.num(u.nextTo.atHours)} ч. В срок ${_dates[_on].$1} интервал не будет превышен.'
-                      : '${u.nextTo.code} привязано к ${KvFormat.num(u.nextTo.atHours)} ч. При переносе на ${_dates[_on].$1} интервал будет превышен примерно на $over ч наработки.'),
+                  text: KvFormat.typo(
+                    over == 0
+                        ? '${u.nextTo.code} привязано к ${KvFormat.num(u.nextTo.atHours)} ч. В срок ${_dates[_on].$1} интервал не будет превышен.'
+                        : '${u.nextTo.code} привязано к ${KvFormat.num(u.nextTo.atHours)} ч. При переносе на ${_dates[_on].$1} интервал будет превышен примерно на $over ч наработки.',
+                  ),
                 ),
                 KvField(label: 'Причина', controller: _reason, area: true, fieldKey: const ValueKey<String>('mo-move-reason')),
               ],
-              actions: [KvButton('Перенести', wait: true, onPressed: _apply)],
             ),
     );
   }

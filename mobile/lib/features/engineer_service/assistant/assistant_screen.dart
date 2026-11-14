@@ -112,7 +112,12 @@ class _SuggestionChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           alignment: Alignment.center,
           decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(KvRadius.pill), boxShadow: c.shadow1),
-          child: Text(KvFormat.typo(label), maxLines: 1, softWrap: false, style: context.kvText.sm.copyWith(fontWeight: FontWeight.w500, height: 1.2, color: c.brand)),
+          child: Text(
+            KvFormat.typo(label),
+            maxLines: 1,
+            softWrap: false,
+            style: context.kvText.sm.copyWith(fontWeight: FontWeight.w500, height: 1.2, color: c.brand),
+          ),
         ),
       ),
     );
@@ -182,7 +187,9 @@ class _AssistantInputScreenState extends ConsumerState<AssistantInputScreen> {
       stagger: KvStagger.none,
       foot: Row(
         children: [
-          Expanded(child: ChatAskField.input(controller: _text, focusNode: _focus, onSubmitted: (String _) => _send())),
+          Expanded(
+            child: ChatAskField.input(controller: _text, focusNode: _focus, onSubmitted: (String _) => _send()),
+          ),
           const SizedBox(width: KvSpace.s2),
           ChatSendButton(onPressed: _text.text.trim().isEmpty ? null : _send, busy: _sending),
         ],

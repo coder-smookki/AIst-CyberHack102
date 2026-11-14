@@ -34,7 +34,10 @@ class MasterShiftScreen extends ConsumerWidget {
     } else {
       body = _live(context, ref);
     }
-    return KvScreen(header: KvRootHeader(title: 'Смена', subtitle: sub), children: body);
+    return KvScreen(
+      header: KvRootHeader(title: 'Смена', subtitle: sub),
+      children: body,
+    );
   }
 
   void _tab(BuildContext context, String path) => context.go(path, extra: const KvNavExtra(transition: KvTransition.fade));
@@ -53,13 +56,21 @@ class MasterShiftScreen extends ConsumerWidget {
           icon: KvIcons.alertCircle,
           iconStatus: KvStatus.warn,
           title: 'Новая находка ждёт подтверждения',
-          subtitle: KvFormat.typo('${code(top.unitId)} · ${top.ruleId} · ${top.time}${top.author == 'Система' ? '' : ' · ${moShortName(top.author)}'}'),
+          subtitle: KvFormat.typo(
+            '${code(top.unitId)} · ${top.ruleId} · ${top.time}${top.author == 'Система' ? '' : ' · ${moShortName(top.author)}'}',
+          ),
           onTap: () => context.kvPush(MasterOperatorPaths.finding(top.id)),
         ),
       MoGridRow(
         minHeight: 146,
         children: [
-          MoKpiTile(label: 'Агрегаты', value: '${units.isEmpty ? 3 : units.length}', unit: 'в работе 1', bar: _bar(units), sub: 'Норма 1 · внимание 1 · ремонт 1'),
+          MoKpiTile(
+            label: 'Агрегаты',
+            value: '${units.isEmpty ? 3 : units.length}',
+            unit: 'в работе 1',
+            bar: _bar(units),
+            sub: 'Норма 1 · внимание 1 · ремонт 1',
+          ),
           MoKpiTile(
             label: 'Находки',
             value: '${fresh.length}',
@@ -82,7 +93,14 @@ class MasterShiftScreen extends ConsumerWidget {
             sub: KvFormat.typo('1 идёт сейчас · Н-101'),
             onTap: () => context.kvPush(MasterOperatorPaths.dMTeam),
           ),
-          MoKpiTile(label: 'Охват смены', value: '2', unit: 'из 3', ring: 67, sub: KvFormat.typo('АМС-1 - обход в 14:00'), onTap: () => context.kvPush(MasterOperatorPaths.dMTeam)),
+          MoKpiTile(
+            label: 'Охват смены',
+            value: '2',
+            unit: 'из 3',
+            ring: 67,
+            sub: KvFormat.typo('АМС-1 - обход в 14:00'),
+            onTap: () => context.kvPush(MasterOperatorPaths.dMTeam),
+          ),
         ],
       ),
       const MoLabel('Требуют внимания'),
@@ -118,7 +136,8 @@ class MasterShiftScreen extends ConsumerWidget {
       return const [KvStatus.ok, KvStatus.warn, KvStatus.info];
     }
     const List<String> order = ['ok', 'warn', 'bad', 'info', 'unk'];
-    final List<Equipment> sorted = [...units]..sort((Equipment a, Equipment b) => order.indexOf(a.status).compareTo(order.indexOf(b.status)));
+    final List<Equipment> sorted = [...units]
+      ..sort((Equipment a, Equipment b) => order.indexOf(a.status).compareTo(order.indexOf(b.status)));
     return [for (final Equipment u in sorted) KvStatus.parse(u.status)];
   }
 
@@ -224,7 +243,13 @@ class MasterNotifScreen extends ConsumerStatefulWidget {
 }
 
 class _MasterNotifScreenState extends ConsumerState<MasterNotifScreen> {
-  late final WorkflowRepository _repo = ref.read(workflowRepositoryProvider);
+  late final WorkflowRepository _repo;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = ref.read(workflowRepositoryProvider);
+  }
 
   @override
   void dispose() {
@@ -258,7 +283,7 @@ class _MasterNotifScreenState extends ConsumerState<MasterNotifScreen> {
                 title: n.title,
                 subtitle: KvFormat.typo(n.text),
                 value: n.time,
-                onTap: n.target == null ? null : () => context.kvPush(n.target!),
+                onTap: n.target == null ? null : () => context.kvPush(moNotificationTarget(ref, n)!),
               ),
           ],
         ),

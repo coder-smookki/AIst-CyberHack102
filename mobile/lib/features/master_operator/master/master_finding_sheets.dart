@@ -13,19 +13,19 @@ import '../widgets/mo_sheet_swap.dart';
 
 /// Шкала тяжести находки (общая с диагностикой и итогом осмотра): подпись и тон.
 (String, KvStatus) moSeverity(int severity) => switch (severity) {
-      3 => ('Критично', KvStatus.bad),
-      2 => ('Планово', KvStatus.warn),
-      _ => ('Проверить', KvStatus.info),
-    };
+  3 => ('Критично', KvStatus.bad),
+  2 => ('Планово', KvStatus.warn),
+  _ => ('Проверить', KvStatus.info),
+};
 
 /// Подпись и тон статуса находки (D.findingStatus).
 (String, KvStatus) moFindingStatus(String status) => switch (status) {
-      'new' => ('Ждёт подтверждения', KvStatus.warn),
-      'confirmed' => ('Подтверждена', KvStatus.bad),
-      'planned' => ('Запланировано ТО', KvStatus.info),
-      'closed' => ('Закрыта', KvStatus.ok),
-      _ => ('Отклонена', KvStatus.unk),
-    };
+  'new' => ('Ждёт подтверждения', KvStatus.warn),
+  'confirmed' => ('Подтверждена', KvStatus.bad),
+  'planned' => ('Запланировано ТО', KvStatus.info),
+  'closed' => ('Закрыта', KvStatus.ok),
+  _ => ('Отклонена', KvStatus.unk),
+};
 
 /// Глагол решения по роду сотрудника: «Подтвердила» / «Подтвердил».
 String moVerb(String name, String female, String male) => name.trim().split(' ').first.endsWith('а') ? female : male;
@@ -186,7 +186,14 @@ class MoDecision {
 @immutable
 class MoKeepDecision {
   /// Создаёт заготовку.
-  const MoKeepDecision({required this.link, required this.modeSub, required this.note, required this.justification, required this.doneText, required this.donePairs});
+  const MoKeepDecision({
+    required this.link,
+    required this.modeSub,
+    required this.note,
+    required this.justification,
+    required this.doneText,
+    required this.donePairs,
+  });
 
   /// Ссылка в листе подтверждения.
   final String link;
@@ -215,7 +222,10 @@ void moGoTab(BuildContext context, String path) => context.go(path, extra: const
 /// [story] - экран момента истории: решение уже принято, данные не меняются.
 Future<void> showMoConfirmSheet(BuildContext context, Finding f, String code, {bool story = false}) {
   final BuildContext screen = context;
-  return showKvSheet<void>(context, builder: (BuildContext sheet) => _ConfirmSheet(finding: f, code: code, story: story, screen: screen));
+  return showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _ConfirmSheet(finding: f, code: code, story: story, screen: screen),
+  );
 }
 
 class _ConfirmSheet extends ConsumerStatefulWidget {
@@ -284,11 +294,30 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
     return KvSheet(
       key: const ValueKey<String>('form'),
       title: 'Подтвердить находку',
+      actions: [
+        ListenableBuilder(
+          listenable: _text,
+          builder: (BuildContext context, Widget? _) =>
+              KvButton('Подтвердить', icon: KvIcons.check, wait: true, onPressed: needText && _text.text.trim().isEmpty ? null : _confirm),
+        ),
+      ],
       children: [
-        KvRow(icon: KvIcons.alertCircle, iconStatus: KvStatus.bad, title: KvFormat.typo(_d.summary), subtitle: KvFormat.typo(_d.summarySub), chevron: false),
+        KvRow(
+          icon: KvIcons.alertCircle,
+          iconStatus: KvStatus.bad,
+          title: KvFormat.typo(_d.summary),
+          subtitle: KvFormat.typo(_d.summarySub),
+          chevron: false,
+        ),
         KvList(
           children: [
-            MoSwitchRow(icon: KvIcons.calendar, title: _d.planTitle, subtitle: _d.planSub, value: _plan, onChanged: (bool v) => setState(() => _plan = v)),
+            MoSwitchRow(
+              icon: KvIcons.calendar,
+              title: _d.planTitle,
+              subtitle: _d.planSub,
+              value: _plan,
+              onChanged: (bool v) => setState(() => _plan = v),
+            ),
             MoSwitchRow(
               icon: KvIcons.power,
               iconStatus: _mode ? KvStatus.bad : null,
@@ -318,17 +347,6 @@ class _ConfirmSheetState extends ConsumerState<_ConfirmSheet> {
             help: _keep ? 'Без обоснования оставить в работе нельзя' : null,
             error: needText && _text.text.trim().isEmpty,
             fieldKey: const ValueKey<String>('mo-confirm-text'),
-          ),
-        ),
-      ],
-      actions: [
-        ListenableBuilder(
-          listenable: _text,
-          builder: (BuildContext context, Widget? _) => KvButton(
-            'Подтвердить',
-            icon: KvIcons.check,
-            wait: true,
-            onPressed: needText && _text.text.trim().isEmpty ? null : _confirm,
           ),
         ),
       ],
@@ -368,7 +386,10 @@ const List<(String, String)> moRejectReasons = [
 /// находка остаётся в истории агрегата, инженер получает уведомление.
 Future<void> showMoRejectDialog(BuildContext context, Finding f, {bool story = false, bool stay = true}) {
   final BuildContext screen = context;
-  return showKvDialog<void>(context, builder: (BuildContext dialog) => _RejectDialog(finding: f, story: story, stay: stay, screen: screen));
+  return showKvDialog<void>(
+    context,
+    builder: (BuildContext dialog) => _RejectDialog(finding: f, story: story, stay: stay, screen: screen),
+  );
 }
 
 class _RejectDialog extends ConsumerStatefulWidget {
@@ -408,7 +429,9 @@ class _RejectDialogState extends ConsumerState<_RejectDialog> {
 
   Future<void> _reject() async {
     if (!widget.story) {
-      await ref.read(inspectionRepositoryProvider).rejectFinding(widget.finding.id, reason: moRejectReasons[_reason!].$1, note: _note.text.trim());
+      await ref
+          .read(inspectionRepositoryProvider)
+          .rejectFinding(widget.finding.id, reason: moRejectReasons[_reason!].$1, note: _note.text.trim());
     }
     if (!mounted) {
       return;
@@ -465,7 +488,10 @@ class _RejectDialogState extends ConsumerState<_RejectDialog> {
 /// Лист «Назначить на ТО»: включить работу в ТО-2 или отдельный ремонт, исполнитель; итог - в том же листе.
 Future<void> showMoScheduleSheet(BuildContext context, Finding f, String code) {
   final BuildContext screen = context;
-  return showKvSheet<void>(context, builder: (BuildContext sheet) => _ScheduleSheet(finding: f, code: code, screen: screen));
+  return showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _ScheduleSheet(finding: f, code: code, screen: screen),
+  );
 }
 
 class _ScheduleSheet extends ConsumerStatefulWidget {
@@ -519,19 +545,39 @@ class _ScheduleSheetState extends ConsumerState<_ScheduleSheet> {
           : KvSheet(
               key: const ValueKey<String>('form'),
               title: 'Назначить на ТО',
+              actions: [KvButton('Добавить в план', icon: KvIcons.plus, wait: true, onPressed: _add)],
               children: [
                 const MoLabel('Работы'),
                 KvList(
                   children: [
-                    MoRadioRow(icon: KvIcons.calendar, title: 'Включить в ТО-2', subtitle: '15.11, 10:00 · через 10 ч наработки', on: _work == 0, onTap: () => setState(() => _work = 0)),
-                    MoRadioRow(icon: KvIcons.wrench, title: 'Отдельный ремонт', subtitle: 'Выбрать дату и время', on: _work == 1, onTap: () => setState(() => _work = 1)),
+                    MoRadioRow(
+                      icon: KvIcons.calendar,
+                      title: 'Включить в ТО-2',
+                      subtitle: '15.11, 10:00 · через 10 ч наработки',
+                      on: _work == 0,
+                      onTap: () => setState(() => _work = 0),
+                    ),
+                    MoRadioRow(
+                      icon: KvIcons.wrench,
+                      title: 'Отдельный ремонт',
+                      subtitle: 'Выбрать дату и время',
+                      on: _work == 1,
+                      onTap: () => setState(() => _work = 1),
+                    ),
                   ],
                 ),
                 const MoLabel('Исполнитель'),
-                KvFilterChips(items: [for (final String n in _who) KvFilterItem(n)], selected: _person, onSelected: (int i) => setState(() => _person = i)),
-                KvNote(tone: KvStatus.warn, icon: KvIcons.alert, text: 'По ${widget.finding.ruleId} рекомендуется перевести насос в резерв до замены уплотнения.'),
+                KvFilterChips(
+                  items: [for (final String n in _who) KvFilterItem(n)],
+                  selected: _person,
+                  onSelected: (int i) => setState(() => _person = i),
+                ),
+                KvNote(
+                  tone: KvStatus.warn,
+                  icon: KvIcons.alert,
+                  text: 'По ${widget.finding.ruleId} рекомендуется перевести насос в резерв до замены уплотнения.',
+                ),
               ],
-              actions: [KvButton('Добавить в план', icon: KvIcons.plus, wait: true, onPressed: _add)],
             ),
     );
   }
@@ -553,7 +599,9 @@ class _CommentSheet extends ConsumerStatefulWidget {
 
 class _CommentSheetState extends ConsumerState<_CommentSheet> {
   static const List<String> _tags = ['Нужен повторный осмотр', 'Приложить к отчёту', 'Проверить смазку'];
-  late final TextEditingController _text = TextEditingController(text: widget.finding.masterComment ?? 'Проверить смазку подшипника при ТО-2, кадр уплотнения приложить к отчёту');
+  late final TextEditingController _text = TextEditingController(
+    text: widget.finding.masterComment ?? 'Проверить смазку подшипника при ТО-2, кадр уплотнения приложить к отчёту',
+  );
   final Set<int> _on = {1};
   bool _done = false;
 
@@ -565,7 +613,9 @@ class _CommentSheetState extends ConsumerState<_CommentSheet> {
 
   Future<void> _save() async {
     final String tags = [for (final int i in _on.toList()..sort()) _tags[i]].join(', ');
-    await ref.read(inspectionRepositoryProvider).commentFinding(widget.finding.id, tags.isEmpty ? _text.text.trim() : '${_text.text.trim()} · $tags');
+    await ref
+        .read(inspectionRepositoryProvider)
+        .commentFinding(widget.finding.id, tags.isEmpty ? _text.text.trim() : '${_text.text.trim()} · $tags');
     if (mounted) {
       setState(() => _done = true);
     }
@@ -586,16 +636,20 @@ class _CommentSheetState extends ConsumerState<_CommentSheet> {
           : KvSheet(
               key: const ValueKey<String>('form'),
               title: 'Комментарий мастера',
+              actions: [KvButton('Сохранить', wait: true, onPressed: _save)],
               children: [
                 KvField(controller: _text, area: true, autofocus: true, fieldKey: const ValueKey<String>('mo-comment-text')),
                 MoSuggestChips(
                   children: [
                     for (int i = 0; i < _tags.length; i++)
-                      MoSuggestChip(label: _tags[i], on: _on.contains(i), onTap: () => setState(() => _on.contains(i) ? _on.remove(i) : _on.add(i))),
+                      MoSuggestChip(
+                        label: _tags[i],
+                        on: _on.contains(i),
+                        onTap: () => setState(() => _on.contains(i) ? _on.remove(i) : _on.add(i)),
+                      ),
                   ],
                 ),
               ],
-              actions: [KvButton('Сохранить', wait: true, onPressed: _save)],
             ),
     );
   }
@@ -626,7 +680,13 @@ Future<void> showMoFindingMenu(BuildContext context, Finding f, String code) {
               subtitle: 'С кадром и доказательствами',
               onTap: () {
                 Navigator.of(sheet).pop();
-                showKvToast(screen, kind: KvToastKind.ok, icon: KvIcons.download, title: 'PDF сформирован', text: KvFormat.typo('${f.id} · 1,1 МБ · Загрузки'));
+                showKvToast(
+                  screen,
+                  kind: KvToastKind.ok,
+                  icon: KvIcons.download,
+                  title: 'PDF сформирован',
+                  text: KvFormat.typo('${f.id} · 1,1 МБ · Загрузки'),
+                );
               },
             ),
             KvRow(

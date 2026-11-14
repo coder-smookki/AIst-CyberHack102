@@ -61,6 +61,7 @@ class _PasswordSavedScreenState extends ConsumerState<PasswordSavedScreen> {
     final List<KvTabSpec> tabs = kvRoleTabs[role] ?? const <KvTabSpec>[];
     return KvScreen(
       padding: const EdgeInsets.fromLTRB(KvSpace.gutter, KvSpace.s5, KvSpace.gutter, 0),
+      foot: KvButton(_roleGo[role] ?? 'Перейти к работе', iconRight: KvIcons.arrowRight, onPressed: () => _go(role)),
       children: [
         const EntryStateHero(
           icon: KvIcons.check,
@@ -105,7 +106,6 @@ class _PasswordSavedScreenState extends ConsumerState<PasswordSavedScreen> {
             ),
           ),
       ],
-      foot: KvButton(_roleGo[role] ?? 'Перейти к работе', iconRight: KvIcons.arrowRight, onPressed: () => _go(role)),
     );
   }
 }
@@ -135,10 +135,7 @@ class _RolePill extends StatelessWidget {
                   width: 40,
                   height: 40,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: tabs[i].center ? c.btnPrimary : (i == 0 ? c.tint : null),
-                  ),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: tabs[i].center ? c.btnPrimary : (i == 0 ? c.tint : null)),
                   child: KvIcon(tabs[i].icon, size: 22, color: tabs[i].center ? c.onBrand : (i == 0 ? c.brand : c.text2)),
                 ),
               ),

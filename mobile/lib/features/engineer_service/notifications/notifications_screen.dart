@@ -56,7 +56,10 @@ class _NotificationRow extends StatelessWidget {
       icon: ServiceFormat.notificationIcon(n),
       iconStatus: ServiceFormat.notificationTone(n),
       title: n.title,
-      titleWidget: Text(KvFormat.typo(n.title), style: t.bodyM.copyWith(height: 1.3, fontWeight: n.read ? FontWeight.w500 : FontWeight.w600)),
+      titleWidget: Text(
+        KvFormat.typo(n.title),
+        style: t.bodyM.copyWith(height: 1.3, fontWeight: n.read ? FontWeight.w500 : FontWeight.w600),
+      ),
       subtitle: KvFormat.typo(n.text),
       minHeight: 72,
       padding: const EdgeInsets.symmetric(horizontal: KvSpace.s4, vertical: 12),
@@ -67,7 +70,10 @@ class _NotificationRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(n.time, style: t.caption.copyWith(color: c.text3, height: KvTextStyles.normalHeight(13))),
+            Text(
+              n.time,
+              style: t.caption.copyWith(color: c.text3, height: KvTextStyles.normalHeight(13)),
+            ),
             if (!n.read) ...[const SizedBox(height: KvSpace.s2), KvDot(color: c.brand)],
           ],
         ),

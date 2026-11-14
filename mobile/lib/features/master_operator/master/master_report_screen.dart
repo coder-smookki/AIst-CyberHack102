@@ -6,16 +6,16 @@ import '../../../app/routes/master_operator_routes.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
 import '../widgets/mo_blocks.dart';
+import '../widgets/mo_common.dart';
 import '../widgets/mo_frame.dart';
 import 'master_assign_sheet.dart';
 
-/// Подробности сообщения оператора, которые сервер передаёт вложениями: признаки, кадр, событие правила,
+/// Подробности сообщения оператора, которые сервер передаёт вложениями: кадр, событие правила,
 /// инженер смены и последний осмотр агрегата.
 @immutable
 class _ReportExtras {
-  const _ReportExtras({required this.signs, this.frame, this.ruleNote, this.engineer, this.lastInspection});
+  const _ReportExtras({this.frame, this.ruleNote, this.engineer, this.lastInspection});
 
-  final List<String> signs;
   final String? frame;
   final String? ruleNote;
   final String? engineer;
@@ -24,19 +24,12 @@ class _ReportExtras {
 
 const Map<String, _ReportExtras> _extras = {
   'S-077': _ReportExtras(
-    signs: ['Течь', 'Шум или стук'],
     frame: 'Кадр оператора · 06:39',
     ruleNote: '06:44 сработало правило S05: обмотка 112 °C, уставка 110 °C. АМС-2 остановлен автоматически.',
     engineer: 'Алексей Смирнов · свободен',
     lastInspection: '12.11 · отклонений не выявлено',
   ),
 };
-
-/// Тон признака неисправности: течь, нагрев и запах - красные, остальные - жёлтые.
-KvStatus moSignTone(String sign) => switch (sign) {
-      'Течь' || 'Нагрев' || 'Запах гари' => KvStatus.bad,
-      _ => KvStatus.warn,
-    };
 
 /// Сообщение оператора для мастера: текст и признаки, кадр с камеры, событие правила, инженер смены
 /// и назначение осмотра; меню «ещё» - карточка агрегата, звонок оператору, PDF.
@@ -62,7 +55,7 @@ class MasterReportScreen extends ConsumerWidget {
     final String code = unit?.code ?? r.unitId;
     final _ReportExtras? x = _extras[r.id];
     final bool fresh = r.status == 'new';
-    final List<String> signs = x?.signs ?? r.kind.split(', ');
+    final List<String> signs = moReportSigns(r);
     final KvStatus status = switch (r.status) {
       'new' => KvStatus.bad,
       'closed' => KvStatus.ok,
@@ -96,7 +89,12 @@ class MasterReportScreen extends ConsumerWidget {
           KvList(
             children: [
               KvRow(icon: KvIcons.user, title: 'Инженер смены', subtitle: x!.engineer, chevron: false),
-              KvRow(icon: KvIcons.history, title: KvFormat.typo('Последний осмотр $code'), subtitle: KvFormat.typo(x.lastInspection ?? ''), chevron: false),
+              KvRow(
+                icon: KvIcons.history,
+                title: KvFormat.typo('Последний осмотр $code'),
+                subtitle: KvFormat.typo(x.lastInspection ?? ''),
+                chevron: false,
+              ),
             ],
           ),
       ],
@@ -129,7 +127,13 @@ class MasterReportScreen extends ConsumerWidget {
                   title: 'Связаться с оператором',
                   subtitle: '${r.author} · пульт',
                   onTap: () => close(
-                    () => showKvToast(screen, kind: KvToastKind.info, icon: KvIcons.phone, title: 'Вызов оператору', text: KvFormat.typo('${r.author} · +7 912 405-20-31')),
+                    () => showKvToast(
+                      screen,
+                      kind: KvToastKind.info,
+                      icon: KvIcons.phone,
+                      title: 'Вызов оператору',
+                      text: KvFormat.typo('${r.author} · +7 912 405-20-31'),
+                    ),
                   ),
                 ),
                 KvRow(
@@ -137,7 +141,13 @@ class MasterReportScreen extends ConsumerWidget {
                   title: 'Сообщение в PDF',
                   subtitle: 'Для журнала смены',
                   onTap: () => close(
-                    () => showKvToast(screen, kind: KvToastKind.ok, icon: KvIcons.download, title: 'PDF сформирован', text: KvFormat.typo('${r.id} · 0,4 МБ · Загрузки')),
+                    () => showKvToast(
+                      screen,
+                      kind: KvToastKind.ok,
+                      icon: KvIcons.download,
+                      title: 'PDF сформирован',
+                      text: KvFormat.typo('${r.id} · 0,4 МБ · Загрузки'),
+                    ),
                   ),
                 ),
               ],

@@ -162,11 +162,11 @@ abstract final class MasterOperatorPaths {
   /// Кадр к сообщению.
   static const String dOpCamera = '/operator/d-op-camera';
 
-  /// Сообщение отправлено по номеру.
-  static String reportSent(String id) => '/operator/d-op-report-sent?id=$id';
+  /// Сообщение отправлено по номеру; [photo] - к сообщению приложен кадр.
+  static String reportSent(String id, {bool photo = false}) => '/operator/d-op-report-sent?id=$id${photo ? '&photo=1' : ''}';
 
-  /// Сообщение S-077 отправлено.
-  static const String dOpReportSent = '/operator/d-op-report-sent?id=S-077';
+  /// Сообщение S-077 с кадром отправлено.
+  static const String dOpReportSent = '/operator/d-op-report-sent?id=S-077&photo=1';
 
   /// История сообщений.
   static const String opHistory = '/operator/history';
@@ -194,21 +194,32 @@ abstract final class MasterOperatorPaths {
 }
 
 /// Страница экрана мастера: экран слушает push-уведомления ленты мастера.
-Page<void> _master(GoRouterState s, Widget child, {KvTransition transition = KvTransition.push}) =>
-    KvPage<void>.of(s, MoPushListener(roleKey: 'master', child: child), transition: transition);
+Page<void> _master(GoRouterState s, Widget child, {KvTransition transition = KvTransition.push}) => KvPage<void>.of(
+  s,
+  MoPushListener(roleKey: 'master', child: child),
+  transition: transition,
+);
 
 /// Страница экрана оператора: экран слушает push-уведомления ленты оператора.
-Page<void> _operator(GoRouterState s, Widget child, {KvTransition transition = KvTransition.push}) =>
-    KvPage<void>.of(s, MoPushListener(roleKey: 'operator', child: child), transition: transition);
+Page<void> _operator(GoRouterState s, Widget child, {KvTransition transition = KvTransition.push}) => KvPage<void>.of(
+  s,
+  MoPushListener(roleKey: 'operator', child: child),
+  transition: transition,
+);
 
 /// Экраны раздела внутри оболочки мастера (с панелью вкладок).
 final List<RouteBase> masterOperatorMasterShellRoutes = <RouteBase>[
   GoRoute(
     path: '/master/shift',
     name: 'master-shift',
-    pageBuilder: (BuildContext c, GoRouterState s) => _master(s, MasterShiftScreen(at: s.uri.queryParameters['at']), transition: KvTransition.fade),
+    pageBuilder: (BuildContext c, GoRouterState s) =>
+        _master(s, MasterShiftScreen(at: s.uri.queryParameters['at']), transition: KvTransition.fade),
     routes: <RouteBase>[
-      GoRoute(path: 'd-m-notif', name: 'd-m-notif', pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterNotifScreen())),
+      GoRoute(
+        path: 'd-m-notif',
+        name: 'd-m-notif',
+        pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterNotifScreen()),
+      ),
       GoRoute(path: 'd-m-team', name: 'd-m-team', pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterTeamScreen())),
       GoRoute(
         path: 'report/:id',
@@ -218,7 +229,8 @@ final List<RouteBase> masterOperatorMasterShellRoutes = <RouteBase>[
       GoRoute(
         path: 'unit/:id',
         name: 'd-m-unit',
-        pageBuilder: (BuildContext c, GoRouterState s) => _master(s, MasterUnitScreen(unitId: s.pathParameters['id']!, at: s.uri.queryParameters['at'])),
+        pageBuilder: (BuildContext c, GoRouterState s) =>
+            _master(s, MasterUnitScreen(unitId: s.pathParameters['id']!, at: s.uri.queryParameters['at'])),
       ),
     ],
   ),
@@ -245,7 +257,11 @@ final List<RouteBase> masterOperatorMasterShellRoutes = <RouteBase>[
     name: 'master-plan',
     pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterPlanScreen(), transition: KvTransition.fade),
     routes: <RouteBase>[
-      GoRoute(path: 'd-m-plan-cal', name: 'd-m-plan-cal', pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterPlanCalScreen(), transition: KvTransition.fade)),
+      GoRoute(
+        path: 'd-m-plan-cal',
+        name: 'd-m-plan-cal',
+        pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterPlanCalScreen(), transition: KvTransition.fade),
+      ),
       GoRoute(
         path: 'item/:id',
         name: 'd-m-plan-item',
@@ -258,7 +274,11 @@ final List<RouteBase> masterOperatorMasterShellRoutes = <RouteBase>[
     name: 'master-profile',
     pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterProfileScreen(), transition: KvTransition.fade),
     routes: <RouteBase>[
-      GoRoute(path: 'd-m-reports', name: 'd-m-reports', pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterReportsScreen())),
+      GoRoute(
+        path: 'd-m-reports',
+        name: 'd-m-reports',
+        pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterReportsScreen()),
+      ),
     ],
   ),
 ];
@@ -268,11 +288,24 @@ final List<RouteBase> masterOperatorOperatorShellRoutes = <RouteBase>[
   GoRoute(
     path: '/operator/objects',
     name: 'op-objects',
-    pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpObjectsScreen(at: s.uri.queryParameters['at']), transition: KvTransition.fade),
+    pageBuilder: (BuildContext c, GoRouterState s) =>
+        _operator(s, OpObjectsScreen(at: s.uri.queryParameters['at']), transition: KvTransition.fade),
     routes: <RouteBase>[
-      GoRoute(path: 'unit/:id', name: 'd-op-unit', pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpUnitScreen(unitId: s.pathParameters['id']!))),
-      GoRoute(path: 'repair/:id', name: 'd-op-repair', pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpRepairScreen(unitId: s.pathParameters['id']!))),
-      GoRoute(path: 'd-op-notif', name: 'd-op-notif', pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpNotifScreen())),
+      GoRoute(
+        path: 'unit/:id',
+        name: 'd-op-unit',
+        pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpUnitScreen(unitId: s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: 'repair/:id',
+        name: 'd-op-repair',
+        pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpRepairScreen(unitId: s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: 'd-op-notif',
+        name: 'd-op-notif',
+        pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpNotifScreen()),
+      ),
     ],
   ),
   GoRoute(
@@ -280,7 +313,11 @@ final List<RouteBase> masterOperatorOperatorShellRoutes = <RouteBase>[
     name: 'op-history',
     pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpHistoryScreen(), transition: KvTransition.fade),
     routes: <RouteBase>[
-      GoRoute(path: 'd-op-events', name: 'd-op-events', pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpEventsScreen(), transition: KvTransition.fade)),
+      GoRoute(
+        path: 'd-op-events',
+        name: 'd-op-events',
+        pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpEventsScreen(), transition: KvTransition.fade),
+      ),
       GoRoute(
         path: 'report/:id',
         name: 'd-op-report-status',
@@ -291,7 +328,8 @@ final List<RouteBase> masterOperatorOperatorShellRoutes = <RouteBase>[
   GoRoute(
     path: '/operator/assistant',
     name: 'op-assistant',
-    pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpAssistantScreen(question: s.uri.queryParameters['q']), transition: KvTransition.fade),
+    pageBuilder: (BuildContext c, GoRouterState s) =>
+        _operator(s, OpAssistantScreen(question: s.uri.queryParameters['q']), transition: KvTransition.fade),
   ),
   GoRoute(
     path: '/operator/profile',
@@ -302,16 +340,29 @@ final List<RouteBase> masterOperatorOperatorShellRoutes = <RouteBase>[
 
 /// Экраны раздела поверх оболочек (без панели вкладок): отчёт смены, сообщение оператора, камера.
 final List<RouteBase> masterOperatorRootRoutes = <RouteBase>[
-  GoRoute(path: '/master/d-m-report-1311', name: 'd-m-report-1311', pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterShiftReportScreen())),
+  GoRoute(
+    path: '/master/d-m-report-1311',
+    name: 'd-m-report-1311',
+    pageBuilder: (BuildContext c, GoRouterState s) => _master(s, const MasterShiftReportScreen()),
+  ),
   GoRoute(
     path: '/operator/op-report',
     name: 'op-report',
-    pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpReportScreen(unitId: s.uri.queryParameters['unit']), transition: KvTransition.up),
+    pageBuilder: (BuildContext c, GoRouterState s) =>
+        _operator(s, OpReportScreen(unitId: s.uri.queryParameters['unit']), transition: KvTransition.up),
   ),
-  GoRoute(path: '/operator/d-op-camera', name: 'd-op-camera', pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpCameraScreen(), transition: KvTransition.up)),
+  GoRoute(
+    path: '/operator/d-op-camera',
+    name: 'd-op-camera',
+    pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, const OpCameraScreen(), transition: KvTransition.up),
+  ),
   GoRoute(
     path: '/operator/d-op-report-sent',
     name: 'd-op-report-sent',
-    pageBuilder: (BuildContext c, GoRouterState s) => _operator(s, OpReportSentScreen(reportId: s.uri.queryParameters['id'] ?? 'S-077'), transition: KvTransition.fade),
+    pageBuilder: (BuildContext c, GoRouterState s) => _operator(
+      s,
+      OpReportSentScreen(reportId: s.uri.queryParameters['id'] ?? 'S-077', photo: s.uri.queryParameters['photo'] == '1'),
+      transition: KvTransition.fade,
+    ),
   ),
 ];

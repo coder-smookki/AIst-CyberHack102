@@ -70,7 +70,12 @@ class AdmMaintScreen extends ConsumerWidget {
           work: () => ref.read(adminRepositoryProvider).createBackup(),
           onDone: () {
             final Backup? b = ref.read(backupsProvider).value?.firstOrNull;
-            showKvToast(context, title: 'Копия создана', text: ty(b == null ? '' : '${b.date}, ${b.time} · ${b.size}'), kind: KvToastKind.ok);
+            showKvToast(
+              context,
+              title: 'Копия создана',
+              text: ty(b == null ? '' : '${b.date}, ${b.time} · ${b.size}'),
+              kind: KvToastKind.ok,
+            );
           },
         ),
       ],
@@ -90,9 +95,18 @@ class AdmMaintScreen extends ConsumerWidget {
                 icon: KvIcons.calendar,
                 title: 'Расписание копий',
                 subtitle: ty('Ежедневно 03:00 · хранятся 14'),
-                onTap: () => showKvToast(sheet, title: 'Расписание копий', text: ty('Ежедневно в 03:00, хранятся 14 последних'), kind: KvToastKind.info),
+                onTap: () => showKvToast(
+                  sheet,
+                  title: 'Расписание копий',
+                  text: ty('Ежедневно в 03:00, хранятся 14 последних'),
+                  kind: KvToastKind.info,
+                ),
               ),
-              KvRow(icon: KvIcons.list, title: 'Системный журнал', onTap: () => admCloseThen(sheet, () => screen.kvFade(AdminsPaths.admLog))),
+              KvRow(
+                icon: KvIcons.list,
+                title: 'Системный журнал',
+                onTap: () => admCloseThen(sheet, () => screen.kvFade(AdminsPaths.admLog)),
+              ),
             ],
           ),
         ],
@@ -124,7 +138,12 @@ class AdmMaintScreen extends ConsumerWidget {
         children: [
           KvCard(
             style: KvCardStyle.outline,
-            child: KvKeyValues([('Тип', b.kind), ('Размер', ty(b.size)), ('Состав', 'база, модели, настройки'), ('Контрольная сумма', 'совпадает')]),
+            child: KvKeyValues([
+              ('Тип', b.kind),
+              ('Размер', ty(b.size)),
+              ('Состав', 'база, модели, настройки'),
+              ('Контрольная сумма', 'совпадает'),
+            ]),
           ),
         ],
       ),
@@ -138,13 +157,21 @@ class AdmMaintScreen extends ConsumerWidget {
         icon: KvIcons.history,
         tone: KvStatus.warn,
         title: 'Восстановить из копии?',
-        text: ty('Данные сервера после ${b.date}, ${b.time} будут заменены. Осмотры с телефонов загрузятся повторно. Лучше выполнять вне смены.'),
+        text: ty(
+          'Данные сервера после ${b.date}, ${b.time} будут заменены. Осмотры с телефонов загрузятся повторно. Лучше выполнять вне смены.',
+        ),
         actions: [
           AdmDialogActions(
             okText: 'Запланировать',
             onDone: () => admCloseThen(
               dialog,
-              () => showKvToast(screen, title: 'Восстановление запланировано', text: ty('Сегодня в 20:30, после смены'), kind: KvToastKind.info, icon: KvIcons.calendar),
+              () => showKvToast(
+                screen,
+                title: 'Восстановление запланировано',
+                text: ty('Сегодня в 20:30, после смены'),
+                kind: KvToastKind.info,
+                icon: KvIcons.calendar,
+              ),
             ),
           ),
         ],
@@ -160,9 +187,7 @@ class AdmMaintScreen extends ConsumerWidget {
         icon: KvIcons.download,
         title: 'Установить $next?',
         text: ty('Сначала будет создана резервная копия. Сервер будет недоступен около 6 минут, сканеры продолжат работу офлайн.'),
-        actions: [
-          AdmDialogActions(okText: 'Установить', onDone: () => admCloseThen(dialog, () => screen.kvPush(AdminsPaths.eUpdateRun))),
-        ],
+        actions: [AdmDialogActions(okText: 'Установить', onDone: () => admCloseThen(dialog, () => screen.kvPush(AdminsPaths.eUpdateRun)))],
       ),
     );
   }

@@ -98,19 +98,19 @@ Future<void> showCardMenu(BuildContext context, Equipment unit) {
           children: [
             KvList(
               children: [
-                KvRow(icon: KvIcons.route, title: 'Маршрут осмотра', subtitle: '${unit.nodes.length + 1} узлов по приоритету', onTap: () => open(EngineerInspectPaths.bRoute)),
+                KvRow(icon: KvIcons.route, title: 'Маршрут осмотра', subtitle: '${unit.nodes.length + 1} узлов по приоритету', onTap: () => open(EngineerInspectPaths.routeFor(unit.id))),
                 if (unit.id == 'N-101')
                   KvRow(
                     icon: KvIcons.flag,
                     title: 'Добавить дефект вручную',
                     subtitle: 'Если камера не выделила признак',
-                    onTap: () => open(EngineerInspectPaths.bDefectManual),
+                    onTap: () => open(EngineerInspectPaths.defectManualFor(unit.id)),
                   ),
                 KvRow(
                   icon: KvIcons.file,
                   title: 'Паспорт и документы',
                   subtitle: '${unit.documents.length} PDF · доступны без сети',
-                  onTap: () => open(EngineerInspectPaths.docs),
+                  onTap: () => open(EngineerInspectPaths.docsFor(unit.id)),
                 ),
                 KvRow(icon: KvIcons.filePdf, title: 'Отчёт по агрегату · PDF', subtitle: 'История, находки, наработка', onTap: () => report('pdf')),
                 KvRow(icon: KvIcons.fileXls, title: 'Показания · Excel', subtitle: 'Датчики за 30 дней', onTap: () => report('xlsx')),
@@ -166,7 +166,7 @@ class CardNowScreen extends ConsumerWidget {
       foot: KvButton(
         unit.inRepair ? 'Осмотр перед ремонтом' : 'Начать осмотр',
         icon: KvIcons.scan,
-        onPressed: () => context.kvUp(EngineerInspectPaths.scanner),
+        onPressed: () => context.kvUp(EngineerInspectPaths.scannerFor(unit.id)),
       ),
       children: [
         CardTabs(unitId: unit.id, index: 0, fromSegment: fromSegment),
@@ -308,7 +308,7 @@ class _DiagnosisRow extends StatelessWidget {
           iconStatus: status,
           title: title,
           subtitle: KvFormat.typo(subtitle),
-          onTap: () => context.kvPush(EngineerInspectPaths.diagnostics),
+          onTap: () => context.kvPush(EngineerInspectPaths.diagnosticsFor(unit.id)),
         ),
       ],
     );

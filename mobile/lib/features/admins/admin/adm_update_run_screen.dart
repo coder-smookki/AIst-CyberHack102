@@ -41,7 +41,7 @@ class AdmUpdateRunScreen extends ConsumerWidget {
               KvTimelineItem(time: '09:41', title: 'Резервная копия создана', text: ty('1,8 ГБ'), status: KvStatus.ok),
               const KvTimelineItem(time: '09:42', title: 'Пакет проверен', text: 'Подпись разработчика подтверждена', status: KvStatus.ok),
               const KvTimelineItem(time: 'Сейчас', title: 'Установка служб', text: 'Опрос датчиков приостановлен', status: KvStatus.info),
-              const KvTimelineItem(time: 'Далее', title: 'Проверка после установки', text: 'Опрос, распознавание, база данных', status: KvStatus.unk),
+              const KvTimelineItem(time: 'Далее', title: 'Проверка после установки', text: 'Опрос, распознавание, база данных'),
             ],
           ),
         ),

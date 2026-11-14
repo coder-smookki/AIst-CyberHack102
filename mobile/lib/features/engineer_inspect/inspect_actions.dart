@@ -6,6 +6,7 @@ import '../../app/navigation/kv_page.dart';
 import '../../app/routes/engineer_inspect_routes.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/inspection_repository.dart';
 import 'widgets/inspect_camera.dart';
 
 /// Идущий осмотр агрегата [unitId]; если его нет - начинает новый.

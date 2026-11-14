@@ -12,11 +12,11 @@ import '../widgets/adm_widgets.dart';
 
 /// Значок, тон и подпись уровня записи системного журнала.
 (KvIcons, KvStatus, String) admLevel(String level) => switch (level) {
-      'warn' => (KvIcons.alert, KvStatus.warn, 'Предупреждение'),
-      'bad' => (KvIcons.alertCircle, KvStatus.bad, 'Ошибка'),
-      'ok' => (KvIcons.checkCircle, KvStatus.ok, 'Успешно'),
-      _ => (KvIcons.info, KvStatus.info, 'Инфо'),
-    };
+  'warn' => (KvIcons.alert, KvStatus.warn, 'Предупреждение'),
+  'bad' => (KvIcons.alertCircle, KvStatus.bad, 'Ошибка'),
+  'ok' => (KvIcons.checkCircle, KvStatus.ok, 'Успешно'),
+  _ => (KvIcons.info, KvStatus.info, 'Инфо'),
+};
 
 /// Системный журнал (adm-log): события сервера за сегодня с отбором по важности.
 class AdmLogScreen extends ConsumerStatefulWidget {
@@ -65,6 +65,7 @@ class _AdmLogScreenState extends ConsumerState<AdmLogScreen> {
                   icon: admLevel(e.level).$1,
                   iconStatus: admLevel(e.level).$2,
                   title: ty(e.text),
+                  titleWidget: admWrapTitle(context, ty(e.text)),
                   subtitle: '${e.time} · ${e.source}',
                   onTap: () => showSysLogEntry(context, e, date),
                 ),
@@ -81,7 +82,10 @@ void showSysLogEntry(BuildContext context, SysLogEntry e, String date) {
   final (KvIcons _, KvStatus status, String label) = admLevel(e.level);
   final (String, String)? link = switch (e.ref) {
     final String r when r.startsWith('source:') => ('Открыть источник', AdminsPaths.source(r.substring(7))),
-    final String r when r.startsWith('tags:') => ('Открыть теги ${r.substring(5) == 'N-101' ? 'Н-101' : r.substring(5).replaceFirst('AMS', 'АМС')}', AdminsPaths.tags(r.substring(5))),
+    final String r when r.startsWith('tags:') => (
+      'Открыть теги ${r.substring(5) == 'N-101' ? 'Н-101' : r.substring(5).replaceFirst('AMS', 'АМС')}',
+      AdminsPaths.tags(r.substring(5)),
+    ),
     'maint' => ('Обновления и резерв', AdminsPaths.eAdmMaint),
     _ => null,
   };
@@ -104,12 +108,12 @@ void showSysLogEntry(BuildContext context, SysLogEntry e, String date) {
           ),
       ],
       children: [
-        Align(alignment: Alignment.centerLeft, child: KvChip(label, status: status)),
-        Text(ty(e.text), style: sheet.kvText.bodyM),
-        KvCard(
-          style: KvCardStyle.outline,
-          child: KvKeyValues([('Время', '$date ${e.time}'), ...e.details, ('Узел', 'КСТ-СРВ-02')]),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: KvChip(label, status: status),
         ),
+        Text(ty(e.text), style: sheet.kvText.bodyM),
+        KvCard(style: KvCardStyle.outline, child: KvKeyValues([('Время', '$date ${e.time}'), ...e.details, ('Узел', 'КСТ-СРВ-02')])),
       ],
     ),
   );

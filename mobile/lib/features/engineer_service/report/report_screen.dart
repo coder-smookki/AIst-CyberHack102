@@ -29,7 +29,9 @@ class ReportScreen extends ConsumerWidget {
         title: 'Отчёт PDF',
         subtitle: s == null
             ? ' '
-            : KvFormat.typo('${s.inspectionId} · $pages ${KvFormat.plural(pages, 'страница', 'страницы', 'страниц')} · ${KvFormat.num(s.reportSizeMb, 1)} МБ'),
+            : KvFormat.typo(
+                '${s.inspectionId} · $pages ${KvFormat.plural(pages, 'страница', 'страницы', 'страниц')} · ${KvFormat.num(s.reportSizeMb, 1)} МБ',
+              ),
         status: KvStatus.info,
         onBack: () => context.kvBack(EngineerServicePaths.cSummary),
         onMore: s == null ? null : () => showReportShare(context, s),
@@ -52,17 +54,27 @@ class ReportScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: KvSpace.s3),
-          Expanded(child: KvButton('Поделиться', icon: KvIcons.share, onPressed: s == null ? null : () => showReportShare(context, s))),
+          Expanded(
+            child: KvButton('Поделиться', icon: KvIcons.share, onPressed: s == null ? null : () => showReportShare(context, s)),
+          ),
         ],
       ),
       children: [
-        if (s == null) const KvSkeleton(height: 480, radius: 8) else ReportPaper(summary: s),
+        if (s == null) const KvSkeleton(height: 480) else ReportPaper(summary: s),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(width: 18, height: 6, decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(3))),
+            Container(
+              width: 18,
+              height: 6,
+              decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(3)),
+            ),
             const SizedBox(width: 6),
-            Container(width: 6, height: 6, decoration: BoxDecoration(color: c.surface3, borderRadius: BorderRadius.circular(3))),
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: c.surface3, borderRadius: BorderRadius.circular(3)),
+            ),
             const SizedBox(width: 6),
             Text('Стр. 1 из $pages', style: t.caption.copyWith(height: KvTextStyles.normalHeight(13))),
           ],
@@ -113,10 +125,17 @@ Future<void> showReportShare(BuildContext context, InspectionSummary s) {
                 KvRow(
                   icon: KvIcons.download,
                   title: 'Сохранить PDF в «Файлы»',
-                  subtitle: KvFormat.typo('${KvFormat.num(s.reportSizeMb, 1)} МБ · $pages ${KvFormat.plural(pages, 'страница', 'страницы', 'страниц')}'),
+                  subtitle: KvFormat.typo(
+                    '${KvFormat.num(s.reportSizeMb, 1)} МБ · $pages ${KvFormat.plural(pages, 'страница', 'страницы', 'страниц')}',
+                  ),
                   onTap: () => save('pdf'),
                 ),
-                KvRow(icon: KvIcons.fileXls, title: 'Экспорт в Excel', subtitle: 'Находки, показания, наработка', onTap: () => save('xlsx')),
+                KvRow(
+                  icon: KvIcons.fileXls,
+                  title: 'Экспорт в Excel',
+                  subtitle: 'Находки, показания, наработка',
+                  onTap: () => save('xlsx'),
+                ),
               ],
             ),
             Text(KvFormat.typo('Отчёт также хранится на сервере цеха и в истории $unit.'), style: sheet.kvText.caption),

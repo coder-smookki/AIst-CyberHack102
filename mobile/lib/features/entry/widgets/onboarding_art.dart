@@ -68,41 +68,36 @@ enum _Look {
 
 /// Фигура иллюстрации в координатах viewBox 320 × 260.
 class _Shape {
-  const _Shape.rect(this.look, double x, double y, double w, double h, double r, {this.pop = 0})
-      : kind = 0,
-        a = x,
-        b = y,
-        c = w,
-        d = h,
-        e = r,
-        path = null;
+  const _Shape.rect(this.look, double x, double y, double w, double h, double r)
+    : kind = 0,
+      pop = 0,
+      a = x,
+      b = y,
+      c = w,
+      d = h,
+      e = r,
+      path = null;
 
   const _Shape.circle(this.look, double cx, double cy, double r, {this.pop = 0})
-      : kind = 1,
-        a = cx,
-        b = cy,
-        c = r,
-        d = r,
-        e = 0,
-        path = null;
+    : kind = 1,
+      a = cx,
+      b = cy,
+      c = r,
+      d = r,
+      e = 0,
+      path = null;
 
   const _Shape.ellipse(this.look, double cx, double cy, double rx, double ry)
-      : kind = 1,
-        a = cx,
-        b = cy,
-        c = rx,
-        d = ry,
-        e = 0,
-        pop = 0,
-        path = null;
+    : kind = 1,
+      a = cx,
+      b = cy,
+      c = rx,
+      d = ry,
+      e = 0,
+      pop = 0,
+      path = null;
 
-  const _Shape.path(this.look, String this.path, {this.pop = 0})
-      : kind = 2,
-        a = 0,
-        b = 0,
-        c = 0,
-        d = 0,
-        e = 0;
+  const _Shape.path(this.look, String this.path, {this.pop = 0}) : kind = 2, a = 0, b = 0, c = 0, d = 0, e = 0;
 
   final _Look look;
   final int kind;
@@ -194,7 +189,10 @@ class OnboardingArt extends StatefulWidget {
 }
 
 class _OnboardingArtState extends State<OnboardingArt> with TickerProviderStateMixin {
-  late final AnimationController _pop = AnimationController(vsync: this, duration: const Duration(milliseconds: 480 + 550));
+  late final AnimationController _pop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 480 + 550),
+  );
   late final AnimationController _scan = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
   bool _started = false;
 
@@ -242,7 +240,7 @@ class _OnboardingArtState extends State<OnboardingArt> with TickerProviderStateM
 
 class _ArtPainter extends CustomPainter {
   _ArtPainter({required this.shapes, required this.centers, required this.colors, required this.pop, required this.scan})
-      : super(repaint: Listenable.merge([pop, ?scan]));
+    : super(repaint: Listenable.merge([pop, ?scan]));
 
   final List<_Shape> shapes;
   final List<Offset> centers;
@@ -253,10 +251,10 @@ class _ArtPainter extends CustomPainter {
   static final Map<String, Path> _paths = {};
 
   static Path _parse(String d) => _paths.putIfAbsent(d, () {
-        final _Writer w = _Writer();
-        writeSvgPathDataToPath(d, w);
-        return w.path;
-      });
+    final _Writer w = _Writer();
+    writeSvgPathDataToPath(d, w);
+    return w.path;
+  });
 
   /// Прогресс всплытия группы [group] (kvPopIn: 550 мс, задержка 300 или 480 мс).
   double _popValue(int group) {
@@ -305,10 +303,10 @@ class _ArtPainter extends CustomPainter {
   void _draw(Canvas canvas, _Shape s) {
     final KvColors c = colors;
     Path geometry() => switch (s.kind) {
-          0 => Path()..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(s.a, s.b, s.c, s.d), Radius.circular(s.e))),
-          1 => Path()..addOval(Rect.fromCenter(center: Offset(s.a, s.b), width: s.c * 2, height: s.d * 2)),
-          _ => _parse(s.path!),
-        };
+      0 => Path()..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(s.a, s.b, s.c, s.d), Radius.circular(s.e))),
+      1 => Path()..addOval(Rect.fromCenter(center: Offset(s.a, s.b), width: s.c * 2, height: s.d * 2)),
+      _ => _parse(s.path!),
+    };
     Paint fill(Color color, [double opacity = 1]) => Paint()..color = color.withValues(alpha: color.a * opacity);
     Paint stroke(Color color, double width, [double opacity = 1]) => Paint()
       ..color = color.withValues(alpha: color.a * opacity)
@@ -329,7 +327,12 @@ class _ArtPainter extends CustomPainter {
         canvas.drawPath(p, stroke(c.brand, 3));
       case _Look.stroke2:
         canvas.drawPath(p, fill(c.surface));
-        canvas.drawPath(p, stroke(c.brand, 2)..strokeCap = StrokeCap.butt..strokeJoin = StrokeJoin.miter);
+        canvas.drawPath(
+          p,
+          stroke(c.brand, 2)
+            ..strokeCap = StrokeCap.butt
+            ..strokeJoin = StrokeJoin.miter,
+        );
       case _Look.fin:
         canvas.drawPath(p, stroke(c.brand, 2, 0.45));
       case _Look.dash:

@@ -18,7 +18,9 @@ class AdmSourceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final DataSource? s = ref.watch(sourcesProvider.select((AsyncValue<List<DataSource>> a) => a.value?.where((DataSource x) => x.id == sourceId).firstOrNull));
+    final DataSource? s = ref.watch(
+      sourcesProvider.select((AsyncValue<List<DataSource>> a) => a.value?.where((DataSource x) => x.id == sourceId).firstOrNull),
+    );
     if (s == null) {
       return KvScreen(
         header: KvHeader(title: kAdmSourceShort[sourceId] ?? 'Источник', onBack: () => context.kvBack(AdminsPaths.admSources)),
@@ -45,14 +47,29 @@ class AdmSourceScreen extends ConsumerWidget {
           if (!s.enabled) {
             showKvToast(context, title: 'Опрос выключен', text: 'Подключите источник в меню источника', kind: KvToastKind.warn);
           } else if (warn) {
-            showKvToast(context, title: 'Связь есть, ответ медленный', text: ty('Ответ 2,3 с · ${s.tags} из ${s.tags} тегов читаются'), kind: KvToastKind.warn);
+            showKvToast(
+              context,
+              title: 'Связь есть, ответ медленный',
+              text: ty('Ответ 2,3 с · ${s.tags} из ${s.tags} тегов читаются'),
+              kind: KvToastKind.warn,
+            );
           } else {
-            showKvToast(context, title: 'Связь в норме', text: ty('Ответ ${s.latency} · ${s.tags} из ${admTagsWord(s.tags)}'), kind: KvToastKind.ok);
+            showKvToast(
+              context,
+              title: 'Связь в норме',
+              text: ty('Ответ ${s.latency} · ${s.tags} из ${admTagsWord(s.tags)}'),
+              kind: KvToastKind.ok,
+            );
           }
         },
       ),
       children: [
-        if (warn)
+        if (!s.enabled)
+          KvNote(
+            icon: KvIcons.power,
+            text: ty('Опрос выключен: ${admTagsWord(s.tags)} показывают «нет данных». Подключить снова можно в меню источника.'),
+          )
+        else if (warn)
           KvNote(
             tone: KvStatus.warn,
             icon: KvIcons.alert,
@@ -71,7 +88,9 @@ class AdmSourceScreen extends ConsumerWidget {
                 unit: lat.length > 1 ? lat[1] : '',
                 warn: warn,
                 title: 'Отклик за последний час',
-                text: warn ? 'Норма до 1 с, рост с 09:20' : 'Норма до 1 с · без пропусков',
+                text: !s.enabled
+                    ? 'Последнее значение до отключения'
+                    : (warn ? 'Норма до 1 с, рост с 09:20' : 'Норма до 1 с · без пропусков'),
               ),
               KvAreaChart(
                 height: 110,
@@ -150,7 +169,13 @@ class AdmSourceScreen extends ConsumerWidget {
                   onTap: () => admCloseThen(sheet, () async {
                     await ref.read(adminRepositoryProvider).setSourceEnabled(s.id, true);
                     if (screen.mounted) {
-                      showKvToast(screen, title: 'Источник подключён', text: 'Опрос возобновлён', kind: KvToastKind.ok, icon: KvIcons.power);
+                      showKvToast(
+                        screen,
+                        title: 'Источник подключён',
+                        text: 'Опрос возобновлён',
+                        kind: KvToastKind.ok,
+                        icon: KvIcons.power,
+                      );
                     }
                   }),
                 ),
@@ -176,7 +201,13 @@ class AdmSourceScreen extends ConsumerWidget {
             work: () => ref.read(adminRepositoryProvider).setSourceEnabled(s.id, false),
             onDone: () => admCloseThen(
               dialog,
-              () => showKvToast(screen, title: 'Источник отключён', text: 'Подключить снова можно в меню источника', kind: KvToastKind.warn, icon: KvIcons.power),
+              () => showKvToast(
+                screen,
+                title: 'Источник отключён',
+                text: 'Подключить снова можно в меню источника',
+                kind: KvToastKind.warn,
+                icon: KvIcons.power,
+              ),
             ),
           ),
         ],

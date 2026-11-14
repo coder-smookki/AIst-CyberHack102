@@ -86,10 +86,13 @@ class RouteScreen extends ConsumerWidget {
 
 /// Подпись причины (.b-why): значок 14 и текст 12 цвета причины.
 class _Why extends StatelessWidget {
-  const _Why({required this.why, required this.text});
+  const _Why({required this.why, required this.text, this.height});
 
   final RouteWhy why;
   final String text;
+
+  /// Межстрочный множитель: в строках списка 1,35, в легенде 1,33, в карточке «Далее» - normal.
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +103,7 @@ class _Why extends StatelessWidget {
         KvIcon(why.icon, size: 14, color: color),
         const SizedBox(width: 4),
         Flexible(
-          child: Text(KvFormat.typo(text), style: context.kvText.label.copyWith(color: color, height: KvTextStyles.normalHeight(12))),
+          child: Text(KvFormat.typo(text), style: context.kvText.label.copyWith(color: color, height: height ?? KvTextStyles.normalHeight(12))),
         ),
       ],
     );
@@ -123,12 +126,12 @@ class _NextCard extends StatelessWidget {
     final bool gauge = step.nodeId == 'gauge';
     final BorderRadius radius = BorderRadius.circular(KvRadius.card);
     return KvPressable(
-      onTap: () => gauge ? context.kvUp(EngineerInspectPaths.bScanGauge) : context.kvUp(EngineerInspectPaths.scannerFor(unitId)),
+      onTap: () => gauge ? context.kvUp(EngineerInspectPaths.scanGaugeFor(unitId)) : context.kvUp(EngineerInspectPaths.scannerFor(unitId)),
       borderRadius: radius,
       pressedScale: 0.985,
       semanticLabel: step.name,
       child: Container(
-        padding: const EdgeInsets.all(KvSpace.s4 - 1.5),
+        padding: const EdgeInsets.all(KvSpace.s4),
         decoration: BoxDecoration(color: c.surface, borderRadius: radius, border: Border.all(color: c.brand, width: 1.5), boxShadow: c.shadow2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -202,7 +205,7 @@ class _StepRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _Why(why: RouteWhy.of(step.why), text: step.reason),
+          _Why(why: RouteWhy.of(step.why), text: step.reason, height: 1.35),
           if (step.note.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(KvFormat.typo('Итог: ${step.note}'), style: t.caption.copyWith(height: 1.35)),
@@ -223,7 +226,7 @@ class _Legend extends StatelessWidget {
       spacing: 14,
       runSpacing: 6,
       children: [
-        for (int i = 0; i < RouteWhy.values.length; i++) _Why(why: RouteWhy.values[i], text: '${i + 1}. ${RouteWhy.values[i].legend}'),
+        for (int i = 0; i < RouteWhy.values.length; i++) _Why(why: RouteWhy.values[i], text: '${i + 1}. ${RouteWhy.values[i].legend}', height: 1.33),
       ],
     );
   }

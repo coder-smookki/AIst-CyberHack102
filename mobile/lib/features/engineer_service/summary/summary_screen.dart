@@ -27,7 +27,10 @@ class SummaryScreen extends ConsumerWidget {
     if (s == null) {
       return KvScreen(
         header: KvHeader(title: 'Итог осмотра', onBack: () => context.kvBack(EngineerInspectPaths.diagnostics)),
-        children: const [KvSkeleton(height: 100, radius: KvRadius.card), KvSkeleton.card(height: 230)],
+        children: const [
+          KvSkeleton(height: 100, radius: KvRadius.card),
+          KvSkeleton.card(height: 230),
+        ],
       );
     }
     final String code = unit?.code ?? s.unitId;
@@ -57,12 +60,7 @@ class SummaryScreen extends ConsumerWidget {
             'Находки · ${s.findings.length} · ${s.cameraDefects} ${KvFormat.plural(s.cameraDefects, 'дефект', 'дефекта', 'дефектов')} на камере',
           ),
         ),
-        KvList(
-          noIcons: true,
-          children: [
-            for (final SummaryFinding f in s.findings) _FindingRow(finding: f),
-          ],
-        ),
+        KvList(noIcons: true, children: [for (final SummaryFinding f in s.findings) _FindingRow(finding: f)]),
         _Exports(summary: s),
         _Handoff(master: master?.name ?? ''),
       ],
@@ -83,12 +81,21 @@ class _Kpis extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: KvKpi(value: '${summary.nodesChecked}/${summary.nodesTotal}', label: 'Узлов осмотрено', status: KvStatus.info, labelMaxLines: 2),
+            child: KvKpi(
+              value: '${summary.nodesChecked}/${summary.nodesTotal}',
+              label: 'Узлов осмотрено',
+              status: KvStatus.info,
+              labelMaxLines: 2,
+            ),
           ),
           const SizedBox(width: KvSpace.s2),
-          Expanded(child: KvKpi(value: '${summary.findings.length}', label: 'Находки', status: KvStatus.bad, labelMaxLines: 2)),
+          Expanded(
+            child: KvKpi(value: '${summary.findings.length}', label: 'Находки', status: KvStatus.bad, labelMaxLines: 2),
+          ),
           const SizedBox(width: KvSpace.s2),
-          Expanded(child: KvKpi(value: '${summary.rulesFired}', label: 'Правил сработало', status: KvStatus.warn, labelMaxLines: 2)),
+          Expanded(
+            child: KvKpi(value: '${summary.rulesFired}', label: 'Правил сработало', status: KvStatus.warn, labelMaxLines: 2),
+          ),
         ],
       ),
     );
@@ -140,9 +147,13 @@ class _Exports extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: KvActionCard(icon: KvIcons.filePdf, title: 'PDF', subtitle: 'В «Файлы»', onTap: () => export('pdf'))),
+          Expanded(
+            child: KvActionCard(icon: KvIcons.filePdf, title: 'PDF', subtitle: 'В «Файлы»', onTap: () => export('pdf')),
+          ),
           const SizedBox(width: KvSpace.s3),
-          Expanded(child: KvActionCard(icon: KvIcons.fileXls, title: 'Excel', subtitle: 'В «Файлы»', onTap: () => export('xlsx'))),
+          Expanded(
+            child: KvActionCard(icon: KvIcons.fileXls, title: 'Excel', subtitle: 'В «Файлы»', onTap: () => export('xlsx')),
+          ),
         ],
       ),
     );
@@ -172,7 +183,10 @@ class _Handoff extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Находки уйдут мастеру', style: t.sm.copyWith(fontWeight: FontWeight.w600, color: c.text, height: KvTextStyles.normalHeight(14))),
+                Text(
+                  'Находки уйдут мастеру',
+                  style: t.sm.copyWith(fontWeight: FontWeight.w600, color: c.text, height: KvTextStyles.normalHeight(14)),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   KvFormat.typo('$master подтвердит или снимет их. Решение по осмотру за инженером.'),

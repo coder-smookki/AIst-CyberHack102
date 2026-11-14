@@ -101,10 +101,10 @@ AdmModelInfo admModelInfo(RecognitionModel m) =>
 
 /// Значок модели.
 KvIcons admModelIcon(RecognitionModel m) => switch (m.id) {
-      'm-gauge' => KvIcons.gauge,
-      'm-plate' => KvIcons.qr,
-      _ => KvIcons.target,
-    };
+  'm-gauge' => KvIcons.gauge,
+  'm-plate' => KvIcons.qr,
+  _ => KvIcons.target,
+};
 
 /// Название главной метрики модели: «Полнота дефектов».
 String admMetricLabel(RecognitionModel m) => m.metric.replaceFirst(RegExp(r'\s[0-9±].*$'), '');
@@ -282,14 +282,14 @@ const List<AdmPermGroup> kAdmPermGroups = [
 
 /// Значок роли по коду.
 KvIcons admRoleIcon(String roleId) => switch (roleId) {
-      'engineer' => KvIcons.wrench,
-      'master' => KvIcons.clipboard,
-      'operator' => KvIcons.gauge,
-      'admin' => KvIcons.server,
-      'security_admin' || 'sec' => KvIcons.shield,
-      'senior' => KvIcons.star,
-      _ => KvIcons.key,
-    };
+  'engineer' => KvIcons.wrench,
+  'master' => KvIcons.clipboard,
+  'operator' => KvIcons.gauge,
+  'admin' => KvIcons.server,
+  'security_admin' || 'sec' => KvIcons.shield,
+  'senior' => KvIcons.star,
+  _ => KvIcons.key,
+};
 
 /// «6 прав».
 String admRights(int n) => '$n ${KvFormat.plural(n, 'право', 'права', 'прав')}';
@@ -311,10 +311,10 @@ String admShortName(String name) {
 
 /// Подпись и тон состояния учётной записи.
 (String, KvStatus) admUserState(String status) => switch (status) {
-      'temp' => ('Временный пароль', KvStatus.warn),
-      'blocked' => ('Заблокирована', KvStatus.bad),
-      _ => ('Активна', KvStatus.ok),
-    };
+  'temp' => ('Временный пароль', KvStatus.warn),
+  'blocked' => ('Заблокирована', KvStatus.bad),
+  _ => ('Активна', KvStatus.ok),
+};
 
 /// Учётная запись ещё ни разу не входила.
 bool admNeverLoggedIn(AdminUser u) => u.lastLogin.isEmpty || u.lastLogin == 'ещё не входил';

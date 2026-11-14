@@ -107,7 +107,12 @@ class MoFrame extends StatelessWidget {
                   top: -top * ih,
                   width: iw,
                   height: ih,
-                  child: Image.asset(KvCamView.asset, fit: BoxFit.fill, cacheWidth: math.min(780, (iw * dpr).round()), gaplessPlayback: true),
+                  child: Image.asset(
+                    KvCamView.asset,
+                    fit: BoxFit.fill,
+                    cacheWidth: math.min(780, (iw * dpr).round()),
+                    gaplessPlayback: true,
+                  ),
                 ),
               ];
               for (final MoFrameBox b in boxes) {
@@ -115,11 +120,25 @@ class MoFrame extends StatelessWidget {
                 final double y = (b.y / 100 - top) / vh * h;
                 final double bw = b.w / 100 / vw * w;
                 final double bh = b.h / 100 / vh * h;
-                layers.add(Positioned(left: x, top: y, width: bw, height: bh, child: _FrameBox(kind: b.kind)));
+                layers.add(
+                  Positioned(
+                    left: x,
+                    top: y,
+                    width: bw,
+                    height: bh,
+                    child: _FrameBox(kind: b.kind),
+                  ),
+                );
                 if (b.label != null) {
                   final double yp = y / h * 100;
                   final double ly = math.max(y, 0);
-                  layers.add(Positioned(left: x, top: yp < 17 ? ly + 6 : ly - 26 - 6, child: KvArLabel(text: b.label!, kind: b.kind)));
+                  layers.add(
+                    Positioned(
+                      left: x,
+                      top: yp < 17 ? ly + 6 : ly - 26 - 6,
+                      child: KvArLabel(text: b.label!, kind: b.kind),
+                    ),
+                  );
                 }
               }
               if (chip != null) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/entry_routes.dart';
+import '../../../app/routes/master_operator_routes.dart';
 import '../../../app/state/app_state.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
@@ -56,22 +57,40 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
     };
     return KvSheet(
       title: 'Настройки',
+      actions: [KvButton('Готово', onPressed: () => Navigator.of(context).pop())],
       children: [
         const MoLabel('Тема'),
         KvSegment(
           items: const ['Светлая', 'Тёмная', 'Как в системе'],
           index: index,
-          onChanged: (int i) => ref.read(deviceSettingsProvider.notifier).setThemeMode(const [ThemeMode.light, ThemeMode.dark, ThemeMode.system][i]),
+          onChanged: (int i) =>
+              ref.read(deviceSettingsProvider.notifier).setThemeMode(const [ThemeMode.light, ThemeMode.dark, ThemeMode.system][i]),
         ),
         KvList(
           children: [
-            MoSwitchRow(icon: KvIcons.bell, title: 'Уведомления', subtitle: widget.notifications, value: _notify, onChanged: (bool v) => setState(() => _notify = v)),
-            MoSwitchRow(icon: KvIcons.finger, title: 'Вход по биометрии', subtitle: 'Отпечаток или лицо', value: _bio, onChanged: (bool v) => setState(() => _bio = v)),
-            MoSwitchRow(icon: KvIcons.vibrate, title: 'Вибрация при событиях', value: _vibrate, onChanged: (bool v) => setState(() => _vibrate = v)),
+            MoSwitchRow(
+              icon: KvIcons.bell,
+              title: 'Уведомления',
+              subtitle: widget.notifications,
+              value: _notify,
+              onChanged: (bool v) => setState(() => _notify = v),
+            ),
+            MoSwitchRow(
+              icon: KvIcons.finger,
+              title: 'Вход по биометрии',
+              subtitle: 'Отпечаток или лицо',
+              value: _bio,
+              onChanged: (bool v) => setState(() => _bio = v),
+            ),
+            MoSwitchRow(
+              icon: KvIcons.vibrate,
+              title: 'Вибрация при событиях',
+              value: _vibrate,
+              onChanged: (bool v) => setState(() => _vibrate = v),
+            ),
           ],
         ),
       ],
-      actions: [KvButton('Готово', onPressed: () => Navigator.of(context).pop())],
     );
   }
 }
@@ -133,7 +152,13 @@ Future<void> showMoShareSheet(BuildContext context, {required String title, requ
                 title: 'Отправить инженеру смены',
                 subtitle: 'Алексей Смирнов · в приложении',
                 onTap: () => after(
-                  () => showKvToast(screen, kind: KvToastKind.ok, icon: KvIcons.send, title: 'Отправлено', text: 'Алексей Смирнов получит файл в приложении'),
+                  () => showKvToast(
+                    screen,
+                    kind: KvToastKind.ok,
+                    icon: KvIcons.send,
+                    title: 'Отправлено',
+                    text: 'Алексей Смирнов получит файл в приложении',
+                  ),
                 ),
               ),
               KvRow(
@@ -173,13 +198,25 @@ KvIcons moPushIcon(AppNotification n) {
   };
 }
 
+/// Экран записи ленты: сообщение оператора без номера в записи ведёт к последнему новому сообщению.
+String? moNotificationTarget(WidgetRef ref, AppNotification n) {
+  if (n.target == '/master/shift' && n.title.startsWith('Оператор сообщил')) {
+    final List<FaultReport> reports = ref.read(faultReportsProvider(null)).value ?? const <FaultReport>[];
+    final FaultReport? r = reports.where((FaultReport x) => x.status == 'new').firstOrNull;
+    if (r != null) {
+      return MasterOperatorPaths.report(r.id);
+    }
+  }
+  return n.target;
+}
+
 /// Тон уведомления сверху по тону записи ленты.
 KvToastKind moToastKind(String kind) => switch (kind) {
-      'ok' => KvToastKind.ok,
-      'warn' => KvToastKind.warn,
-      'info' => KvToastKind.info,
-      _ => KvToastKind.bad,
-    };
+  'ok' => KvToastKind.ok,
+  'warn' => KvToastKind.warn,
+  'info' => KvToastKind.info,
+  _ => KvToastKind.bad,
+};
 
 /// Показывает новые записи ленты роли [roleKey] нажимаемым уведомлением сверху, пока экран на виду:
 /// так мастер и оператор получают push цехового сервера. Касание открывает экран из записи.
@@ -195,7 +232,10 @@ class MoPushListener extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<AsyncValue<List<AppNotification>>>(notificationsProvider(roleKey), (AsyncValue<List<AppNotification>>? prev, AsyncValue<List<AppNotification>> next) {
+    ref.listen<AsyncValue<List<AppNotification>>>(notificationsProvider(roleKey), (
+      AsyncValue<List<AppNotification>>? prev,
+      AsyncValue<List<AppNotification>> next,
+    ) {
       final List<AppNotification>? before = prev?.value;
       final List<AppNotification>? now = next.value;
       if (before == null || now == null || now.isEmpty || !(ModalRoute.isCurrentOf(context) ?? true)) {
@@ -206,7 +246,7 @@ class MoPushListener extends ConsumerWidget {
       if (fresh == null) {
         return;
       }
-      final String? target = fresh.target;
+      final String? target = moNotificationTarget(ref, fresh);
       showKvToast(
         context,
         kind: moToastKind(fresh.kind),
@@ -218,4 +258,33 @@ class MoPushListener extends ConsumerWidget {
     });
     return child;
   }
+}
+
+/// Признаки, отмеченные оператором в сообщении: сервер передаёт их списком (signs), в истории S-077 их два.
+List<String> moReportSigns(FaultReport r) => r.id == 'S-077'
+    ? const ['Течь', 'Шум или стук']
+    : [
+        for (final String s in r.kind.split(', '))
+          if (s.isNotEmpty) s,
+      ];
+
+/// Тон признака неисправности: течь, нагрев и запах - красные, остальные - жёлтые.
+KvStatus moSignTone(String sign) => switch (sign) {
+  'Течь' || 'Нагрев' || 'Запах гари' => KvStatus.bad,
+  _ => KvStatus.warn,
+};
+
+/// Тон шага хода работ по сообщению: дефект - красный, осмотр без дефекта - жёлтый, закрытие - зелёный.
+KvStatus moStepTone(String title) {
+  final String t = title.toLowerCase();
+  if (t.contains('дефект')) {
+    return KvStatus.bad;
+  }
+  if (t.contains('закрыто')) {
+    return KvStatus.ok;
+  }
+  if (t.contains('осмотр выполнен')) {
+    return KvStatus.warn;
+  }
+  return KvStatus.info;
 }

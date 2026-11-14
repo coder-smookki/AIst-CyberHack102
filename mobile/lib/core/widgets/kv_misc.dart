@@ -171,7 +171,17 @@ class _TimelineRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(item.time, style: text.label.copyWith(fontWeight: FontWeight.w400, color: colors.text3)),
+                Text(
+                  item.time,
+                  style: text.label.copyWith(fontWeight: FontWeight.w400, color: colors.text3),
+                  strutStyle: StrutStyle(
+                    fontFamily: KvTextStyles.kvFontFamily,
+                    fontSize: 15,
+                    height: KvTextStyles.normalHeight(15),
+                    leadingDistribution: TextLeadingDistribution.even,
+                    forceStrutHeight: true,
+                  ),
+                ),
                 const SizedBox(height: 1),
                 Text(item.title, style: text.sm.copyWith(fontWeight: FontWeight.w500, height: 1.35)),
                 if (item.text != null) ...[

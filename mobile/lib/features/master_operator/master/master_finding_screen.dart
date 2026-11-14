@@ -16,11 +16,11 @@ const Map<String, String> _frames = {'F-1043': 'Кадр 09:31 · INS-2209', 'F-
 
 /// Источник основания: значок и подпись.
 (KvIcons, String) _source(String src) => switch (src) {
-      'camera' => (KvIcons.camera, 'Камера, живое видео'),
-      'data' => (KvIcons.database, 'Учёт наработки'),
-      'user' => (KvIcons.megaphone, 'Оператор смены'),
-      _ => (KvIcons.activity, 'Датчики, сервер ввода-вывода'),
-    };
+  'camera' => (KvIcons.camera, 'Камера, живое видео'),
+  'data' => (KvIcons.database, 'Учёт наработки'),
+  'user' => (KvIcons.megaphone, 'Оператор смены'),
+  _ => (KvIcons.activity, 'Датчики, сервер ввода-вывода'),
+};
 
 /// Проверка находки мастером: кадр или график, тяжесть и правило, доказательства, комментарий автора,
 /// рекомендация правила, решение и действия «Отклонить» / «Подтвердить».
@@ -62,10 +62,13 @@ class MasterFindingScreen extends ConsumerWidget {
         ? [for (final Evidence e in match.evidence) (e.source, e.text)]
         : [
             for (final String e in f.evidence)
-              (moEvidenceSource(e), () {
-                final String s = e.replaceFirst(RegExp('^Камера: '), '');
-                return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-              }()),
+              (
+                moEvidenceSource(e),
+                () {
+                  final String s = e.replaceFirst(RegExp('^Камера: '), '');
+                  return s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+                }(),
+              ),
           ];
     final MoDecision decision = MoDecision.of(f, code);
     final String back = isNew ? MasterOperatorPaths.masterFindings : MasterOperatorPaths.dMFindingsAll;
@@ -84,7 +87,15 @@ class MasterFindingScreen extends ConsumerWidget {
       ),
       KvNote(
         child: Text.rich(
-          TextSpan(children: [TextSpan(text: 'Рекомендация ${f.ruleId}.', style: const TextStyle(fontWeight: FontWeight.w600)), TextSpan(text: ' ${KvFormat.typo(f.recommendation)}')]),
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'Рекомендация ${f.ruleId}.',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              TextSpan(text: ' ${KvFormat.typo(f.recommendation)}'),
+            ],
+          ),
         ),
       ),
       if (!isNew && (f.status == 'planned' || f.status == 'confirmed') && f.confirmedBy != null)
@@ -94,7 +105,12 @@ class MasterFindingScreen extends ConsumerWidget {
             if (f.planned != null) ('Работы', KvFormat.typo(f.planned!)),
           ]),
         ),
-      if (f.status == 'closed') KvNote(tone: KvStatus.ok, icon: KvIcons.checkCircle, text: KvFormat.typo('${f.closedNote ?? 'Замечание снято'} · ${f.closedBy ?? ''}')),
+      if (f.status == 'closed')
+        KvNote(
+          tone: KvStatus.ok,
+          icon: KvIcons.checkCircle,
+          text: KvFormat.typo('${f.closedNote ?? 'Замечание снято'} · ${f.closedBy ?? ''}'),
+        ),
       if (full)
         KvList(
           children: [
@@ -104,7 +120,12 @@ class MasterFindingScreen extends ConsumerWidget {
               subtitle: KvFormat.typo(f.unitId == 'AMS-2' ? 'Отдельный ремонт' : 'Включить в ТО-2 · 15.11, 10:00'),
               onTap: () => showMoScheduleSheet(context, f, code),
             ),
-            KvRow(icon: KvIcons.edit, title: 'Комментарий мастера', subtitle: 'Виден инженеру и в отчёте', onTap: () => showMoCommentSheet(context, f)),
+            KvRow(
+              icon: KvIcons.edit,
+              title: 'Комментарий мастера',
+              subtitle: 'Виден инженеру и в отчёте',
+              onTap: () => showMoCommentSheet(context, f),
+            ),
           ],
         ),
     ];
@@ -114,10 +135,20 @@ class MasterFindingScreen extends ConsumerWidget {
       foot = Row(
         children: [
           Expanded(
-            child: KvButton('Отклонить', kind: KvButtonKind.dangerSoft, onPressed: () => showMoRejectDialog(context, f, story: story, stay: decision.rejectStays && !story)),
+            child: KvButton(
+              'Отклонить',
+              kind: KvButtonKind.dangerSoft,
+              onPressed: () => showMoRejectDialog(context, f, story: story, stay: decision.rejectStays && !story),
+            ),
           ),
           const SizedBox(width: KvSpace.s3),
-          Expanded(child: KvButton('Подтвердить', icon: KvIcons.check, onPressed: () => showMoConfirmSheet(context, f, code, story: story))),
+          Expanded(
+            child: KvButton(
+              'Подтвердить',
+              icon: KvIcons.check,
+              onPressed: () => showMoConfirmSheet(context, f, code, story: story),
+            ),
+          ),
         ],
       );
     } else if (rejected) {
@@ -184,8 +215,8 @@ class MasterFindingScreen extends ConsumerWidget {
       src = cam && sen
           ? 'камера + датчики'
           : cam
-              ? 'камера'
-              : 'датчики';
+          ? 'камера'
+          : 'датчики';
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 2, 2, 0),
@@ -193,7 +224,14 @@ class MasterFindingScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Wrap(spacing: KvSpace.s2, runSpacing: KvSpace.s2, children: [KvChip(sev.$1, status: sev.$2), KvChip(src.isEmpty ? f.ruleId : '${f.ruleId} · $src', dot: false)]),
+          Wrap(
+            spacing: KvSpace.s2,
+            runSpacing: KvSpace.s2,
+            children: [
+              KvChip(sev.$1, status: sev.$2),
+              KvChip(src.isEmpty ? f.ruleId : '${f.ruleId} · $src', dot: false),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(f.title, style: t.hdr),
           const SizedBox(height: 6),

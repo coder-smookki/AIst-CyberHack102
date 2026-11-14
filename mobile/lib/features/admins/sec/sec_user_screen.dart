@@ -26,17 +26,25 @@ class SecUserScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AdminUser? u = ref.watch(adminUsersProvider.select((AsyncValue<List<AdminUser>> a) => a.value?.where((AdminUser x) => x.id == userId).firstOrNull));
+    final AdminUser? u = ref.watch(
+      adminUsersProvider.select((AsyncValue<List<AdminUser>> a) => a.value?.where((AdminUser x) => x.id == userId).firstOrNull),
+    );
     final List<Role> roles = ref.watch(rolesProvider).value ?? const <Role>[];
     final List<UserSession> sessions = ref.watch(sessionsProvider(userId)).value ?? const <UserSession>[];
     final String? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.id));
     if (u == null || roles.isEmpty) {
       return KvScreen(
         header: KvHeader(title: 'Сотрудник', subtitle: ' ', onBack: () => context.kvBack(AdminsPaths.secUsers)),
-        children: const [KvSkeleton.card(height: 120), KvSkeleton.card(height: 200)],
+        children: const [KvSkeleton.card(), KvSkeleton.card(height: 200)],
       );
     }
-    final SecUserCtx x = SecUserCtx(user: u, role: roles.where((Role r) => r.id == u.roleCode).firstOrNull, roles: roles, sessions: sessions, me: me);
+    final SecUserCtx x = SecUserCtx(
+      user: u,
+      role: roles.where((Role r) => r.id == u.roleCode).firstOrNull,
+      roles: roles,
+      sessions: sessions,
+      me: me,
+    );
     final (String stateLabel, KvStatus tone) = admUserState(u.status);
     return KvScreen(
       header: KvHeader(
@@ -56,9 +64,19 @@ class SecUserScreen extends ConsumerWidget {
         if (x.self)
           KvNote(icon: KvIcons.info, text: ty('Свою учётную запись нельзя заблокировать. Это может сделать другой администратор ИБ.'))
         else if (u.status == 'blocked')
-          KvButton('Разблокировать', kind: KvButtonKind.secondary, icon: KvIcons.unlock, onPressed: () => showUnblockDialog(context, ref, x))
+          KvButton(
+            'Разблокировать',
+            kind: KvButtonKind.secondary,
+            icon: KvIcons.unlock,
+            onPressed: () => showUnblockDialog(context, ref, x),
+          )
         else
-          KvButton('Заблокировать учётную запись', kind: KvButtonKind.dangerSoft, icon: KvIcons.ban, onPressed: () => showBlockDialog(context, ref, x)),
+          KvButton(
+            'Заблокировать учётную запись',
+            kind: KvButtonKind.dangerSoft,
+            icon: KvIcons.ban,
+            onPressed: () => showBlockDialog(context, ref, x),
+          ),
       ],
     );
   }
@@ -110,7 +128,9 @@ class SecUserScreen extends ConsumerWidget {
     final AdminUser u = x.user;
     if (u.status == 'blocked') {
       return KvList(
-        children: [KvRow(icon: KvIcons.key, iconStatus: KvStatus.unk, title: x.roleName, subtitle: 'Роль · ${admRights(x.rights)} · не действует')],
+        children: [
+          KvRow(icon: KvIcons.key, iconStatus: KvStatus.unk, title: x.roleName, subtitle: 'Роль · ${admRights(x.rights)} · не действует'),
+        ],
       );
     }
     final bool temp = u.status == 'temp';
@@ -119,7 +139,12 @@ class SecUserScreen extends ConsumerWidget {
         if (x.self)
           KvRow(icon: admRoleIcon(u.roleCode), title: x.roleName, subtitle: 'Свою роль изменить нельзя')
         else
-          KvRow(icon: admRoleIcon(u.roleCode), title: x.roleName, subtitle: 'Роль · ${admRights(x.rights)}', onTap: () => showRoleSheet(context, ref, x)),
+          KvRow(
+            icon: admRoleIcon(u.roleCode),
+            title: x.roleName,
+            subtitle: 'Роль · ${admRights(x.rights)}',
+            onTap: () => showRoleSheet(context, ref, x),
+          ),
         KvRow(
           icon: KvIcons.lock,
           title: temp ? 'Временный пароль' : 'Пароль',
@@ -161,7 +186,12 @@ class SecUserScreen extends ConsumerWidget {
             subtitle: ty('${s.method.isEmpty ? 'Вход' : s.method} · с ${s.since}'),
             trailing: s.userId == x.me
                 ? const KvChip('Это устройство', status: KvStatus.info, dot: false)
-                : KvButton('Завершить', kind: KvButtonKind.dangerSoft, small: true, onPressed: () => showSessionDialog(context, ref, x, session: s)),
+                : KvButton(
+                    'Завершить',
+                    kind: KvButtonKind.dangerSoft,
+                    small: true,
+                    onPressed: () => showSessionDialog(context, ref, x, session: s),
+                  ),
           ),
       ],
     );
@@ -201,6 +231,7 @@ class SecUserCtx {
   List<UserSession> get otherSessions => sessions.where((UserSession s) => s.userId != me).toList();
 }
 
+/// Карточка учётной записи: аватар, почта, последний вход и способ входа.
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({required this.user});
 
@@ -221,7 +252,10 @@ class _ProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(u.email, style: t.body.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(15))),
+                Text(
+                  u.email,
+                  style: t.body.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(15)),
+                ),
                 const SizedBox(height: 3),
                 Text(admNeverLoggedIn(u) ? 'Ещё не входил' : ty('Последний вход ${u.lastLogin}'), style: cap),
                 const SizedBox(height: 3),
@@ -254,7 +288,12 @@ void showUserMenu(BuildContext context, WidgetRef ref, SecUserCtx x) {
               onTap: () => admCloseThen(sheet, () => screen.kvFade(AdminsPaths.secLog)),
             ),
             if (u.status == 'blocked')
-              KvRow(icon: KvIcons.unlock, iconStatus: KvStatus.ok, title: 'Разблокировать', onTap: () => admCloseThen(sheet, () => showUnblockDialog(screen, ref, x)))
+              KvRow(
+                icon: KvIcons.unlock,
+                iconStatus: KvStatus.ok,
+                title: 'Разблокировать',
+                onTap: () => admCloseThen(sheet, () => showUnblockDialog(screen, ref, x)),
+              )
             else ...[
               KvRow(
                 icon: KvIcons.key,
@@ -288,9 +327,13 @@ void showUserMenu(BuildContext context, WidgetRef ref, SecUserCtx x) {
 /// Выбор роли сотрудника (e-user-*-role): своя роль показывается плашкой на карточке, системная - уведомлением.
 void showRoleSheet(BuildContext context, WidgetRef ref, SecUserCtx x) {
   final BuildContext screen = context;
-  showKvSheet<void>(context, builder: (BuildContext sheet) => _RoleSheet(x: x, screen: screen));
+  showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _RoleSheet(x: x, screen: screen),
+  );
 }
 
+/// Лист выбора роли сотрудника с отметкой выбранной роли.
 class _RoleSheet extends ConsumerStatefulWidget {
   const _RoleSheet({required this.x, required this.screen});
 
@@ -363,7 +406,9 @@ void showResetDialog(BuildContext context, WidgetRef ref, SecUserCtx x) {
       icon: KvIcons.key,
       tone: KvStatus.warn,
       title: temp ? 'Выдать новый пароль?' : 'Сбросить пароль?',
-      text: ty('Текущий пароль перестанет действовать, сеансы на устройствах завершатся. ${admShortName(u.name)} получит временный пароль на $hours ч.'),
+      text: ty(
+        'Текущий пароль перестанет действовать, сеансы на устройствах завершатся. ${admShortName(u.name)} получит временный пароль на $hours ч.',
+      ),
       actions: [
         AdmDialogActions(
           okText: temp ? 'Выдать' : 'Сбросить',
@@ -392,8 +437,15 @@ void showTempPasswordSheet(BuildContext context, WidgetRef ref, String userId) {
           children: [
             AdmCaption('Сотрудник: ${u?.name ?? ''}. Пароль показан один раз.'),
             AdmPassword(u?.tempPassword ?? ''),
-            KvKeyValues([('Действует до', (u?.tempUntil ?? '').replaceFirst(' ', ', ')), ('При первом входе', 'задаст свой пароль')]),
-            KvNote(tone: KvStatus.warn, icon: KvIcons.shield, text: 'Передайте пароль лично. Не отправляйте его в мессенджерах и почте.'),
+            ...admLooseKeyValues(context, [
+              ('Действует до', (u?.tempUntil ?? '').replaceFirst(' ', ', ')),
+              ('При первом входе', 'задаст свой пароль'),
+            ]),
+            const KvNote(
+              tone: KvStatus.warn,
+              icon: KvIcons.shield,
+              text: 'Передайте пароль лично. Не отправляйте его в мессенджерах и почте.',
+            ),
           ],
         );
       },
@@ -437,6 +489,7 @@ void showBlockDialog(BuildContext context, WidgetRef ref, SecUserCtx x) {
   showKvDialog<void>(context, builder: (BuildContext dialog) => _BlockDialog(x: x));
 }
 
+/// Диалог блокировки с полем причины.
 class _BlockDialog extends ConsumerStatefulWidget {
   const _BlockDialog({required this.x});
 
@@ -463,7 +516,13 @@ class _BlockDialogState extends ConsumerState<_BlockDialog> {
       tone: KvStatus.bad,
       title: 'Заблокировать учётную запись?',
       text: ty('${admShortName(u.name)} не сможет войти, активные сеансы завершатся сразу.'),
-      body: KvField(label: 'Причина', placeholder: 'Укажите причину', area: true, controller: _reason, fieldKey: const ValueKey<String>('block-reason')),
+      body: KvField(
+        label: 'Причина',
+        placeholder: 'Укажите причину',
+        area: true,
+        controller: _reason,
+        fieldKey: const ValueKey<String>('block-reason'),
+      ),
       actions: [
         AdmDialogActions(
           okText: 'Заблокировать',

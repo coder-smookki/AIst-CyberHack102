@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/kv_theme.dart';
+import '../features/entry/session_watch.dart';
 import 'router.dart';
 import 'state/app_state.dart';
 
@@ -31,7 +32,7 @@ class KvApp extends ConsumerWidget {
         final MediaQueryData mq = MediaQuery.of(context);
         return MediaQuery(
           data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: 1, maxScaleFactor: 1.3)),
-          child: child ?? const SizedBox.shrink(),
+          child: EntrySessionWatch(navigatorKey: kvRootNavigatorKey, child: child ?? const SizedBox.shrink()),
         );
       },
     );

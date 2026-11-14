@@ -69,11 +69,19 @@ class _Paper extends ConsumerWidget {
                   SizedBox(height: gap),
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text('НАХОДКИ', style: base.copyWith(fontWeight: FontWeight.w600, color: c.text2, letterSpacing: 0.2)),
+                    child: Text(
+                      'НАХОДКИ',
+                      style: base.copyWith(fontWeight: FontWeight.w600, color: c.text2, letterSpacing: 0.2),
+                    ),
                   ),
                   for (int i = 0; i < page.length; i++) ...[
                     SizedBox(height: gap),
-                    _Finding(finding: page[i], detection: detections.where((Detection d) => d.label == page[i].frame).firstOrNull, first: i == 0, narrow: narrow),
+                    _Finding(
+                      finding: page[i],
+                      detection: detections.where((Detection d) => d.label == page[i].frame).firstOrNull,
+                      first: i == 0,
+                      narrow: narrow,
+                    ),
                   ],
                   SizedBox(height: gap),
                   const Spacer(),
@@ -109,18 +117,28 @@ class _Top extends StatelessWidget {
     final TextStyle base = DefaultTextStyle.of(context).style;
     return Container(
       padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.divider))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: c.divider)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const KvLogo(white: false, height: 14),
+          const KvLogo(height: 14),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(KvFormat.typo('Акт осмотра ${summary.inspectionId}'), textAlign: TextAlign.right, style: base.copyWith(fontSize: 11, fontWeight: FontWeight.w600)),
-                Text('${summary.date} · ${summary.start}-${summary.end}', textAlign: TextAlign.right, style: base.copyWith(fontSize: 9, color: c.text2)),
+                Text(
+                  KvFormat.typo('Акт осмотра ${summary.inspectionId}'),
+                  textAlign: TextAlign.right,
+                  style: base.copyWith(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${summary.date} · ${summary.start}-${summary.end}',
+                  textAlign: TextAlign.right,
+                  style: base.copyWith(fontSize: 9, color: c.text2),
+                ),
               ],
             ),
           ),
@@ -216,7 +234,15 @@ class _Resource extends StatelessWidget {
 
 /// Плашка ресурса (.c-p-res > div): подпись, остаток часов, полоска 3 px и пояснение.
 class _ResCell extends StatelessWidget {
-  const _ResCell({required this.label, required this.value, required this.color, required this.fill, required this.bar, required this.note, required this.narrow});
+  const _ResCell({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.fill,
+    required this.bar,
+    required this.note,
+    required this.narrow,
+  });
 
   final String label;
   final String value;
@@ -243,7 +269,13 @@ class _ResCell extends StatelessWidget {
             KvFormat.typo(value),
             maxLines: 1,
             softWrap: false,
-            style: base.copyWith(fontSize: narrow ? 13 : 15, fontWeight: FontWeight.w300, height: 1, color: color),
+            style: base.copyWith(
+              fontSize: narrow ? 13 : 15,
+              fontWeight: FontWeight.w300,
+              height: 1,
+              color: color,
+              leadingDistribution: TextLeadingDistribution.even,
+            ),
           ),
           const SizedBox(height: 3),
           Container(
@@ -253,7 +285,9 @@ class _ResCell extends StatelessWidget {
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: fill.clamp(0.0, 1.0),
-              child: DecoratedBox(decoration: BoxDecoration(color: bar, borderRadius: BorderRadius.circular(3))),
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: bar, borderRadius: BorderRadius.circular(3)),
+              ),
             ),
           ),
           const SizedBox(height: 3),
@@ -319,7 +353,12 @@ class _Finding extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(color: chipBg, borderRadius: BorderRadius.circular(8)),
-                    child: Text(label, maxLines: 1, softWrap: false, style: base.copyWith(fontSize: 8.5, fontWeight: FontWeight.w600, height: 1.25, color: chipFg)),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: base.copyWith(fontSize: 8.5, fontWeight: FontWeight.w600, height: 1.25, color: chipFg),
+                    ),
                   ),
                 ],
               ),
@@ -330,7 +369,10 @@ class _Finding extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(padding: const EdgeInsets.only(top: 1), child: KvIcon(_icon(finding.evidence[i]), size: 11, color: c.text3)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: KvIcon(_icon(finding.evidence[i]), size: 11, color: c.text3),
+                      ),
                       const SizedBox(width: 5),
                       Expanded(child: Text(KvFormat.typo(finding.evidence[i].text), style: base.copyWith(fontSize: 9))),
                     ],
@@ -350,7 +392,9 @@ class _Finding extends StatelessWidget {
     }
     return Container(
       padding: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: c.divider))),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: c.divider)),
+      ),
       child: body,
     );
   }
@@ -385,7 +429,6 @@ class _Thumb extends StatelessWidget {
       child: SizedBox.square(
         dimension: size,
         child: Stack(
-          clipBehavior: Clip.hardEdge,
           children: [
             Positioned(
               left: px,
@@ -400,7 +443,10 @@ class _Thumb extends StatelessWidget {
               width: d.w / 100 * w,
               height: d.h / 100 * h,
               child: DecoratedBox(
-                decoration: BoxDecoration(border: Border.all(color: c.arDefect, width: 1.5), borderRadius: BorderRadius.circular(3)),
+                decoration: BoxDecoration(
+                  border: Border.all(color: c.arDefect, width: 1.5),
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
             ),
           ],
@@ -450,14 +496,20 @@ class _Sign extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.only(bottom: 1),
                   margin: const EdgeInsets.only(bottom: 2),
-                  decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.text2))),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: c.text2)),
+                  ),
                   child: Text(
                     last,
                     textAlign: TextAlign.center,
                     style: base.copyWith(fontSize: 13, fontStyle: FontStyle.italic, color: c.brandDeep),
                   ),
                 ),
-                Text(KvFormat.typo(ServiceFormat.short(who)), textAlign: TextAlign.center, style: base.copyWith(fontSize: 9, color: c.text2)),
+                Text(
+                  KvFormat.typo(ServiceFormat.short(who)),
+                  textAlign: TextAlign.center,
+                  style: base.copyWith(fontSize: 9, color: c.text2),
+                ),
               ],
             ),
           ),

@@ -30,6 +30,19 @@ class OfflineScreen extends ConsumerWidget {
         onBack: () => context.kvBack(EntryPaths.login),
         onMore: () => showEntryConnectionSheet(context),
       ),
+      foot: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          KvButton('Повторить подключение', icon: KvIcons.refresh, wait: true, onPressed: () => context.kvFade(EntryPaths.aLoginLoading)),
+          const SizedBox(height: KvSpace.s2),
+          KvButton(
+            'Работать без связи',
+            kind: KvButtonKind.secondary,
+            icon: KvIcons.wifiOff,
+            onPressed: () => showEntryOfflineDialog(context),
+          ),
+        ],
+      ),
       children: [
         KvCard(
           padding: const EdgeInsets.fromLTRB(KvSpace.s4, KvSpace.s5, KvSpace.s4, KvSpace.s4),
@@ -66,19 +79,6 @@ class OfflineScreen extends ConsumerWidget {
           ],
         ),
       ],
-      foot: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          KvButton('Повторить подключение', icon: KvIcons.refresh, wait: true, onPressed: () => context.kvFade(EntryPaths.aLoginLoading)),
-          const SizedBox(height: KvSpace.s2),
-          KvButton(
-            'Работать без связи',
-            kind: KvButtonKind.secondary,
-            icon: KvIcons.wifiOff,
-            onPressed: () => showEntryOfflineDialog(context),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -126,7 +126,7 @@ class _NetNode extends StatelessWidget {
             height: 52,
             alignment: Alignment.center,
             decoration: BoxDecoration(color: bad ? c.badBg : c.tint2, shape: BoxShape.circle),
-            child: KvIcon(icon, size: 24, color: bad ? c.bad : c.brand),
+            child: KvIcon(icon, color: bad ? c.bad : c.brand),
           ),
           const SizedBox(height: 6),
           Text(
@@ -153,24 +153,34 @@ class _NetLink extends StatefulWidget {
 }
 
 class _NetLinkState extends State<_NetLink> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+  /// Ход бегущей точки; у оборванной связи анимации нет.
+  AnimationController? _c;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.ok) {
+      _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
+    }
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!widget.ok) {
+    final AnimationController? c = _c;
+    if (c == null) {
       return;
     }
     if (context.kvReduceMotion) {
-      _c.stop();
-    } else if (!_c.isAnimating) {
-      _c.repeat();
+      c.stop();
+    } else if (!c.isAnimating) {
+      c.repeat();
     }
   }
 
   @override
   void dispose() {
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
@@ -190,13 +200,15 @@ class _NetLinkState extends State<_NetLink> with SingleTickerProviderStateMixin 
               top: 25,
               height: 2,
               child: widget.ok
-                  ? DecoratedBox(decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(1)))
+                  ? DecoratedBox(
+                      decoration: BoxDecoration(color: c.brand, borderRadius: BorderRadius.circular(1)),
+                    )
                   : CustomPaint(painter: _DashPainter(c.bad)),
             ),
-            if (widget.ok)
+            if (_c case final AnimationController flow?)
               Positioned.fill(
                 child: RepaintBoundary(
-                  child: CustomPaint(painter: _FlowDotPainter(_c, c.brand, reduce: context.kvReduceMotion)),
+                  child: CustomPaint(painter: _FlowDotPainter(flow, c.brand, reduce: context.kvReduceMotion)),
                 ),
               )
             else
@@ -287,10 +299,6 @@ class _ConnectionSheet extends ConsumerWidget {
     final String phone = info.admin.phone.replaceAll(' ', KvFormat.nbsp).replaceAll('-', '-⁠');
     return KvSheet(
       title: 'Подключение',
-      children: [
-        EntryKeyValueCard(pairs, outline: true),
-        KvNote(icon: KvIcons.info, text: 'Сервер обслуживает администратор системы: ${info.admin.name}, $phone'),
-      ],
       actions: [
         KvButton(
           'Скопировать для администратора',
@@ -298,9 +306,19 @@ class _ConnectionSheet extends ConsumerWidget {
           icon: KvIcons.copy,
           onPressed: () {
             Clipboard.setData(ClipboardData(text: pairs.map(((String, String) p) => '${p.$1}: ${p.$2}').join('\n')));
-            showKvToast(context, kind: KvToastKind.ok, icon: KvIcons.copy, title: 'Данные скопированы', text: 'Передайте их администратору системы');
+            showKvToast(
+              context,
+              kind: KvToastKind.ok,
+              icon: KvIcons.copy,
+              title: 'Данные скопированы',
+              text: 'Передайте их администратору системы',
+            );
           },
         ),
+      ],
+      children: [
+        EntryKeyValueCard(pairs, outline: true),
+        KvNote(icon: KvIcons.info, text: 'Сервер обслуживает администратор системы: ${info.admin.name}, $phone'),
       ],
     );
   }

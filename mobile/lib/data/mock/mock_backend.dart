@@ -135,10 +135,10 @@ class MockBackend implements KvChangeFeed {
 
   /// Добавить событие в историю агрегата.
   void pushHistory(String unitId, {required String status, required String title, required String text, String? who}) {
-    db.history.putIfAbsent(unitId, () => <HistoryEvent>[]).insert(
-          0,
-          HistoryEvent(date: dateNow, time: timeNow, status: status, title: title, text: text, who: who ?? currentUserName),
-        );
+    db.history[unitId] = [
+      HistoryEvent(date: dateNow, time: timeNow, status: status, title: title, text: text, who: who ?? currentUserName),
+      ...?db.history[unitId],
+    ];
   }
 
   /// Добавить запись в журнал безопасности.

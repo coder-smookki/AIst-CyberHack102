@@ -5,7 +5,6 @@ import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/admins_routes.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
-import '../widgets/adm_widgets.dart';
 
 /// Недавно открытые карточки сотрудников (по умолчанию - как в прототипе: Елена Титова и Алексей Смирнов).
 const List<String> kSecRecentUsers = ['u-106', 'u-101'];
@@ -55,7 +54,9 @@ class _SecUserSearchScreenState extends ConsumerState<SecUserSearchScreen> {
   Widget build(BuildContext context) {
     final List<AdminUser> users = ref.watch(adminUsersProvider).value ?? const <AdminUser>[];
     final String q = _q.text.trim().toLowerCase();
-    final List<AdminUser> found = q.isEmpty ? const <AdminUser>[] : (users.where((AdminUser u) => _rank(u, q) >= 0).toList()..sort((AdminUser a, AdminUser b) => _rank(a, q).compareTo(_rank(b, q))));
+    final List<AdminUser> found = q.isEmpty
+        ? const <AdminUser>[]
+        : (users.where((AdminUser u) => _rank(u, q) >= 0).toList()..sort((AdminUser a, AdminUser b) => _rank(a, q).compareTo(_rank(b, q))));
     final List<AdminUser> recent = [for (final String id in kSecRecentUsers) ...users.where((AdminUser u) => u.id == id)];
     return KvScreen(
       header: KvHeader(title: 'Поиск', subtitle: 'Имя, почта или роль', onBack: () => context.kvBack(AdminsPaths.secUsers)),
@@ -73,7 +74,7 @@ class _SecUserSearchScreenState extends ConsumerState<SecUserSearchScreen> {
         if (q.isNotEmpty) ...[
           KvSectionLabel('Найдено ${found.length}'),
           if (found.isEmpty)
-            const KvEmpty(title: 'Никого не найдено', text: 'Проверьте написание имени или почты', icon: KvIcons.search)
+            const KvEmpty(title: 'Никого не найдено', text: 'Проверьте написание имени или почты')
           else
             KvList(
               children: [
@@ -92,7 +93,13 @@ class _SecUserSearchScreenState extends ConsumerState<SecUserSearchScreen> {
         KvList(
           children: [
             for (final AdminUser u in recent)
-              KvRow(icon: KvIcons.history, iconStatus: KvStatus.unk, title: u.name, subtitle: u.roleLabel, onTap: () => context.kvPush(AdminsPaths.user(u.id))),
+              KvRow(
+                icon: KvIcons.history,
+                iconStatus: KvStatus.unk,
+                title: u.name,
+                subtitle: u.roleLabel,
+                onTap: () => context.kvPush(AdminsPaths.user(u.id)),
+              ),
           ],
         ),
       ],

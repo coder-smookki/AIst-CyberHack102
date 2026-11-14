@@ -73,7 +73,10 @@ class _SecUsersScreenState extends ConsumerState<SecUsersScreen> {
     final int active = users.length - blocked;
     final SecLogEntry? fail = log.where((SecLogEntry e) => e.kind == 'fail').firstOrNull;
     final AdminUser? failUser = fail?.userId == null ? null : users.where((AdminUser u) => u.id == fail!.userId).firstOrNull;
-    final List<AdminUser> shown = _filter.apply(users).where((AdminUser u) => _chip == 0 || (_chip == 1 ? u.status != 'blocked' : u.status == 'blocked')).toList();
+    final List<AdminUser> shown = _filter
+        .apply(users)
+        .where((AdminUser u) => _chip == 0 || (_chip == 1 ? u.status != 'blocked' : u.status == 'blocked'))
+        .toList();
     return KvScreen(
       header: KvRootHeader(
         title: 'Пользователи',
@@ -91,7 +94,11 @@ class _SecUsersScreenState extends ConsumerState<SecUsersScreen> {
           ],
         ),
         KvFilterChips(
-          items: [const KvFilterItem('Все'), KvFilterItem('Активные', count: '$active'), KvFilterItem('Блок', count: '$blocked')],
+          items: [
+            const KvFilterItem('Все'),
+            KvFilterItem('Активные', count: '$active'),
+            KvFilterItem('Блок', count: '$blocked'),
+          ],
           selected: _chip,
           onSelected: (int i) => setState(() => _chip = i),
         ),
@@ -100,7 +107,8 @@ class _SecUsersScreenState extends ConsumerState<SecUsersScreen> {
             tone: KvStatus.warn,
             icon: KvIcons.alert,
             bold: '${fail.title ?? fail.text} · ${fail.time}',
-            text: '${fail.who.split('@').first}, ${failUser?.status == 'blocked' ? 'учётная запись заблокирована ${failUser!.blockedAt?.substring(0, 5) ?? ''}' : 'учётная запись активна'}',
+            text:
+                '${fail.who.split('@').first}, ${failUser?.status == 'blocked' ? 'учётная запись заблокирована ${failUser!.blockedAt?.substring(0, 5) ?? ''}' : 'учётная запись активна'}',
             onTap: () => context.kvFade(AdminsPaths.secLogOpen('fail')),
           ),
         if (!async.hasValue)
@@ -191,7 +199,10 @@ class _FilterSheetState extends ConsumerState<_FilterSheet> {
         const AdmSub('Роль'),
         KvFilterChips.multi(
           items: [for (final Role r in roles) KvFilterItem(r.name)],
-          selectedSet: {for (int i = 0; i < roles.length; i++) if (_roles.contains(roles[i].id)) i},
+          selectedSet: {
+            for (int i = 0; i < roles.length; i++)
+              if (_roles.contains(roles[i].id)) i,
+          },
           onSelected: (int i) => setState(() {
             final String id = roles[i].id;
             _roles = _roles.contains(id) ? ({..._roles}..remove(id)) : {..._roles, id};

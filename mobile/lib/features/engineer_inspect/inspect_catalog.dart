@@ -98,6 +98,9 @@ const Map<String, DefectClass> kDefectClasses = {
   ),
 };
 
+/// Признак, с которым открываются экраны признака и формы дефекта без параметра: течь у вала Н-101.
+const String kDefaultSign = 'Течь у вала';
+
 /// Типы дефекта в форме «Новый дефект».
 const List<String> kDefectKinds = ['Течь', 'Коррозия', 'Подгорание', 'Повреждение', 'Другое'];
 
@@ -126,3 +129,62 @@ const Map<String, String> kChartNotes = {
 
 /// Подпись манометра на живом видео: «4,6 бар» из «Манометр · 4,6 бар».
 String gaugeValueOf(String label) => label.contains(' · ') ? label.split(' · ').last : label;
+
+/// Страница документа, открытая по закладке: раздел, найденный по правилу, и соседние страницы.
+@immutable
+class DocPage {
+  /// Создаёт страницу.
+  const DocPage({
+    required this.title,
+    required this.page,
+    required this.pages,
+    required this.section,
+    required this.heading,
+    required this.ruleId,
+    required this.text,
+    required this.prev,
+    required this.next,
+  });
+
+  /// Заголовок экрана: «Паспорт IL 65/160».
+  final String title;
+
+  /// Номер страницы.
+  final int page;
+
+  /// Всего страниц.
+  final int pages;
+
+  /// Колонтитул: «Wilo CronoLine-IL · раздел 6».
+  final String section;
+
+  /// Заголовок раздела на странице.
+  final String heading;
+
+  /// Правило, по которому найдена страница.
+  final String ruleId;
+
+  /// Выделенный абзац.
+  final String text;
+
+  /// Раздел на предыдущей странице.
+  final String prev;
+
+  /// Раздел на следующей странице.
+  final String next;
+}
+
+/// Страницы документов по закладкам: паспорт насоса Н-101, раздел о замене торцевого уплотнения.
+const Map<String, DocPage> kDocPages = {
+  'Паспорт насоса IL 65/160': DocPage(
+    title: 'Паспорт IL 65/160',
+    page: 34,
+    pages: 48,
+    section: 'Wilo CronoLine-IL · раздел 6',
+    heading: '6.3 Замена торцевого уплотнения',
+    ruleId: 'R01',
+    text: 'Перед заменой отключить двигатель, закрыть задвижки на всасывании и нагнетании, сбросить давление. Уплотнение (поз. 12) менять в сборе.',
+    prev: '6.2 Проверка подшипникового узла',
+    next: '6.4 Сборка и пробный пуск',
+  ),
+};

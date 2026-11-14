@@ -54,7 +54,10 @@ class _AdmSourceFormScreenState extends ConsumerState<AdmSourceFormScreen> {
         ? null
         : ref.watch(sourcesProvider.select((AsyncValue<List<DataSource>> a) => a.value?.where((DataSource x) => x.id == id).firstOrNull));
     if (id != null && s == null) {
-      return KvScreen(header: KvHeader(title: 'Параметры', onBack: () => context.kvBack(AdminsPaths.admSources)), children: const [KvSkeleton.card()]);
+      return KvScreen(
+        header: KvHeader(title: 'Параметры', onBack: () => context.kvBack(AdminsPaths.admSources)),
+        children: const [KvSkeleton.card()],
+      );
     }
     _fill(s);
     final bool modbus = _proto == null ? (s?.proto.startsWith('Modbus') ?? false) : _proto == 1;
@@ -68,23 +71,40 @@ class _AdmSourceFormScreenState extends ConsumerState<AdmSourceFormScreen> {
       foot: s != null
           ? AdmBusyButton(
               'Сохранить',
-              onDone: () => showKvToast(context, title: 'Параметры сохранены', text: ty('Опрос перезапущен, отклик ${s.latency}'), kind: KvToastKind.ok),
+              onDone: () => showKvToast(
+                context,
+                title: 'Параметры сохранены',
+                text: ty('Опрос перезапущен, отклик ${s.latency}'),
+                kind: KvToastKind.ok,
+              ),
             )
           : AdmBusyButton(
               'Проверить и подключить',
               wait: const Duration(milliseconds: 1400),
-              work: () => ref.read(adminRepositoryProvider).addSource(name: _name.text.trim(), proto: modbus ? 'Modbus TCP' : 'OPC UA', addr: _addr.text.trim()),
+              work: () => ref
+                  .read(adminRepositoryProvider)
+                  .addSource(name: _name.text.trim(), proto: modbus ? 'Modbus TCP' : 'OPC UA', addr: _addr.text.trim()),
               onDone: () => context.pushReplacement(AdminsPaths.eSrcAddOk, extra: const KvNavExtra(transition: KvTransition.fade)),
             ),
       children: [
-        KvSegment(items: const ['OPC UA', 'Modbus TCP'], index: modbus ? 1 : 0, onBackground: true, onChanged: (int i) => setState(() => _proto = i)),
+        KvSegment(
+          items: const ['OPC UA', 'Modbus TCP'],
+          index: modbus ? 1 : 0,
+          onBackground: true,
+          onChanged: (int i) => setState(() => _proto = i),
+        ),
         KvField(label: 'Название', controller: _name, fieldKey: const ValueKey<String>('src-name')),
         KvField(label: 'Адрес', controller: _addr, lead: KvIcons.link, autofocus: s == null, fieldKey: const ValueKey<String>('src-addr')),
         const KvSectionLabel('Опрос'),
         KvSegment(items: _polls, index: poll, onBackground: true, onChanged: (int i) => setState(() => _poll = i)),
         KvList(
           children: [
-            KvRow(icon: KvIcons.lock, title: 'Только чтение', subtitle: 'Запись в АСУ ТП запрещена', trailing: const AdmToggle(initial: true)),
+            const KvRow(
+              icon: KvIcons.lock,
+              title: 'Только чтение',
+              subtitle: 'Запись в АСУ ТП запрещена',
+              trailing: AdmToggle(initial: true),
+            ),
             KvRow(
               icon: KvIcons.shieldCheck,
               title: modbus ? 'Изолированный сегмент' : 'Подпись и шифрование',

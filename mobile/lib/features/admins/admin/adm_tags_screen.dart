@@ -29,7 +29,10 @@ class AdmTagsScreen extends ConsumerWidget {
     if (unit == null || bindings == null) {
       return KvScreen(
         header: KvHeader(title: 'Привязка тегов', subtitle: ' ', onBack: () => context.kvBack(AdminsPaths.admSources)),
-        children: const [KvSkeleton(height: 50, radius: KvRadius.btn), KvSkeleton.card(height: 400)],
+        children: const [
+          KvSkeleton(height: 50, radius: KvRadius.btn),
+          KvSkeleton.card(height: 400),
+        ],
       );
     }
     final List<AdmTag> tags = admTagsOf(unit, bindings);
@@ -53,7 +56,8 @@ class AdmTagsScreen extends ConsumerWidget {
           onBackground: true,
           onChanged: (int i) => context.kvSeg(AdminsPaths.tags(kAdmTagUnits[i]), fromSegment: index),
         ),
-        if (unit.mode == 'repair') KvNote(icon: KvIcons.info, text: ty('${unit.code} остановлен 06:44. Давление и ток показываются как «нет данных».')),
+        if (unit.mode == 'repair')
+          KvNote(icon: KvIcons.info, text: ty('${unit.code} остановлен 06:44. Давление и ток показываются как «нет данных».')),
         KvList(
           noIcons: true,
           children: [for (final AdmTag t in tags) _TagRow(tag: t, onTap: () => showAdmTagSheet(context, ref, t))],
@@ -82,7 +86,11 @@ class AdmTagsScreen extends ConsumerWidget {
                   kind: KvToastKind.ok,
                 ),
               ),
-              KvRow(icon: KvIcons.plug, title: 'Источники данных', onTap: () => admCloseThen(sheet, () => screen.kvFade(AdminsPaths.admSources))),
+              KvRow(
+                icon: KvIcons.plug,
+                title: 'Источники данных',
+                onTap: () => admCloseThen(sheet, () => screen.kvFade(AdminsPaths.admSources)),
+              ),
             ],
           ),
         ],
@@ -92,7 +100,10 @@ class AdmTagsScreen extends ConsumerWidget {
 
   void _newTag(BuildContext context, WidgetRef ref, Equipment unit) {
     final BuildContext screen = context;
-    showKvSheet<void>(context, builder: (BuildContext sheet) => _NewTagSheet(unit: unit, screen: screen));
+    showKvSheet<void>(
+      context,
+      builder: (BuildContext sheet) => _NewTagSheet(unit: unit, screen: screen),
+    );
   }
 }
 
@@ -113,7 +124,11 @@ class _TagRow extends StatelessWidget {
       subtitleWidget: Text.rich(
         TextSpan(
           style: t.caption.copyWith(height: 1.35),
-          children: [TextSpan(text: tag.name, style: key), const TextSpan(text: ' → '), TextSpan(text: tag.addr, style: key)],
+          children: [
+            TextSpan(text: tag.name, style: key),
+            const TextSpan(text: ' → '),
+            TextSpan(text: tag.addr, style: key),
+          ],
         ),
       ),
       onTap: onTap,
@@ -137,9 +152,13 @@ class _TagRow extends StatelessWidget {
 /// Лист тега (e-tag-*): значение со спарклайном за сутки, источник, адрес и уставки; сохранение привязки.
 void showAdmTagSheet(BuildContext context, WidgetRef ref, AdmTag tag) {
   final BuildContext screen = context;
-  showKvSheet<void>(context, builder: (BuildContext sheet) => _TagSheet(tag: tag, screen: screen));
+  showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _TagSheet(tag: tag, screen: screen),
+  );
 }
 
+/// Лист тега: значение, источник, адрес и уставки; сохраняет привязку.
 class _TagSheet extends ConsumerStatefulWidget {
   const _TagSheet({required this.tag, required this.screen});
 
@@ -166,9 +185,13 @@ class _TagSheetState extends ConsumerState<_TagSheet> {
   @override
   Widget build(BuildContext context) {
     final AdmTag t = widget.tag;
-    final DataSource? s = ref.watch(sourcesProvider.select((AsyncValue<List<DataSource>> a) => a.value?.where((DataSource x) => x.id == t.sourceId).firstOrNull));
+    final DataSource? s = ref.watch(
+      sourcesProvider.select((AsyncValue<List<DataSource>> a) => a.value?.where((DataSource x) => x.id == t.sourceId).firstOrNull),
+    );
     final bool modbus = t.sourceId != 'src-opc';
-    final TelemetrySeries? series = t.value == null ? null : ref.watch(seriesProvider((unitId: t.unit.id, key: t.key, period: TelemetryPeriod.day))).value;
+    final TelemetrySeries? series = t.value == null
+        ? null
+        : ref.watch(seriesProvider((unitId: t.unit.id, key: t.key, period: TelemetryPeriod.day))).value;
     if (s != null && _source.text.isEmpty) {
       _source.text = '${admSourceShort(s)} · ${s.proto.split(' ').first}';
     }
@@ -180,7 +203,9 @@ class _TagSheetState extends ConsumerState<_TagSheet> {
       actions: [
         AdmBusyButton(
           'Сохранить привязку',
-          work: () => ref.read(adminRepositoryProvider).saveTag(
+          work: () => ref
+              .read(adminRepositoryProvider)
+              .saveTag(
                 TagBinding(
                   tag: t.tag,
                   unitId: t.unit.id,
@@ -210,7 +235,14 @@ class _TagSheetState extends ConsumerState<_TagSheet> {
               if (series != null && series.values.length > 2)
                 KvSparkline(
                   height: 40,
-                  data: KvSeriesData(values: series.values, warn: t.warn, alarm: t.alarm, unit: t.eu, digits: t.digits, labels: series.chart.labels),
+                  data: KvSeriesData(
+                    values: series.values,
+                    warn: t.warn,
+                    alarm: t.alarm,
+                    unit: t.eu,
+                    digits: t.digits,
+                    labels: series.chart.labels,
+                  ),
                 ),
             ],
           ),
@@ -231,6 +263,7 @@ class _TagSheetState extends ConsumerState<_TagSheet> {
   }
 }
 
+/// Уведомление о сохранённой привязке поверх экрана [screen], если он ещё открыт.
 void _savedToast(BuildContext screen) {
   if (screen.mounted) {
     showKvToast(screen, title: 'Привязка сохранена', text: 'Правила используют новое значение со следующего опроса', kind: KvToastKind.ok);
@@ -253,7 +286,9 @@ class _NewTagSheetState extends ConsumerState<_NewTagSheet> {
   final TextEditingController _key = TextEditingController(text: 'p_seal');
   final TextEditingController _eu = TextEditingController(text: 'бар');
   final TextEditingController _param = TextEditingController(text: 'Давление в камере уплотнения');
-  late final TextEditingController _source = TextEditingController(text: _n101 ? 'Сервер ввода-вывода · OPC UA' : 'ПЛК узла откачки · Modbus TCP');
+  late final TextEditingController _source = TextEditingController(
+    text: _n101 ? 'Сервер ввода-вывода · OPC UA' : 'ПЛК узла откачки · Modbus TCP',
+  );
   late final TextEditingController _addr = TextEditingController(text: _n101 ? 'ns=2;s=N101.PSEAL' : '30031');
 
   @override
@@ -272,7 +307,9 @@ class _NewTagSheetState extends ConsumerState<_NewTagSheet> {
       actions: [
         AdmBusyButton(
           'Добавить тег',
-          work: () => ref.read(adminRepositoryProvider).saveTag(
+          work: () => ref
+              .read(adminRepositoryProvider)
+              .saveTag(
                 TagBinding(
                   tag: 'NS2.${u.id.replaceAll('-', '')}.${_key.text.trim().toUpperCase()}',
                   unitId: u.id,

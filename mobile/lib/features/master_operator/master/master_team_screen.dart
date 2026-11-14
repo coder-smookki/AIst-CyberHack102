@@ -37,7 +37,10 @@ class MasterTeamScreen extends ConsumerWidget {
                     child: Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(text: 'Осмотрено 2 из 3 агрегатов\n', style: t.sm.copyWith(fontWeight: FontWeight.w500, color: c.text, height: 1.38)),
+                          TextSpan(
+                            text: 'Осмотрено 2 из 3 агрегатов\n',
+                            style: t.sm.copyWith(fontWeight: FontWeight.w500, color: c.text, height: 1.38),
+                          ),
                           const TextSpan(text: 'Осмотры по заданиям и обходу смены'),
                         ],
                       ),

@@ -41,7 +41,12 @@ class SavedScreen extends ConsumerWidget {
         children: [
           KvButton('К объектам', onPressed: () => context.kvFade(EngineerInspectPaths.objects)),
           const SizedBox(height: KvSpace.s2),
-          KvButton('Открыть отчёт', kind: KvButtonKind.secondary, icon: KvIcons.file, onPressed: () => context.kvPush(EngineerServicePaths.cReport)),
+          KvButton(
+            'Открыть отчёт',
+            kind: KvButtonKind.secondary,
+            icon: KvIcons.file,
+            onPressed: () => context.kvPush(EngineerServicePaths.cReport),
+          ),
         ],
       ),
       body: LayoutBuilder(
@@ -61,14 +66,22 @@ class SavedScreen extends ConsumerWidget {
                     const SizedBox(height: 12),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 300),
-                      child: Text(KvFormat.typo(text), textAlign: TextAlign.center, style: t.body.copyWith(color: c.text2)),
+                      child: Text(
+                        KvFormat.typo(text),
+                        textAlign: TextAlign.center,
+                        style: t.body.copyWith(color: c.text2),
+                      ),
                     ),
                     const SizedBox(height: 12 + 10),
                     Row(
                       children: [
-                        Expanded(child: _Stat(value: s?.duration ?? '', label: 'Длительность', color: c.brand)),
+                        Expanded(
+                          child: _Stat(value: s?.duration ?? '', label: 'Длительность', color: c.brand),
+                        ),
                         const SizedBox(width: KvSpace.s2),
-                        Expanded(child: _Stat(value: '$findings', label: 'Находки', color: c.bad)),
+                        Expanded(
+                          child: _Stat(value: '$findings', label: 'Находки', color: c.bad),
+                        ),
                         const SizedBox(width: KvSpace.s2),
                         Expanded(
                           child: _Stat(
@@ -119,9 +132,21 @@ class _Stat extends StatelessWidget {
       decoration: BoxDecoration(color: c.surface2, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          Text(value, maxLines: 1, softWrap: false, overflow: TextOverflow.fade, style: t.numS.copyWith(color: color, height: 1.1)),
+          Text(
+            value,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.fade,
+            style: t.numS.copyWith(color: color, height: 1.1),
+          ),
           const SizedBox(height: 4),
-          Text(label, maxLines: 1, softWrap: false, overflow: TextOverflow.fade, style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12))),
+          Text(
+            label,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.fade,
+            style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12)),
+          ),
         ],
       ),
     );
@@ -141,14 +166,26 @@ class _OkMarkState extends State<_OkMark> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
   bool _started = false;
 
-  late final Animation<double> _scale = TweenSequence<double>([
-    TweenSequenceItem<double>(tween: Tween<double>(begin: 0.6, end: 1.04), weight: 70),
-    TweenSequenceItem<double>(tween: Tween<double>(begin: 1.04, end: 1), weight: 30),
-  ]).animate(CurvedAnimation(parent: _c, curve: const Interval(0, 550 / 800, curve: KvMotion.ease)));
+  late final Animation<double> _scale =
+      TweenSequence<double>([
+        TweenSequenceItem<double>(tween: Tween<double>(begin: 0.6, end: 1.04), weight: 70),
+        TweenSequenceItem<double>(tween: Tween<double>(begin: 1.04, end: 1), weight: 30),
+      ]).animate(
+        CurvedAnimation(
+          parent: _c,
+          curve: const Interval(0, 550 / 800, curve: KvMotion.ease),
+        ),
+      );
 
-  late final Animation<double> _fade = CurvedAnimation(parent: _c, curve: const Interval(0, 550 * 0.7 / 800, curve: KvMotion.ease));
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(0, 550 * 0.7 / 800, curve: KvMotion.ease),
+  );
 
-  late final Animation<double> _draw = CurvedAnimation(parent: _c, curve: const Interval(300 / 800, 1, curve: KvMotion.easeOut));
+  late final Animation<double> _draw = CurvedAnimation(
+    parent: _c,
+    curve: const Interval(300 / 800, 1, curve: KvMotion.easeOut),
+  );
 
   @override
   void didChangeDependencies() {
@@ -188,7 +225,10 @@ class _OkMarkState extends State<_OkMark> with SingleTickerProviderStateMixin {
               height: 92,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: c.ok, shape: BoxShape.circle),
-              child: CustomPaint(size: const Size.square(46), painter: _CheckPainter(progress: _draw, color: c.onBrand)),
+              child: CustomPaint(
+                size: const Size.square(46),
+                painter: _CheckPainter(progress: _draw, color: c.onBrand),
+              ),
             ),
           ),
         ),

@@ -16,7 +16,7 @@ import 'widgets/inspect_camera.dart';
 /// и решение инженера. Подтверждение создаёт находку и возвращает на живое видео с уведомлением (b-scan-added).
 class DefectScreen extends ConsumerStatefulWidget {
   /// Создаёт форму дефекта по признаку [label] агрегата [unitId]; [manual] - открыта из меню карточки.
-  const DefectScreen({super.key, this.unitId = kInspectDefaultUnit, this.label = 'Течь у вала', this.manual = false});
+  const DefectScreen({super.key, this.unitId = kInspectDefaultUnit, this.label = kDefaultSign, this.manual = false});
 
   /// Агрегат.
   final String unitId;

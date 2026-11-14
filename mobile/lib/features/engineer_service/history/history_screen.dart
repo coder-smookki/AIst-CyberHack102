@@ -27,14 +27,20 @@ class HistoryScreen extends ConsumerWidget {
     final List<Equipment> units = ref.watch(unitsProvider).value ?? const <Equipment>[];
     final Equipment? unit = unitId == null ? null : units.where((Equipment u) => u.id == unitId).firstOrNull;
     final DateTime now = ref.watch(clockProvider).now();
-    final List<HistoryEvent> events = (feed.value ?? const <HistoryEvent>[]).where((HistoryEvent e) => unitId == null || e.unitId == unitId).toList();
+    final List<HistoryEvent> events = (feed.value ?? const <HistoryEvent>[])
+        .where((HistoryEvent e) => unitId == null || e.unitId == unitId)
+        .toList();
     final List<String> days = [];
     for (final HistoryEvent e in events) {
       if (!days.contains(e.date)) {
         days.add(e.date);
       }
     }
-    final List<String> filterIds = ['N-101', 'AMS-1', 'AMS-2'].where((String id) => units.isEmpty || units.any((Equipment u) => u.id == id)).toList();
+    final List<String> filterIds = [
+      'N-101',
+      'AMS-1',
+      'AMS-2',
+    ].where((String id) => units.isEmpty || units.any((Equipment u) => u.id == id)).toList();
     final int selected = unitId == null ? 0 : filterIds.indexOf(unitId!) + 1;
     return KvScreen(
       header: KvRootHeader(
@@ -45,7 +51,8 @@ class HistoryScreen extends ConsumerWidget {
         KvFilterChips(
           items: [
             const KvFilterItem('Все'),
-            for (final String id in filterIds) KvFilterItem(KvFormat.typo(units.where((Equipment u) => u.id == id).firstOrNull?.code ?? id)),
+            for (final String id in filterIds)
+              KvFilterItem(KvFormat.typo(units.where((Equipment u) => u.id == id).firstOrNull?.code ?? id)),
           ],
           selected: selected,
           onSelected: (int i) {
@@ -61,9 +68,7 @@ class HistoryScreen extends ConsumerWidget {
           KvSectionLabel(ServiceFormat.day(day, now)),
           KvList(
             noIcons: true,
-            children: [
-              for (final HistoryEvent e in events.where((HistoryEvent e) => e.date == day)) _EventRow(event: e),
-            ],
+            children: [for (final HistoryEvent e in events.where((HistoryEvent e) => e.date == day)) _EventRow(event: e)],
           ),
         ],
       ],

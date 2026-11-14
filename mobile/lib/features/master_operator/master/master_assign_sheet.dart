@@ -93,9 +93,12 @@ class MoAssignPreset {
     unitCode: 'АМС-2',
     summary: 'АМС-2 · по сообщению S-077',
     reason: 'Течь под агрегатом, повышенный шум',
-    who: 0,
     priority: 2,
-    dues: [(chip: 'Через 15 мин', due: '14.11, до 07:06'), (chip: 'До 07:00', due: '14.11, до 07:00'), (chip: 'До конца смены', due: '14.11, до 08:00')],
+    dues: [
+      (chip: 'Через 15 мин', due: '14.11, до 07:06'),
+      (chip: 'До 07:00', due: '14.11, до 07:00'),
+      (chip: 'До конца смены', due: '14.11, до 08:00'),
+    ],
     dueOn: 1,
     faultReportId: 'S-077',
     toShift: true,
@@ -111,7 +114,11 @@ class MoAssignPreset {
     iconStatus: KvStatus.warn,
     who: 1,
     priority: 0,
-    dues: [(chip: '15.11, 14:00', due: '15.11, 14:00'), (chip: '16.11, 10:00', due: '16.11, 10:00'), (chip: 'До конца недели', due: '15.11, до 20:00')],
+    dues: [
+      (chip: '15.11, 14:00', due: '15.11, 14:00'),
+      (chip: '16.11, 10:00', due: '16.11, 10:00'),
+      (chip: 'До конца недели', due: '15.11, до 20:00'),
+    ],
   );
 
   /// Срочный осмотр Н-101 по правилу R08 (09:12, сценарий Б).
@@ -123,10 +130,12 @@ class MoAssignPreset {
     reason: 'Вибрация 1X 3,1 мм/с, подшипник 78 °C',
     icon: KvIcons.activity,
     iconStatus: KvStatus.warn,
-    who: 0,
-    priority: 1,
     subA: 'Свободен · зал 2, рядом с Н-101',
-    dues: [(chip: 'Сегодня до 10:00', due: '14.11, до 10:00'), (chip: 'До 12:00', due: '14.11, до 12:00'), (chip: 'До конца смены', due: '14.11, до 20:00')],
+    dues: [
+      (chip: 'Сегодня до 10:00', due: '14.11, до 10:00'),
+      (chip: 'До 12:00', due: '14.11, до 12:00'),
+      (chip: 'До конца смены', due: '14.11, до 20:00'),
+    ],
   );
 
   /// Внеплановый обход АМС-1 из команды смены.
@@ -139,7 +148,11 @@ class MoAssignPreset {
     icon: KvIcons.clipboard,
     who: 1,
     priority: 0,
-    dues: [(chip: 'До 12:00', due: '14.11, до 12:00'), (chip: 'До 14:00', due: '14.11, до 14:00'), (chip: 'До конца смены', due: '14.11, до 20:00')],
+    dues: [
+      (chip: 'До 12:00', due: '14.11, до 12:00'),
+      (chip: 'До 14:00', due: '14.11, до 14:00'),
+      (chip: 'До конца смены', due: '14.11, до 20:00'),
+    ],
     doneTitle: 'Задание отправлено',
     showPriority: false,
   );
@@ -149,7 +162,10 @@ class MoAssignPreset {
 /// и показывает итог в том же листе.
 Future<void> showMoAssignSheet(BuildContext context, MoAssignPreset preset) {
   final BuildContext screen = context;
-  return showKvSheet<void>(context, builder: (BuildContext sheet) => _AssignSheet(preset: preset, screen: screen));
+  return showKvSheet<void>(
+    context,
+    builder: (BuildContext sheet) => _AssignSheet(preset: preset, screen: screen),
+  );
 }
 
 class _AssignSheet extends ConsumerStatefulWidget {
@@ -174,7 +190,9 @@ class _AssignSheetState extends ConsumerState<_AssignSheet> {
 
   Future<void> _assign() async {
     final MoAssignPreset p = widget.preset;
-    final InspectionTask task = await ref.read(workflowRepositoryProvider).assignInspection(
+    final InspectionTask task = await ref
+        .read(workflowRepositoryProvider)
+        .assignInspection(
           unitId: p.unitId,
           assignee: _engineers[_who],
           reason: p.reason,
@@ -197,6 +215,7 @@ class _AssignSheetState extends ConsumerState<_AssignSheet> {
     return KvSheet(
       key: const ValueKey<String>('form'),
       title: p.sheetTitle,
+      actions: [KvButton('Назначить', icon: KvIcons.send, wait: true, onPressed: _assign)],
       children: [
         KvRow(icon: p.icon, iconStatus: p.iconStatus, title: KvFormat.typo(p.summary), subtitle: KvFormat.typo(p.reason), chevron: false),
         const MoLabel('Инженер'),
@@ -215,7 +234,6 @@ class _AssignSheetState extends ConsumerState<_AssignSheet> {
           onSelected: (int i) => setState(() => _due = i),
         ),
       ],
-      actions: [KvButton('Назначить', icon: KvIcons.send, wait: true, onPressed: _assign)],
     );
   }
 
@@ -223,16 +241,13 @@ class _AssignSheetState extends ConsumerState<_AssignSheet> {
     final MoAssignPreset p = widget.preset;
     final String name = _engineers[_who];
     final bool she = name.split(' ').first.endsWith('а');
-    final String text = '$name ${she ? 'получила' : 'получил'} задание ${task.id} на телефон.${p.faultReportId != null ? ' Оператор видит, что сообщение принято.' : ''}';
+    final String text =
+        '$name ${she ? 'получила' : 'получил'} задание ${task.id} на телефон.${p.faultReportId != null ? ' Оператор видит, что сообщение принято.' : ''}';
     return MoDoneSheet(
       key: const ValueKey<String>('done'),
       title: p.doneTitle,
       text: text,
-      pairs: [
-        ('Агрегат', p.unitCode),
-        ('Срок', p.dues[_due].due),
-        if (p.showPriority) ('Приоритет', _priorities[_priority]),
-      ],
+      pairs: [('Агрегат', p.unitCode), ('Срок', p.dues[_due].due), if (p.showPriority) ('Приоритет', _priorities[_priority])],
       actions: [
         KvButton(
           p.toShift ? 'К смене' : 'Готово',

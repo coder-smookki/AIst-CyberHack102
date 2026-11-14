@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/navigation/kv_nav.dart';
 import '../../app/routes/engineer_inspect_routes.dart';
 import '../../app/routes/engineer_service_routes.dart';
+import '../../app/routes/entry_routes.dart';
 import '../../app/state/app_state.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
 import '../shared/bridges.dart';
+import 'widgets/inspect_blocks.dart';
 
 /// Объекты (домашний экран инженера, эталон раздела): поиск, счётчики состояния, задание мастера и карточки агрегатов.
 class ObjectsScreen extends ConsumerWidget {
@@ -18,14 +20,18 @@ class ObjectsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final Site? site = ref.watch(siteProvider).value;
     final AsyncValue<List<Equipment>> units = ref.watch(unitsProvider);
-    final String? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user.name));
-    final List<InspectionTask> tasks = ref.watch(tasksProvider(me)).value ?? const <InspectionTask>[];
+    final AppUser? me = ref.watch(sessionProvider.select((AuthSession? s) => s?.user));
+    final AsyncValue<List<InspectionTask>> taskValue = ref.watch(tasksProvider(me?.name));
+    final List<InspectionTask> tasks = taskValue.value ?? const <InspectionTask>[];
+    final List<Inspection>? inspections = ref.watch(inspectionsProvider(null)).value;
     final List<PlanItem> plan = ref.watch(planProvider).value ?? const <PlanItem>[];
     final InspectionTask? task = tasks.where((InspectionTask t) => t.status != 'done' && t.status != 'cancelled').firstOrNull;
     final List<Equipment> list = units.value ?? const <Equipment>[];
+    final bool firstDay = taskValue.hasValue && tasks.isEmpty && inspections != null && !inspections.any((Inspection i) => i.who == me?.name);
+    final String who = firstDay && me != null ? me.short : (site?.shiftShort ?? '');
 
     return KvScreen(
-      header: KvRootHeader(title: 'Объекты', subtitle: site == null ? ' ' : '${site.name} · ${site.shiftShort}'),
+      header: KvRootHeader(title: 'Объекты', subtitle: site == null ? ' ' : KvFormat.typo('${site.name} · $who')),
       children: [
         KvSearchPill('Номер, модель, серийный номер', onTap: () => context.kvPush(EngineerInspectPaths.search)),
         if (units.hasValue) _Counters(units: list) else const KvSkeleton(height: 100, radius: KvRadius.card),
@@ -33,8 +39,28 @@ class ObjectsScreen extends ConsumerWidget {
           _TaskBanner(
             task: task,
             unit: list.where((Equipment u) => u.id == task.unitId).firstOrNull,
-            onTap: () => context.kvPush(EngineerServicePaths.cTask),
+            onTap: () => context.kvPush(task.unitId == 'AMS-2' ? EngineerServicePaths.cTaskAms2 : EngineerServicePaths.cTask),
+          )
+        else if (firstDay) ...[
+          const KvNote(
+            icon: KvIcons.clipboard,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: 'Заданий пока нет', style: TextStyle(fontWeight: FontWeight.w600)),
+                  TextSpan(text: '\nМастер назначит осмотр в приложении, уведомление придёт на телефон.'),
+                ],
+              ),
+            ),
           ),
+          TintedAction(
+            icon: KvIcons.sparkle,
+            title: 'Первый день в КСТ Визор',
+            subtitle: 'Знакомство за 1 минуту: сканер, маршрут, находки',
+            onTap: () => context.kvPush(EntryPaths.aOnb1),
+          ),
+        ] else if (taskValue.hasValue && units.hasValue)
+          _NoTaskNote(units: list),
         if (!units.hasValue) ...[const KvSkeleton.card(height: 150), const KvSkeleton.card(height: 150)],
         for (final Equipment u in list)
           _UnitCard(
@@ -43,6 +69,35 @@ class ObjectsScreen extends ConsumerWidget {
             onTap: () => context.kvPush(EngineerInspectPaths.card(u.id)),
           ),
       ],
+    );
+  }
+}
+
+/// Плашка без задания мастера: последнее сработавшее правило по агрегату с отклонением ведёт в его диагностику.
+class _NoTaskNote extends ConsumerWidget {
+  const _NoTaskNote({required this.units});
+
+  final List<Equipment> units;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ({Equipment unit, DiagnosisResult rule})? fired;
+    for (final Equipment u in units.where((Equipment u) => u.status == 'warn' || u.status == 'bad')) {
+      final DiagnosisResult? d = (ref.watch(diagnosisProvider(u.id)).value ?? const <DiagnosisResult>[])
+          .where((DiagnosisResult d) => d.firedAt.isNotEmpty)
+          .firstOrNull;
+      if (d != null) {
+        fired = (unit: u, rule: d);
+        break;
+      }
+    }
+    final ({Equipment unit, DiagnosisResult rule})? f = fired;
+    return KvNote(
+      icon: KvIcons.clipboard,
+      text: KvFormat.typo(
+        f == null ? 'Заданий от мастера пока нет.' : 'Заданий от мастера пока нет. ${f.unit.code}: сработало правило ${f.rule.ruleId} в ${f.rule.firedAt}.',
+      ),
+      onTap: f == null ? null : () => context.kvPush(EngineerInspectPaths.diagnosticsFor(f.unit.id)),
     );
   }
 }

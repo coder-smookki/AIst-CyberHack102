@@ -92,7 +92,8 @@ class EntryStaggerItem extends StatelessWidget {
       opacity: t,
       child: AnimatedBuilder(
         animation: t,
-        builder: (BuildContext context, Widget? c) => t.value >= 1 ? c! : Transform.translate(offset: Offset(0, 12 * (1 - t.value)), child: c),
+        builder: (BuildContext context, Widget? c) =>
+            t.value >= 1 ? c! : Transform.translate(offset: Offset(0, 12 * (1 - t.value)), child: c),
         child: child,
       ),
     );
@@ -149,7 +150,10 @@ class _EntryPopInState extends State<EntryPopIn> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final double total = (widget.delay + widget.duration).inMilliseconds.toDouble();
-    final Animation<double> t = CurvedAnimation(parent: _c, curve: Interval(widget.delay.inMilliseconds / total, 1, curve: kEntryPopCurve));
+    final Animation<double> t = CurvedAnimation(
+      parent: _c,
+      curve: Interval(widget.delay.inMilliseconds / total, 1, curve: kEntryPopCurve),
+    );
     return AnimatedBuilder(
       animation: t,
       builder: (BuildContext context, Widget? c) {

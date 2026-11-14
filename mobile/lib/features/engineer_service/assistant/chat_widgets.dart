@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/navigation/kv_nav.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
-import '../service_common.dart';
 
 /// Ленточка дня над сообщениями (.c-day): «Сегодня, 09:38».
 class ChatDay extends StatelessWidget {
@@ -19,7 +18,11 @@ class ChatDay extends StatelessWidget {
     final KvTextStyles t = context.kvText;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(text, textAlign: TextAlign.center, style: t.label.copyWith(fontWeight: FontWeight.w400, color: context.kv.text3, height: KvTextStyles.normalHeight(12))),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: t.label.copyWith(fontWeight: FontWeight.w400, color: context.kv.text3, height: KvTextStyles.normalHeight(12)),
+      ),
     );
   }
 }
@@ -55,7 +58,10 @@ class ChatMessage extends StatelessWidget {
                 bottomRight: Radius.circular(6),
               ),
             ),
-            child: Text(KvFormat.typo(message.text), style: text.copyWith(color: c.onBrand, fontWeight: FontWeight.w500)),
+            child: Text(
+              KvFormat.typo(message.text),
+              style: text.copyWith(color: c.onBrand, fontWeight: FontWeight.w500),
+            ),
           ),
         ),
       );
@@ -66,7 +72,9 @@ class ChatMessage extends StatelessWidget {
           children: [
             KvIcon(KvIcons.search, size: 18, color: c.warn),
             const SizedBox(width: KvSpace.s2),
-            Flexible(child: Text('Записей не нашёл', style: text.copyWith(fontWeight: FontWeight.w600))),
+            Flexible(
+              child: Text('Записей не нашёл', style: text.copyWith(fontWeight: FontWeight.w600)),
+            ),
           ],
         ),
       if (message.text.isNotEmpty) Text(KvFormat.typo(message.text), style: text),
@@ -81,9 +89,15 @@ class ChatMessage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(KvFormat.typo(message.facts[i].label), softWrap: false, style: t.caption.copyWith(color: c.text, fontWeight: FontWeight.w600, height: 1.45)),
+                    Text(
+                      KvFormat.typo(message.facts[i].label),
+                      softWrap: false,
+                      style: t.caption.copyWith(color: c.text, fontWeight: FontWeight.w600, height: 1.45),
+                    ),
                     const SizedBox(width: KvSpace.s2),
-                    Expanded(child: Text(KvFormat.typo(message.facts[i].text), style: t.caption.copyWith(color: c.text, height: 1.45))),
+                    Expanded(
+                      child: Text(KvFormat.typo(message.facts[i].text), style: t.caption.copyWith(color: c.text, height: 1.45)),
+                    ),
                   ],
                 ),
               ),
@@ -132,14 +146,14 @@ class ChatRef extends ConsumerWidget {
   final AssistantLink link;
 
   static KvIcons _icon(String kind) => switch (kind) {
-        'rule' => KvIcons.activity,
-        'chart' => KvIcons.wave,
-        'history' => KvIcons.clock,
-        'card' || 'equipment' => KvIcons.grid,
-        'ask_master' => KvIcons.send,
-        'document' => KvIcons.file,
-        _ => KvIcons.link,
-      };
+    'rule' => KvIcons.activity,
+    'chart' => KvIcons.wave,
+    'history' => KvIcons.clock,
+    'card' || 'equipment' => KvIcons.grid,
+    'ask_master' => KvIcons.send,
+    'document' => KvIcons.file,
+    _ => KvIcons.link,
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -206,10 +220,7 @@ List<Widget> chatItems(List<AssistantMessage> dialog, {required bool days, requi
 /// с синей рамкой и курсором.
 class ChatAskField extends StatelessWidget {
   /// Создаёт поле-кнопку, открывающее ввод вопроса.
-  const ChatAskField.button({super.key, required this.onTap})
-      : controller = null,
-        focusNode = null,
-        onSubmitted = null;
+  const ChatAskField.button({super.key, required this.onTap}) : controller = null, focusNode = null, onSubmitted = null;
 
   /// Создаёт поле ввода.
   const ChatAskField.input({super.key, required this.controller, required this.focusNode, required this.onSubmitted}) : onTap = null;
@@ -239,9 +250,7 @@ class ChatAskField extends StatelessWidget {
         color: c.surface,
         borderRadius: radius,
         border: Border.all(color: typing ? c.brand : c.border, width: typing ? 1.5 : 1),
-        boxShadow: typing
-            ? [BoxShadow(color: c.tint2, spreadRadius: 4)]
-            : c.shadow1,
+        boxShadow: typing ? [BoxShadow(color: c.tint2, spreadRadius: 4)] : c.shadow1,
       ),
       child: Row(
         children: [
@@ -255,7 +264,6 @@ class ChatAskField extends StatelessWidget {
                     textInputAction: TextInputAction.send,
                     onSubmitted: onSubmitted,
                     cursorColor: c.brand,
-                    cursorWidth: 2,
                     cursorHeight: 20,
                     style: t.body.copyWith(color: c.text, height: KvTextStyles.normalHeight(15)),
                     decoration: InputDecoration.collapsed(
@@ -263,7 +271,12 @@ class ChatAskField extends StatelessWidget {
                       hintStyle: t.body.copyWith(color: c.text3, height: KvTextStyles.normalHeight(15)),
                     ),
                   )
-                : Text('Вопрос об оборудовании', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.body.copyWith(color: c.text3, height: KvTextStyles.normalHeight(15))),
+                : Text(
+                    'Вопрос об оборудовании',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: t.body.copyWith(color: c.text3, height: KvTextStyles.normalHeight(15)),
+                  ),
           ),
           if (!typing) ...[const SizedBox(width: KvSpace.s2), KvIcon(KvIcons.mic, size: 20, color: c.text3)],
         ],

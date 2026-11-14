@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/widgets.dart';
 
 import '../icons/kv_icon.dart';
@@ -217,14 +218,17 @@ class _ArBox extends StatelessWidget {
       KvArKind.defect => colors.arDefect,
       KvArKind.gauge => colors.arGauge,
     };
-    final Widget box = DecoratedBox(
-      decoration: BoxDecoration(
-        color: kind == KvArKind.defect ? const Color(0x14E5483D) : null,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: color, width: 2),
-        boxShadow: kind == KvArKind.defect && glow
-            ? [BoxShadow(color: colors.arGlass, spreadRadius: 1), kvCssShadow(0, 0, 18, colors.arDefect)]
-            : const [BoxShadow(color: Color(0x1F000000), spreadRadius: 1)],
+    final List<BoxShadow> shadows = kind == KvArKind.defect && glow
+        ? [BoxShadow(color: colors.arGlass, spreadRadius: 1), kvCssShadow(0, 0, 18, colors.arDefect)]
+        : const [BoxShadow(color: Color(0x1F000000), spreadRadius: 1)];
+    final Widget box = CustomPaint(
+      painter: _OuterShadowPainter(shadows: shadows, radius: radius),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: kind == KvArKind.defect ? const Color(0x14E5483D) : null,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: color, width: 2),
+        ),
       ),
     );
     if (onTap == null) {
@@ -232,6 +236,28 @@ class _ArBox extends StatelessWidget {
     }
     return KvPressable(onTap: onTap, highlight: false, semanticLabel: semanticLabel ?? 'Открыть', child: box);
   }
+}
+
+/// Внешняя тень рамки как CSS box-shadow: рисуется только снаружи рамки и не просвечивает через прозрачную заливку.
+class _OuterShadowPainter extends CustomPainter {
+  _OuterShadowPainter({required this.shadows, required this.radius});
+
+  final List<BoxShadow> shadows;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final RRect inner = RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius));
+    canvas.save();
+    canvas.clipPath(Path.combine(PathOperation.difference, Path()..addRect(inner.outerRect.inflate(80)), Path()..addRRect(inner)));
+    for (final BoxShadow s in shadows) {
+      canvas.drawRRect(inner.shift(s.offset).inflate(s.spreadRadius), s.toPaint());
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_OuterShadowPainter old) => old.radius != radius || !listEquals(old.shadows, shadows);
 }
 
 /// Подпись рамки AR: таблетка 26 px цвета рамки с белым текстом 12.

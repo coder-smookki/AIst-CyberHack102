@@ -58,7 +58,9 @@ class MasterPlanScreen extends ConsumerWidget {
               value: KvFormat.num(n101.nextTo.inHours),
               unit: 'ч',
               title: KvFormat.typo('${n101.nextTo.code} ${n101.code} с объёмом ТО-1'),
-              text: KvFormat.typo('при ${KvFormat.num(n101.nextTo.atHours)} ч · прогноз ${moDay(to2?.date ?? n101.nextTo.date)}, ${to2?.time ?? '10:00'} · ${moShortName(to2?.who ?? 'Елена Титова')}'),
+              text: KvFormat.typo(
+                'при ${KvFormat.num(n101.nextTo.atHours)} ч · прогноз ${moDay(to2?.date ?? n101.nextTo.date)}, ${to2?.time ?? '10:00'} · ${moShortName(to2?.who ?? 'Елена Титова')}',
+              ),
               progress: n101.runHours / n101.nextTo.atHours,
               progressStatus: KvStatus.warn,
             ),
@@ -80,48 +82,72 @@ class _UnitPlanCard extends StatelessWidget {
     final List<Widget> rows = [];
     if (u.inRepair) {
       final MaintenanceItem? m = u.maintenance.firstOrNull;
-      rows.add(Padding(
-        padding: const EdgeInsets.symmetric(vertical: 11),
-        child: MoRepairNote(icon: KvIcons.wrench, title: '${m?.code ?? 'Ремонт'} · 15.11, 08:00', text: 'Агрегат остановлен, наработка не начисляется'),
-      ));
-      rows.add(MoMtRow(name: 'ТО по наработке', every: 'каждые ${KvFormat.num(11000)} ч', left: 11000 - u.runHours, fraction: u.runHours / 11000, tone: KvStatus.unk, last: true));
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: MoRepairNote(
+            icon: KvIcons.wrench,
+            title: '${m?.code ?? 'Ремонт'} · 15.11, 08:00',
+            text: 'Агрегат остановлен, наработка не начисляется',
+          ),
+        ),
+      );
+      rows.add(
+        MoMtRow(
+          name: 'ТО по наработке',
+          every: 'каждые ${KvFormat.num(11000)} ч',
+          left: 11000 - u.runHours,
+          fraction: u.runHours / 11000,
+          tone: KvStatus.unk,
+          last: true,
+        ),
+      );
     } else if (u.id == 'N-101') {
       for (final MaintenanceItem m in u.maintenance) {
         final double left = (m.nextAt ?? 0) - u.runHours;
-        rows.add(MoMtRow(
-          name: m.code,
-          every: 'каждые ${KvFormat.num(m.interval)} ч',
-          left: left,
-          fraction: (u.runHours - (m.lastAt ?? 0)) / (m.interval ?? 1),
-          tone: _toneOf(left),
-          first: rows.isEmpty,
-        ));
+        rows.add(
+          MoMtRow(
+            name: m.code,
+            every: 'каждые ${KvFormat.num(m.interval)} ч',
+            left: left,
+            fraction: (u.runHours - (m.lastAt ?? 0)) / (m.interval ?? 1),
+            tone: _toneOf(left),
+            first: rows.isEmpty,
+          ),
+        );
       }
-      rows.add(MoMtRow(
-        name: 'Подшипники',
-        every: 'ресурс ${KvFormat.num(u.resource.total)} ч',
-        left: u.resource.left,
-        fraction: u.resource.fraction,
-        tone: KvStatus.ok,
-        first: rows.isEmpty,
-        last: true,
-      ));
+      rows.add(
+        MoMtRow(
+          name: 'Подшипники',
+          every: 'ресурс ${KvFormat.num(u.resource.total)} ч',
+          left: u.resource.left,
+          fraction: u.resource.fraction,
+          tone: KvStatus.ok,
+          first: rows.isEmpty,
+          last: true,
+        ),
+      );
     } else {
       final MaintenanceItem? m = u.maintenance.firstOrNull;
       final double interval = m?.interval ?? u.resource.total;
-      rows.add(MoMtRow(
-        name: m?.code ?? 'ТО по наработке',
-        every: 'каждые ${KvFormat.num(interval)} ч',
-        left: interval - u.runHours,
-        fraction: u.runHours / interval,
-        tone: _toneOf(interval - u.runHours),
-        first: true,
-        last: true,
-      ));
+      rows.add(
+        MoMtRow(
+          name: m?.code ?? 'ТО по наработке',
+          every: 'каждые ${KvFormat.num(interval)} ч',
+          left: interval - u.runHours,
+          fraction: u.runHours / interval,
+          tone: _toneOf(interval - u.runHours),
+          first: true,
+          last: true,
+        ),
+      );
     }
     return KvCard(
       title: u.code,
-      trailing: Text(KvFormat.typo('${KvFormat.num(u.runHours)} ч наработки'), style: context.kvText.caption.copyWith(height: KvTextStyles.normalHeight(13))),
+      trailing: Text(
+        KvFormat.typo('${KvFormat.num(u.runHours)} ч наработки'),
+        style: context.kvText.caption.copyWith(height: KvTextStyles.normalHeight(13)),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: rows),
     );
   }
@@ -143,8 +169,8 @@ class MasterPlanCalScreen extends ConsumerWidget {
     KvStatus tone(PlanItem p) => p.status == 'overdue' || p.unitId == 'AMS-2'
         ? KvStatus.bad
         : p.status == 'planned'
-            ? KvStatus.warn
-            : KvStatus.info;
+        ? KvStatus.warn
+        : KvStatus.info;
     final int overdue = plan.where((PlanItem p) => p.status == 'overdue').length;
     final List<PlanItem> ordered = [...plan]..sort((PlanItem a, PlanItem b) => _key(a).compareTo(_key(b)));
     final Map<int, List<PlanItem>> byDay = {};
@@ -181,7 +207,13 @@ class MasterPlanCalScreen extends ConsumerWidget {
             items: [
               for (final PlanItem p in ordered)
                 KvTimelineItem(
-                  time: KvFormat.typo('${moDay(p.date)}, ${p.time}${p.status == 'overdue' ? ' · просрочено ${now.day - int.parse(p.date.substring(0, 2))} дн' : p.status == 'draft' ? ' · черновик' : ''}'),
+                  time: KvFormat.typo(
+                    '${moDay(p.date)}, ${p.time}${p.status == 'overdue'
+                        ? ' · просрочено ${now.day - int.parse(p.date.substring(0, 2))} дн'
+                        : p.status == 'draft'
+                        ? ' · черновик'
+                        : ''}',
+                  ),
                   title: KvFormat.typo('${code(p.unitId)} · ${p.work}'),
                   text: p.who == 'не назначен' ? 'Исполнитель не назначен' : p.who,
                   status: tone(p),
@@ -217,7 +249,11 @@ class _Calendar extends StatelessWidget {
       for (final String h in heads)
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
-          child: Text(h, textAlign: TextAlign.center, style: t.micro.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(11))),
+          child: Text(
+            h,
+            textAlign: TextAlign.center,
+            style: t.micro.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(11)),
+          ),
         ),
       for (int i = 0; i < offset; i++) const SizedBox(height: 38),
       for (int d = 1; d <= 30; d++) _day(context, c, t, d),
@@ -225,10 +261,12 @@ class _Calendar extends StatelessWidget {
     final List<Widget> rows = [];
     for (int i = 0; i < cells.length; i += 7) {
       final List<Widget> week = cells.sublist(i, i + 7 > cells.length ? cells.length : i + 7);
-      rows.add(Padding(
-        padding: EdgeInsets.only(top: i == 0 ? 0 : 2),
-        child: Row(children: [for (int k = 0; k < 7; k++) Expanded(child: k < week.length ? week[k] : const SizedBox.shrink())]),
-      ));
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 0 : 2),
+          child: Row(children: [for (int k = 0; k < 7; k++) Expanded(child: k < week.length ? week[k] : const SizedBox.shrink())]),
+        ),
+      );
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: rows);
   }
@@ -240,10 +278,10 @@ class _Calendar extends StatelessWidget {
     final (Color? bg, Color fg, bool bold) = isToday
         ? (c.btnPrimary, c.onBrand, true)
         : over
-            ? (c.badBg, c.bad, true)
-            : items.isNotEmpty
-                ? (c.tint, c.brand, true)
-                : (null, d < today ? c.text3 : c.text, false);
+        ? (c.badBg, c.bad, true)
+        : items.isNotEmpty
+        ? (c.tint, c.brand, true)
+        : (null, d < today ? c.text3 : c.text, false);
     return SizedBox(
       height: 38,
       child: Stack(
@@ -254,7 +292,10 @@ class _Calendar extends StatelessWidget {
             height: 32,
             alignment: Alignment.center,
             decoration: bg == null ? null : BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Text('$d', style: t.sm.copyWith(color: fg, fontWeight: bold ? FontWeight.w600 : FontWeight.w400, height: KvTextStyles.normalHeight(14))),
+            child: Text(
+              '$d',
+              style: t.sm.copyWith(color: fg, fontWeight: bold ? FontWeight.w600 : FontWeight.w400, height: KvTextStyles.normalHeight(14)),
+            ),
           ),
           if (items.isNotEmpty && !isToday)
             Positioned(

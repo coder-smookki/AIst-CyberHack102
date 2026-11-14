@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/state/app_state.dart';
 import '../../data/providers.dart';
 
 /// Почта и пароль последней попытки входа. Хранятся только в памяти приложения: по ним экран «Вход · проверка»

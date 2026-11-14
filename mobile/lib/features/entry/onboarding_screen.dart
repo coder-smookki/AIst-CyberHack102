@@ -79,9 +79,17 @@ class OnboardingScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(s.title, textAlign: TextAlign.center, style: t.title.copyWith(fontSize: narrow ? 20 : 22, height: 1.25)),
+          Text(
+            s.title,
+            textAlign: TextAlign.center,
+            style: t.title.copyWith(fontSize: narrow ? 20 : 22, height: 1.25),
+          ),
           const SizedBox(height: KvSpace.s2),
-          Text(s.text, textAlign: TextAlign.center, style: t.body.copyWith(fontSize: narrow ? 14 : 15, color: c.text2, height: 1.45)),
+          Text(
+            s.text,
+            textAlign: TextAlign.center,
+            style: t.body.copyWith(fontSize: narrow ? 14 : 15, color: c.text2, height: 1.45),
+          ),
         ],
       ),
     );
@@ -106,10 +114,7 @@ class OnboardingScreen extends ConsumerWidget {
         else
           Center(child: KvLink('Пропустить', onPressed: () => _finish(context, ref))),
         const SizedBox(height: KvSpace.s1),
-        KvButton(
-          last ? 'Начать работу' : 'Далее',
-          onPressed: last ? () => _finish(context, ref) : () => context.kvPush(_paths[step]),
-        ),
+        KvButton(last ? 'Начать работу' : 'Далее', onPressed: last ? () => _finish(context, ref) : () => context.kvPush(_paths[step])),
       ],
     );
 
@@ -167,7 +172,10 @@ class _Dots extends StatefulWidget {
 }
 
 class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 150 + 500));
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 150 + 500),
+  );
   bool _started = false;
 
   @override
@@ -193,7 +201,10 @@ class _DotsState extends State<_Dots> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
-    final Animation<double> t = CurvedAnimation(parent: _c, curve: const Interval(150 / 650, 1, curve: KvMotion.ease));
+    final Animation<double> t = CurvedAnimation(
+      parent: _c,
+      curve: const Interval(150 / 650, 1, curve: KvMotion.ease),
+    );
     return Semantics(
       label: 'Шаг ${widget.active} из 3',
       child: SizedBox(

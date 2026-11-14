@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -173,8 +174,13 @@ class AdmDividedRow extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(top: top),
       child: DecoratedBox(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: context.kv.divider))),
-        child: Padding(padding: EdgeInsets.only(top: top - 1), child: row),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.kv.divider)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(top: top + 1),
+          child: row,
+        ),
       ),
     );
   }
@@ -215,13 +221,20 @@ class AdmKpi extends StatelessWidget {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.clip,
-                style: t.body.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(15), color: warn ? c.warnText : c.text),
+                style: t.body.copyWith(
+                  fontWeight: FontWeight.w500,
+                  height: KvTextStyles.normalHeight(15),
+                  color: warn ? c.warnText : c.text,
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 2),
-        Text(label, style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12))),
+        Text(
+          label,
+          style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12)),
+        ),
       ],
     );
   }
@@ -262,7 +275,12 @@ class AdmBigNum extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value, maxLines: 1, softWrap: false, style: t.numXl.copyWith(fontSize: size, letterSpacing: -0.02 * size, color: color)),
+              Text(
+                value,
+                maxLines: 1,
+                softWrap: false,
+                style: t.numXl.copyWith(fontSize: size, letterSpacing: -0.02 * size, color: color),
+              ),
               const SizedBox(width: 6),
               Text(unit, maxLines: 1, softWrap: false, style: t.numXl.copyWith(fontSize: 22, letterSpacing: 0, color: color)),
             ],
@@ -273,7 +291,10 @@ class AdmBigNum extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: t.sm.copyWith(fontWeight: FontWeight.w500, height: 1.35, color: c.text)),
+                Text(
+                  title,
+                  style: t.sm.copyWith(fontWeight: FontWeight.w500, height: 1.35, color: c.text),
+                ),
                 Text(ty(text), style: t.caption.copyWith(height: 1.35)),
               ],
             ),
@@ -328,7 +349,11 @@ class AdmDone extends StatelessWidget {
           const SizedBox(height: 8),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 300),
-            child: Text(ty(text), textAlign: TextAlign.center, style: t.sm.copyWith(color: c.text2, height: 1.45)),
+            child: Text(
+              ty(text),
+              textAlign: TextAlign.center,
+              style: t.sm.copyWith(color: c.text2, height: 1.45),
+            ),
           ),
           if (stats.isNotEmpty) ...[
             const SizedBox(height: 8 + 12),
@@ -342,9 +367,17 @@ class AdmDone extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(ty(v), maxLines: 1, softWrap: false, style: t.h2.copyWith(color: c.brand, height: KvTextStyles.normalHeight(17))),
+                        Text(
+                          ty(v),
+                          maxLines: 1,
+                          softWrap: false,
+                          style: t.h2.copyWith(color: c.brand, height: KvTextStyles.normalHeight(17)),
+                        ),
                         const SizedBox(height: 2),
-                        Text(l, style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12))),
+                        Text(
+                          l,
+                          style: t.label.copyWith(fontWeight: FontWeight.w400, height: KvTextStyles.normalHeight(12)),
+                        ),
                       ],
                     ),
                   ),
@@ -371,7 +404,7 @@ class AdmPassword extends StatelessWidget {
     return CustomPaint(
       painter: _DashedBox(color: c.border, fill: c.surface2, radius: KvRadius.field),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 6, 6, 6),
+        padding: const EdgeInsets.fromLTRB(19, 7, 7, 7),
         child: Row(
           children: [
             Expanded(
@@ -399,7 +432,13 @@ class AdmPassword extends StatelessWidget {
               semanticLabel: 'Копировать',
               onPressed: () {
                 unawaited(Clipboard.setData(ClipboardData(text: password)));
-                showKvToast(context, title: 'Пароль скопирован', text: 'Буфер очистится через 60 с', kind: KvToastKind.ok, icon: KvIcons.copy);
+                showKvToast(
+                  context,
+                  title: 'Пароль скопирован',
+                  text: 'Буфер очистится через 60 с',
+                  kind: KvToastKind.ok,
+                  icon: KvIcons.copy,
+                );
               },
             ),
           ],
@@ -442,7 +481,15 @@ class _DashedBox extends CustomPainter {
 /// Строка выбора одного варианта (.e-opt): значок, заголовок, подпись и круглая отметка справа.
 class AdmRadioRow extends StatelessWidget {
   /// Создаёт строку.
-  const AdmRadioRow({super.key, required this.title, this.subtitle, this.icon, this.iconStatus, required this.selected, required this.onTap});
+  const AdmRadioRow({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.icon,
+    this.iconStatus,
+    required this.selected,
+    required this.onTap,
+  });
 
   /// Заголовок.
   final String title;
@@ -486,12 +533,19 @@ class AdmRadioRow extends StatelessWidget {
           width: 22,
           height: 22,
           alignment: Alignment.center,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: selected ? c.brand : c.surface3, width: 2)),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: selected ? c.brand : c.surface3, width: 2),
+          ),
           child: AnimatedScale(
             scale: selected ? 1 : 0,
             duration: d,
             curve: KvMotion.ease,
-            child: Container(width: 12, height: 12, decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle)),
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
+            ),
           ),
         ),
       ),
@@ -529,7 +583,10 @@ class AdmCaption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(padding: EdgeInsets.only(top: top), child: Text(ty(text), style: context.kvText.caption));
+    return Padding(
+      padding: EdgeInsets.only(top: top),
+      child: Text(ty(text), style: context.kvText.caption),
+    );
   }
 }
 
@@ -562,7 +619,10 @@ class AdmBoldNote extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: ty(bold), style: const TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(
+              text: ty(bold),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
             const TextSpan(text: '\n'),
             TextSpan(text: ty(text)),
           ],
@@ -627,10 +687,7 @@ class _AdmBusyButtonState extends State<AdmBusyButton> {
     setState(() => _busy = true);
     final Duration wait = context.kvReduceMotion ? Duration.zero : widget.wait;
     try {
-      await Future.wait<void>([
-        if (widget.work != null) widget.work!(),
-        Future<void>.delayed(wait),
-      ]);
+      await Future.wait<void>([if (widget.work != null) widget.work!(), Future<void>.delayed(wait)]);
     } on KvApiException catch (e) {
       if (mounted) {
         setState(() => _busy = false);
@@ -661,7 +718,14 @@ class _AdmBusyButtonState extends State<AdmBusyButton> {
 /// Кнопки диалога «Отмена» и действие (cancelOk прототипа): длинная подпись - столбиком, короткая - в ряд.
 class AdmDialogActions extends StatelessWidget {
   /// Создаёт кнопки.
-  const AdmDialogActions({super.key, required this.okText, this.work, this.onDone, this.kind = KvButtonKind.primary, this.wait = KvMotion.wait});
+  const AdmDialogActions({
+    super.key,
+    required this.okText,
+    this.work,
+    this.onDone,
+    this.kind = KvButtonKind.primary,
+    this.wait = KvMotion.wait,
+  });
 
   /// Подпись действия.
   final String okText;
@@ -683,9 +747,23 @@ class AdmDialogActions extends StatelessWidget {
     final Widget ok = AdmBusyButton(okText, kind: kind, work: work, onDone: onDone, wait: wait);
     final Widget no = KvButton('Отмена', kind: KvButtonKind.secondary, onPressed: () => Navigator.of(context).pop());
     if (okText.length > 12) {
-      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [ok, const SizedBox(height: KvSpace.s2), no]);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ok,
+          const SizedBox(height: KvSpace.s2),
+          no,
+        ],
+      );
     }
-    return Row(children: [Expanded(child: no), const SizedBox(width: KvSpace.s3), Expanded(child: ok)]);
+    return Row(
+      children: [
+        Expanded(child: no),
+        const SizedBox(width: KvSpace.s3),
+        Expanded(child: ok),
+      ],
+    );
   }
 }
 
@@ -817,7 +895,11 @@ class AdmChips extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        for (final (String label, KvStatus? status, bool dot) in chips) SizedBox(height: 30, child: KvChip(label, status: status, dot: dot)),
+        for (final (String label, KvStatus? status, bool dot) in chips)
+          SizedBox(
+            height: 30,
+            child: KvChip(label, status: status, dot: dot),
+          ),
       ],
     );
   }
@@ -847,7 +929,10 @@ class AdmProfileCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(person.name, style: t.body.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(15))),
+                Text(
+                  person.name,
+                  style: t.body.copyWith(fontWeight: FontWeight.w500, height: KvTextStyles.normalHeight(15)),
+                ),
                 const SizedBox(height: 3),
                 Text(person.title, style: t.caption.copyWith(height: KvTextStyles.normalHeight(13))),
                 const SizedBox(height: 3),
@@ -881,7 +966,8 @@ class AdmThemeCard extends ConsumerWidget {
       child: KvSegment(
         items: const ['Светлая', 'Тёмная', 'Как в системе'],
         index: index,
-        onChanged: (int i) => ref.read(deviceSettingsProvider.notifier).setThemeMode(const [ThemeMode.light, ThemeMode.dark, ThemeMode.system][i]),
+        onChanged: (int i) =>
+            ref.read(deviceSettingsProvider.notifier).setThemeMode(const [ThemeMode.light, ThemeMode.dark, ThemeMode.system][i]),
       ),
     );
   }
@@ -892,3 +978,23 @@ void admCloseThen(BuildContext overlay, VoidCallback then) {
   Navigator.of(overlay).pop();
   then();
 }
+
+/// Строки «ключ - значение» прямо в листе (KV.kvs вне карточки): каждая строка - отдельный блок листа
+/// с промежутком 12, у второй и следующих черта сверху.
+List<Widget> admLooseKeyValues(BuildContext context, List<(String, String)> pairs) => [
+  for (int i = 0; i < pairs.length; i++)
+    if (i == 0)
+      KvKeyValues([pairs[i]])
+    else
+      DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.kv.divider)),
+        ),
+        child: Padding(padding: const EdgeInsets.only(top: 1), child: KvKeyValues([pairs[i]])),
+      ),
+];
+
+/// Заголовок строки списка, который может переноситься: строка 19 px вместо округлённых движком 20 px,
+/// чтобы две строки занимали 38 px, как 2 × 19,5 px в браузере прототипа.
+Widget admWrapTitle(BuildContext context, String text, {Color? color}) =>
+    Text(text, style: context.kvText.bodyM.copyWith(height: 1.29, color: color ?? context.kv.text));

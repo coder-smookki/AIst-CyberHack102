@@ -56,7 +56,11 @@ class AdmSystemScreen extends ConsumerWidget {
                 AdmDividedRow(
                   top: 14,
                   gap: admNarrow(context) ? 10 : 14,
-                  children: [AdmMeter(label: 'ЦП', pct: s.cpu), AdmMeter(label: 'Память', pct: s.ram), AdmMeter(label: 'Диск', pct: s.disk)],
+                  children: [
+                    AdmMeter(label: 'ЦП', pct: s.cpu),
+                    AdmMeter(label: 'Память', pct: s.ram),
+                    AdmMeter(label: 'Диск', pct: s.disk),
+                  ],
                 ),
               ],
             ),
@@ -104,7 +108,9 @@ class AdmSystemScreen extends ConsumerWidget {
               icon: KvIcons.archive,
               status: KvStatus.ok,
               title: 'Резерв',
-              subtitle: last == null ? null : ty('${last.date == (s?.lastBackup.split(' ').first ?? '') ? 'Сегодня' : last.date} ${last.time} · ${last.size}'),
+              subtitle: last == null
+                  ? null
+                  : ty('${last.date == (s?.lastBackup.split(' ').first ?? '') ? 'Сегодня' : last.date} ${last.time} · ${last.size}'),
               onTap: () => context.kvPush(AdminsPaths.eAdmMaint),
             ),
             KvActionCard(

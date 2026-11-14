@@ -61,7 +61,9 @@ class EntryStateHero extends StatelessWidget {
             bottom: -haloSpread,
             child: Opacity(
               opacity: haloOpacity,
-              child: DecoratedBox(decoration: BoxDecoration(color: halo, shape: BoxShape.circle)),
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: halo, shape: BoxShape.circle),
+              ),
             ),
           ),
           Container(
@@ -82,7 +84,11 @@ class EntryStateHero extends StatelessWidget {
           const SizedBox(height: 10),
           EntryPopIn(child: circle),
           const SizedBox(height: KvSpace.s4 + KvSpace.s2),
-          Text(title, textAlign: TextAlign.center, style: t.title.copyWith(fontSize: narrow ? 20 : 22, height: 1.25)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: t.title.copyWith(fontSize: narrow ? 20 : 22, height: 1.25),
+          ),
           const SizedBox(height: KvSpace.s2),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 330),
@@ -99,8 +105,10 @@ class EntryStateHero extends StatelessWidget {
 }
 
 /// Выделенная часть пояснения [EntryStateHero] (.st-text b): основной цвет, вес 500.
-TextSpan entryStrong(BuildContext context, String text) =>
-    TextSpan(text: text, style: TextStyle(color: context.kv.text, fontWeight: FontWeight.w500));
+TextSpan entryStrong(BuildContext context, String text) => TextSpan(
+  text: text,
+  style: TextStyle(color: context.kv.text, fontWeight: FontWeight.w500),
+);
 
 /// Карточка строк «ключ - значение» с полями 4 × 16 (card + kvs прототипа); [outline] - с рамкой без тени.
 class EntryKeyValueCard extends StatelessWidget {

@@ -56,7 +56,12 @@ class AdmModelScreen extends ConsumerWidget {
               kind: KvButtonKind.secondary,
               icon: KvIcons.target,
               wait: const Duration(milliseconds: 1200),
-              onDone: () => showKvToast(context, title: 'Проверка пройдена', text: ty('$metricLabel $metricValue на 1 240 кадрах'), kind: KvToastKind.ok),
+              onDone: () => showKvToast(
+                context,
+                title: 'Проверка пройдена',
+                text: ty('$metricLabel $metricValue на 1 240 кадрах'),
+                kind: KvToastKind.ok,
+              ),
             ),
       children: [
         AdmGrid(
@@ -121,7 +126,12 @@ class AdmModelScreen extends ConsumerWidget {
                 icon: KvIcons.info,
                 title: 'Размер и версия',
                 subtitle: ty('${m.size} · загружена ${m.date}'),
-                onTap: () => showKvToast(sheet, title: 'Модель ${m.version}', text: ty('${m.size} · подпись разработчика подтверждена'), kind: KvToastKind.info),
+                onTap: () => showKvToast(
+                  sheet,
+                  title: 'Модель ${m.version}',
+                  text: ty('${m.size} · подпись разработчика подтверждена'),
+                  kind: KvToastKind.info,
+                ),
               ),
               KvRow(
                 icon: KvIcons.list,
@@ -154,7 +164,12 @@ class AdmModelScreen extends ConsumerWidget {
             work: () => ref.read(adminRepositoryProvider).activateModel(m.id),
             onDone: () => admCloseThen(
               dialog,
-              () => showKvToast(screen, title: 'Версия $short активирована', text: 'Сканеры получат её при подключении к серверу', kind: KvToastKind.ok),
+              () => showKvToast(
+                screen,
+                title: 'Версия $short активирована',
+                text: 'Сканеры получат её при подключении к серверу',
+                kind: KvToastKind.ok,
+              ),
             ),
           ),
         ],

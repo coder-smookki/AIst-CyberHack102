@@ -25,6 +25,14 @@ class BlockedScreen extends ConsumerWidget {
     final String shown = account?.email ?? email;
     return KvScreen(
       padding: const EdgeInsets.fromLTRB(KvSpace.gutter, KvSpace.s5, KvSpace.gutter, 0),
+      foot: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          KvButton('Связаться с администратором ИБ', icon: KvIcons.phone, onPressed: () => showEntryContactSheet(context)),
+          const SizedBox(height: KvSpace.s2),
+          KvButton('Вернуться ко входу', kind: KvButtonKind.ghost, onPressed: () => context.kvBack(EntryPaths.login)),
+        ],
+      ),
       children: [
         EntryStateHero(
           icon: KvIcons.lock,
@@ -50,19 +58,9 @@ class BlockedScreen extends ConsumerWidget {
           ]),
         if (sec != null)
           KvList(
-            children: [
-              KvRow(avatar: sec.name, title: sec.name, subtitle: sec.role, onTap: () => showEntryContactSheet(context)),
-            ],
+            children: [KvRow(avatar: sec.name, title: sec.name, subtitle: sec.role, onTap: () => showEntryContactSheet(context))],
           ),
       ],
-      foot: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          KvButton('Связаться с администратором ИБ', icon: KvIcons.phone, onPressed: () => showEntryContactSheet(context)),
-          const SizedBox(height: KvSpace.s2),
-          KvButton('Вернуться ко входу', kind: KvButtonKind.ghost, onPressed: () => context.kvBack(EntryPaths.login)),
-        ],
-      ),
     );
   }
 }
@@ -105,7 +103,13 @@ class _ContactSheet extends ConsumerWidget {
               icon: KvIcons.phone,
               title: KvFormat.typo(sec.phone),
               subtitle: 'Позвонить',
-              onTap: () => showKvToast(context, kind: KvToastKind.info, icon: KvIcons.phone, title: 'Вызов', text: KvFormat.typo('${sec.name} · ${sec.phone}')),
+              onTap: () => showKvToast(
+                context,
+                kind: KvToastKind.info,
+                icon: KvIcons.phone,
+                title: 'Вызов',
+                text: KvFormat.typo('${sec.name} · ${sec.phone}'),
+              ),
             ),
             KvRow(
               icon: KvIcons.mail,
