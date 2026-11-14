@@ -98,7 +98,16 @@ enum KvArLabelPosition {
 @immutable
 class KvArBoxData {
   /// Создаёт рамку в процентах области.
-  const KvArBoxData(this.rect, {this.kind = KvArKind.part, this.onTap, this.label, this.labelPosition = KvArLabelPosition.above, this.labelIcon, this.semanticLabel});
+  const KvArBoxData(
+    this.rect, {
+    this.kind = KvArKind.part,
+    this.onTap,
+    this.label,
+    this.labelPosition = KvArLabelPosition.above,
+    this.labelIcon,
+    this.semanticLabel,
+    this.color,
+  });
 
   /// Положение и размер в процентах области.
   final Rect rect;
@@ -120,12 +129,23 @@ class KvArBoxData {
 
   /// Подпись нажимаемой рамки для диктора; по умолчанию «Открыть».
   final String? semanticLabel;
+
+  /// Цвет рамки и подписи вместо цвета вида: жёлтый «проверить» на живом видео.
+  final Color? color;
 }
 
 /// Видео камеры с рамками распознавания (.ar-stage, .ar-box, .ar-label). Кадр - camera.jpg через [view].
 class KvArStage extends StatelessWidget {
   /// Создаёт видео с рамками.
-  const KvArStage({super.key, this.view = const KvCamView(), this.boxes = const <KvArBoxData>[], this.radius = 0, this.boxRadius = KvRadius.xs, this.glow = true});
+  const KvArStage({
+    super.key,
+    this.view = const KvCamView(),
+    this.boxes = const <KvArBoxData>[],
+    this.radius = 0,
+    this.boxRadius = KvRadius.xs,
+    this.glow = true,
+    this.background,
+  });
 
   /// Вид кадра.
   final KvCamView view;
@@ -142,6 +162,9 @@ class KvArStage extends StatelessWidget {
   /// Красное свечение рамок дефекта, как на живом видео (.b-cam); во врезках кадра его нет.
   final bool glow;
 
+  /// Живое видео камеры вместо демонстрационного кадра: рисуется на всю область, рамки - в процентах области.
+  final Widget? background;
+
   @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
@@ -155,15 +178,18 @@ class KvArStage extends StatelessWidget {
             final Rect img = view.imageRect(size);
             final double dpr = MediaQuery.devicePixelRatioOf(context);
             final List<Widget> layers = [
-              Positioned.fromRect(
-                rect: img,
-                child: Image.asset(KvCamView.asset, fit: BoxFit.fill, cacheWidth: math.min(780, (img.width * dpr).round()), gaplessPlayback: true),
-              ),
+              if (background != null)
+                Positioned.fill(child: background!)
+              else
+                Positioned.fromRect(
+                  rect: img,
+                  child: Image.asset(KvCamView.asset, fit: BoxFit.fill, cacheWidth: math.min(780, (img.width * dpr).round()), gaplessPlayback: true),
+                ),
             ];
             for (final KvArBoxData b in boxes) {
               final Rect r = _clamp(b.rect);
               final Rect px = Rect.fromLTWH(r.left / 100 * size.width, r.top / 100 * size.height, r.width / 100 * size.width, r.height / 100 * size.height);
-              layers.add(Positioned.fromRect(rect: px, child: _ArBox(kind: b.kind, onTap: b.onTap, colors: c, radius: boxRadius, glow: glow, semanticLabel: b.semanticLabel)));
+              layers.add(Positioned.fromRect(rect: px, child: _ArBox(kind: b.kind, onTap: b.onTap, colors: c, radius: boxRadius, glow: glow, semanticLabel: b.semanticLabel, color: b.color)));
             }
             for (final KvArBoxData b in boxes) {
               if (b.label != null) {
@@ -189,7 +215,7 @@ class KvArStage extends StatelessWidget {
     final Rect r = b.rect;
     double px(double v) => v / 100 * s.width;
     double py(double v) => v / 100 * s.height;
-    final Widget label = KvArLabel(text: b.label!, kind: b.kind, icon: b.labelIcon);
+    final Widget label = KvArLabel(text: b.label!, kind: b.kind, icon: b.labelIcon, color: b.color);
     return switch (b.labelPosition) {
       KvArLabelPosition.below => Positioned(left: px(r.left), top: py(r.bottom) + 6, child: label),
       KvArLabelPosition.left => Positioned(right: s.width - px(r.left) + 6, top: py(r.top) + 6, child: label),
@@ -202,7 +228,7 @@ class KvArStage extends StatelessWidget {
 }
 
 class _ArBox extends StatelessWidget {
-  const _ArBox({required this.kind, required this.onTap, required this.colors, required this.radius, required this.glow, this.semanticLabel});
+  const _ArBox({required this.kind, required this.onTap, required this.colors, required this.radius, required this.glow, this.semanticLabel, this.color});
 
   final KvArKind kind;
   final VoidCallback? onTap;
@@ -210,14 +236,16 @@ class _ArBox extends StatelessWidget {
   final double radius;
   final bool glow;
   final String? semanticLabel;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final Color color = switch (kind) {
-      KvArKind.part => colors.arPart,
-      KvArKind.defect => colors.arDefect,
-      KvArKind.gauge => colors.arGauge,
-    };
+    final Color color = this.color ??
+        switch (kind) {
+          KvArKind.part => colors.arPart,
+          KvArKind.defect => colors.arDefect,
+          KvArKind.gauge => colors.arGauge,
+        };
     final List<BoxShadow> shadows = kind == KvArKind.defect && glow
         ? [BoxShadow(color: colors.arGlass, spreadRadius: 1), kvCssShadow(0, 0, 18, colors.arDefect)]
         : const [BoxShadow(color: Color(0x1F000000), spreadRadius: 1)];
@@ -263,7 +291,7 @@ class _OuterShadowPainter extends CustomPainter {
 /// Подпись рамки AR: таблетка 26 px цвета рамки с белым текстом 12.
 class KvArLabel extends StatelessWidget {
   /// Создаёт подпись.
-  const KvArLabel({super.key, required this.text, this.kind = KvArKind.part, this.icon});
+  const KvArLabel({super.key, required this.text, this.kind = KvArKind.part, this.icon, this.color});
 
   /// Текст.
   final String text;
@@ -274,14 +302,18 @@ class KvArLabel extends StatelessWidget {
   /// Значок 14 слева.
   final KvIcons? icon;
 
+  /// Цвет таблетки вместо цвета вида.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     final KvColors c = context.kv;
-    final Color bg = switch (kind) {
-      KvArKind.part => c.arPart,
-      KvArKind.defect => c.arDefect,
-      KvArKind.gauge => c.arGauge,
-    };
+    final Color bg = color ??
+        switch (kind) {
+          KvArKind.part => c.arPart,
+          KvArKind.defect => c.arDefect,
+          KvArKind.gauge => c.arGauge,
+        };
     return Container(
       height: 26,
       padding: const EdgeInsets.symmetric(horizontal: 10),

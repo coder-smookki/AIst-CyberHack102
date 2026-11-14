@@ -1,0 +1,68 @@
+{
+ "tiers": [
+  {
+   "id": "kv-main",
+   "title": "Основная модель",
+   "parts": [
+    "kv-main.gguf.000",
+    "kv-main.gguf.001",
+    "kv-main.gguf.002",
+    "kv-main.gguf.003",
+    "kv-main.gguf.004",
+    "kv-main.gguf.005",
+    "kv-main.gguf.006",
+    "kv-main.gguf.007",
+    "kv-main.gguf.008",
+    "kv-main.gguf.009",
+    "kv-main.gguf.010",
+    "kv-main.gguf.011",
+    "kv-main.gguf.012",
+    "kv-main.gguf.013",
+    "kv-main.gguf.014",
+    "kv-main.gguf.015",
+    "kv-main.gguf.016",
+    "kv-main.gguf.017",
+    "kv-main.gguf.018",
+    "kv-main.gguf.019"
+   ],
+   "bytes": 639446688,
+   "min_ram_mb": 7000,
+   "context": 2048,
+   "threads": 4,
+   "max_tokens": 320,
+   "think_prefix": true,
+   "snippets": 3,
+   "min_ios_avail_mb": 3000,
+   "source": "Qwen/Qwen3-0.6B-GGUF Q8_0 (база)",
+   "version": "9465e63a22ad"
+  },
+  {
+   "id": "kv-lite",
+   "title": "Облегчённая модель",
+   "parts": [
+    "kv-lite.gguf.000",
+    "kv-lite.gguf.001",
+    "kv-lite.gguf.002",
+    "kv-lite.gguf.003",
+    "kv-lite.gguf.004",
+    "kv-lite.gguf.005",
+    "kv-lite.gguf.006",
+    "kv-lite.gguf.007",
+    "kv-lite.gguf.008",
+    "kv-lite.gguf.009",
+    "kv-lite.gguf.010",
+    "kv-lite.gguf.011"
+   ],
+   "bytes": 396704416,
+   "min_ram_mb": 3000,
+   "context": 1024,
+   "threads": 4,
+   "max_tokens": 320,
+   "think_prefix": true,
+   "snippets": 1,
+   "min_ios_avail_mb": 1200,
+   "source": "Qwen3-0.6B Q4_K_M (база)",
+   "version": "71a198a32e96"
+  }
+ ]
+}

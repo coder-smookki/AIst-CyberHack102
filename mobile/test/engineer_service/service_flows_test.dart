@@ -124,14 +124,14 @@ void main() {
     expect(find.textContaining('Осмотры и события ·'), findsOneWidget);
   });
 
-  testWidgets('ассистент: подсказка «Ближайшие ТО» и вопрос с клавиатуры', (WidgetTester tester) async {
+  testWidgets('ассистент на устройстве: подсказка «Ближайшие ТО» и вопрос с клавиатуры', (WidgetTester tester) async {
     final _App app = await _open(tester, '/engineer/assistant');
     await _tap(tester, 'Ближайшие ТО');
-    expect(find.text('Ближайшие работы по наработке:'), findsOneWidget);
+    expect(find.textContaining('блок ресурса'), findsWidgets);
 
     await _tap(tester, 'Вопрос об оборудовании');
     expect(app.location, '/engineer/c-assist-input');
-    await tester.enterText(find.byKey(const ValueKey<String>('assistant-question')), 'Когда меняли муфту АМС-1?');
+    await tester.enterText(find.byKey(const ValueKey<String>('assistant-question')), 'Рецепт плова с бараниной');
     await _settle(tester, 300);
     await _tapIcon(tester, KvIcons.send, ms: 2000);
     expect(app.location, '/engineer/assistant');

@@ -1,5 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'api/api_client.dart';
+import 'api/api_config.dart';
+import 'api/api_feed.dart';
+import 'api/api_repositories.dart';
 import 'clock.dart';
 import 'mock/mock_backend.dart';
 import 'mock/repos/mock_admin_repository.dart';
@@ -29,6 +33,7 @@ import 'repositories/site_repository.dart';
 import 'repositories/telemetry_repository.dart';
 import 'repositories/workflow_repository.dart';
 
+export 'api/api_config.dart';
 export 'api_exception.dart';
 export 'clock.dart';
 export 'models/admin.dart';
@@ -51,36 +56,74 @@ final Provider<MockBackend> mockBackendProvider = Provider<MockBackend>((Ref ref
 });
 
 /// Поток изменений данных.
-final Provider<KvChangeFeed> changeFeedProvider = Provider<KvChangeFeed>((Ref ref) => ref.watch(mockBackendProvider));
+final Provider<KvChangeFeed> changeFeedProvider = Provider<KvChangeFeed>((Ref ref) {
+  final KvChangeFeed mock = ref.watch(mockBackendProvider);
+  return ref.watch(apiConfigProvider.select((ApiConfig c) => c.demo)) ? mock : MergedFeed(mock, ref.watch(apiFeedProvider));
+});
+
+/// Клиент цехового сервера по адресу из настроек подключения.
+final Provider<ApiClient> apiClientProvider = Provider<ApiClient>((Ref ref) {
+  final ApiClient client = ApiClient(ref.watch(apiConfigProvider.select((ApiConfig c) => c.baseUrl)));
+  ref.onDispose(client.close);
+  return client;
+});
+
+/// Изменения данных на настоящем сервере, о которых сообщают репозитории после своих запросов.
+final Provider<ApiFeed> apiFeedProvider = Provider<ApiFeed>((Ref ref) {
+  final ApiFeed feed = ApiFeed();
+  ref.onDispose(feed.dispose);
+  return feed;
+});
+
+/// Работа с настоящим цеховым сервером (не демонстрационный режим).
+final Provider<bool> serverModeProvider = Provider<bool>((Ref ref) => !ref.watch(apiConfigProvider.select((ApiConfig c) => c.demo)));
 
 /// Вход и сеанс.
-final Provider<AuthRepository> authRepositoryProvider = Provider<AuthRepository>((Ref ref) => MockAuthRepository(ref.watch(mockBackendProvider)));
+final Provider<AuthRepository> authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
+  final MockAuthRepository mock = MockAuthRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiAuthRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+});
 
 /// Площадка и сотрудники.
 final Provider<SiteRepository> siteRepositoryProvider = Provider<SiteRepository>((Ref ref) => MockSiteRepository(ref.watch(mockBackendProvider)));
 
 /// Оборудование.
 final Provider<EquipmentRepository> equipmentRepositoryProvider =
-    Provider<EquipmentRepository>((Ref ref) => MockEquipmentRepository(ref.watch(mockBackendProvider)));
+    Provider<EquipmentRepository>((Ref ref) {
+  final MockEquipmentRepository mock = MockEquipmentRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiEquipmentRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+});
 
 /// Телеметрия.
 final Provider<TelemetryRepository> telemetryRepositoryProvider =
-    Provider<TelemetryRepository>((Ref ref) => MockTelemetryRepository(ref.watch(mockBackendProvider)));
+    Provider<TelemetryRepository>((Ref ref) {
+  final MockTelemetryRepository mock = MockTelemetryRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiTelemetryRepository(ref.watch(apiClientProvider), mock) : mock;
+});
 
 /// Диагностика, осмотры и находки.
 final Provider<InspectionRepository> inspectionRepositoryProvider =
-    Provider<InspectionRepository>((Ref ref) => MockInspectionRepository(ref.watch(mockBackendProvider)));
+    Provider<InspectionRepository>((Ref ref) {
+  final MockInspectionRepository mock = MockInspectionRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiInspectionRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+});
 
 /// Задания, сообщения, уведомления, план ТО.
 final Provider<WorkflowRepository> workflowRepositoryProvider =
     Provider<WorkflowRepository>((Ref ref) => MockWorkflowRepository(ref.watch(mockBackendProvider)));
 
 /// Отчёты.
-final Provider<ReportRepository> reportRepositoryProvider = Provider<ReportRepository>((Ref ref) => MockReportRepository(ref.watch(mockBackendProvider)));
+final Provider<ReportRepository> reportRepositoryProvider = Provider<ReportRepository>((Ref ref) {
+  final MockReportRepository mock = MockReportRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiReportRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+});
 
 /// Ассистент.
 final Provider<AssistantRepository> assistantRepositoryProvider =
-    Provider<AssistantRepository>((Ref ref) => MockAssistantRepository(ref.watch(mockBackendProvider)));
+    Provider<AssistantRepository>((Ref ref) {
+  final MockAssistantRepository mock = MockAssistantRepository(ref.watch(mockBackendProvider));
+  return ref.watch(serverModeProvider) ? ApiAssistantRepository(ref.watch(apiClientProvider), mock, ref.watch(apiFeedProvider)) : mock;
+});
 
 /// Администрирование системы.
 final Provider<AdminRepository> adminRepositoryProvider = Provider<AdminRepository>((Ref ref) => MockAdminRepository(ref.watch(mockBackendProvider)));

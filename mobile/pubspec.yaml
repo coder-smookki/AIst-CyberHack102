@@ -7,6 +7,7 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  camera: ^0.12.2
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -14,9 +15,14 @@ dependencies:
   flutter_riverpod: ^3.3.2
   flutter_svg: ^2.3.0
   go_router: ^17.3.0
+  http: ^1.6.0
+  image: ^4.13.0
   intl: ^0.20.2
+  llamadart: ^0.19.9
+  llamadart_llama_cpp_flutter: ^0.19.9
   path_parsing: ^1.1.0
   shared_preferences: ^2.5.5
+  web_socket_channel: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -27,6 +33,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/llm/
   fonts:
     - family: Geologica
       fonts:
@@ -38,3 +45,13 @@ flutter:
           weight: 500
         - asset: assets/fonts/Geologica-SemiBold.ttf
           weight: 600
+
+hooks:
+  user_defines:
+    llamadart:
+      llamadart_native_runtimes: [llama_cpp]
+      llamadart_native_backends:
+        platforms:
+          android-arm64:
+            backends: [cpu]
+            cpu_profile: full

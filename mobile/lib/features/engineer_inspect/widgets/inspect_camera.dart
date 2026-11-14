@@ -56,6 +56,7 @@ class ArTopBar extends StatefulWidget {
     this.spinning = false,
     this.waiting = false,
     this.flashOn = false,
+    this.onFlash,
   });
 
   /// Текст плашки: «Анализ видео · 24 кадр/с».
@@ -75,6 +76,9 @@ class ArTopBar extends StatefulWidget {
 
   /// Фонарик включён при открытии.
   final bool flashOn;
+
+  /// Фонарик переключён: включить или выключить подсветку камеры.
+  final ValueChanged<bool>? onFlash;
 
   @override
   State<ArTopBar> createState() => _ArTopBarState();
@@ -103,7 +107,10 @@ class _ArTopBarState extends State<ArTopBar> {
           variant: KvRoundVariant.glass,
           active: _flash,
           semanticLabel: 'Фонарик',
-          onPressed: () => setState(() => _flash = !_flash),
+          onPressed: () {
+            setState(() => _flash = !_flash);
+            widget.onFlash?.call(_flash);
+          },
         ),
       ],
     );

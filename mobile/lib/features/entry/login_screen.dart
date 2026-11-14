@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/state/app_state.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
+import '../shared/server_sheet.dart';
 import 'bio_sheet.dart';
 import 'entry_flow.dart';
 import 'entry_state.dart';
@@ -171,7 +172,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const KvLogo(white: true, height: 40),
+              Row(
+                children: [
+                  const KvLogo(white: true, height: 40),
+                  const Spacer(),
+                  KvRoundButton(
+                    icon: KvIcons.server,
+                    iconSize: 22,
+                    variant: KvRoundVariant.glass,
+                    semanticLabel: 'Подключение к серверу',
+                    onPressed: () => showServerSheet(context),
+                  ),
+                ],
+              ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import 'inspect_actions.dart';
 import 'inspect_catalog.dart';
 import 'inspect_providers.dart';
+import 'live/live_scanner_screen.dart';
 import 'widgets/inspect_camera.dart';
 
 /// Вид кадра основного сканера: лёгкое увеличение, насос поднят над панелью (MAIN_VIEW прототипа).
@@ -37,6 +38,9 @@ class ScannerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(serverModeProvider)) {
+      return LiveScannerScreen(unitId: unitId);
+    }
     final KvColors c = context.kv;
     final Equipment? unit = ref.watch(unitProvider(unitId)).value;
     final List<Detection> found = ref.watch(detectionsProvider(unitId)).value ?? const <Detection>[];
@@ -137,14 +141,17 @@ class ScannerScreen extends ConsumerWidget {
 }
 
 /// Поиск шильдика (b-scan-search): рамка наведения с бегущей линией, подсказки и кнопки QR-кода, условий съёмки и ввода номера.
-class ScanSearchScreen extends StatelessWidget {
+class ScanSearchScreen extends ConsumerWidget {
   /// Создаёт экран.
   const ScanSearchScreen({super.key});
 
   static const KvCamView _view = KvCamView(k: 1.9, cx: 0.33, cy: 0.43, ty: 0.43);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(serverModeProvider)) {
+      return const LiveScanSearchScreen();
+    }
     final KvColors c = context.kv;
     final Size size = MediaQuery.sizeOf(context);
     void found() => context.kvFade(EngineerInspectPaths.scanner);
@@ -178,14 +185,14 @@ class ScanSearchScreen extends StatelessWidget {
           left: KvSpace.gutter,
           right: KvSpace.gutter,
           top: size.height * 0.22,
-          child: const Center(child: _HintPill(icon: KvIcons.target, text: 'Наведите рамку на шильдик')),
+          child: const Center(child: ScanHintPill(icon: KvIcons.target, text: 'Наведите рамку на шильдик')),
         ),
         Positioned(
           left: size.width * 0.12,
           right: size.width * 0.12,
           top: size.height * 0.33,
           height: size.height * 0.2,
-          child: KvPressable(onTap: found, highlight: false, semanticLabel: 'Шильдик в рамке', child: const _AimFrame()),
+          child: KvPressable(onTap: found, highlight: false, semanticLabel: 'Шильдик в рамке', child: const ScanAimFrame()),
         ),
         Positioned(
           left: KvSpace.gutter,
@@ -215,9 +222,9 @@ class ScanSearchScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _CamAction(icon: KvIcons.qr, label: 'QR-код', onTap: found),
-              _CamAction(icon: KvIcons.sun, label: 'Условия', onTap: () => context.kvFade(EngineerInspectPaths.bScanPoor)),
-              _CamAction(icon: KvIcons.hash, label: 'Ввести номер', onTap: () => context.kvPush(EngineerInspectPaths.search)),
+              ScanCamAction(icon: KvIcons.qr, label: 'QR-код', onTap: found),
+              ScanCamAction(icon: KvIcons.sun, label: 'Условия', onTap: () => context.kvFade(EngineerInspectPaths.bScanPoor)),
+              ScanCamAction(icon: KvIcons.hash, label: 'Ввести номер', onTap: () => context.kvPush(EngineerInspectPaths.search)),
             ],
           ),
         ),
@@ -227,10 +234,14 @@ class ScanSearchScreen extends StatelessWidget {
 }
 
 /// Стеклянная подсказка поверх видео (.b-cam-hint .ar-pill): значок 18 и текст.
-class _HintPill extends StatelessWidget {
-  const _HintPill({required this.icon, required this.text});
+class ScanHintPill extends StatelessWidget {
+  /// Создаёт подсказку.
+  const ScanHintPill({super.key, required this.icon, required this.text});
 
+  /// Значок.
   final KvIcons icon;
+
+  /// Текст.
   final String text;
 
   @override
@@ -256,11 +267,17 @@ class _HintPill extends StatelessWidget {
 }
 
 /// Кнопка внизу экрана поиска шильдика (.b-cam-act): стеклянный круг 56 и подпись.
-class _CamAction extends StatelessWidget {
-  const _CamAction({required this.icon, required this.label, required this.onTap});
+class ScanCamAction extends StatelessWidget {
+  /// Создаёт кнопку.
+  const ScanCamAction({super.key, required this.icon, required this.label, required this.onTap});
 
+  /// Значок.
   final KvIcons icon;
+
+  /// Подпись.
   final String label;
+
+  /// Касание.
   final VoidCallback onTap;
 
   @override
@@ -281,14 +298,15 @@ class _CamAction extends StatelessWidget {
 }
 
 /// Рамка наведения (.ar-corners) с бегущей линией сканирования (.b-scanline, 2,4 с туда и обратно).
-class _AimFrame extends StatefulWidget {
-  const _AimFrame();
+class ScanAimFrame extends StatefulWidget {
+  /// Создаёт рамку.
+  const ScanAimFrame({super.key});
 
   @override
-  State<_AimFrame> createState() => _AimFrameState();
+  State<ScanAimFrame> createState() => _ScanAimFrameState();
 }
 
-class _AimFrameState extends State<_AimFrame> with SingleTickerProviderStateMixin {
+class _ScanAimFrameState extends State<ScanAimFrame> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
 
   @override

@@ -9,6 +9,7 @@ import '../../../app/routes/entry_routes.dart';
 import '../../../app/state/app_state.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
+import '../../shared/server_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../service_common.dart';
 
@@ -106,6 +107,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         KvList(
           noIcons: true,
           children: [
+            const ServerSettingsRow(),
             KvRow(
               title: 'Вход по биометрии',
               minHeight: 52,
