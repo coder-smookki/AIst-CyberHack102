@@ -41,12 +41,12 @@
 ## Видео
 
 <p align="center">
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/demo_3min.mp4"><img src="assets/readme/demo.gif" alt="Демонстрация: телефон инженера и веб-панель в реальном времени" width="820"></a>
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Demo-Video.mp4"><img src="assets/readme/demo.gif" alt="Демонстрация: телефон инженера и веб-панель в реальном времени" width="820"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/demo_3min.mp4"><b>Демонстрация, 2:40</b></a>: телефон инженера и веб-панель одновременно - шильдик, карточка, осмотр, находки, звук, отчёт, роли мастера, оператора и администратора ИБ<br>
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/benchmark.mp4"><b>Прогон моделей, 1:09</b></a>: рамки на тестовых наборах и итоговая таблица точности
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Demo-Video.mp4"><b>Демонстрация, 2:43</b></a>: телефон и веб-панель одновременно - шильдик, карточка, осмотр, находки, шум, отчёт, ассистент без интернета, мастер, оператор, сценарий отказа от администратора, создание сотрудника администратором ИБ<br>
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Benchmark-ModelCV-Video.mp4"><b>Прогон моделей, 1:09</b></a>: рамки на тестовых наборах и итоговая таблица точности
 </p>
 
 ## Что где
@@ -54,7 +54,7 @@
 | Что | Где |
 |---|---|
 | Приложение Android | [Последний релиз](https://github.com/coder-smookki/AIst-CyberHack102/releases/latest): `KST-Vizor.apk` (`arm64-v8a`) и его SHA-256 |
-| Презентация и видео | В том же релизе: презентация PPTX и PDF, видео демонстрации `demo_3min.mp4`, видео прогона моделей `benchmark.mp4` |
+| Презентация и видео | В том же релизе: презентация `AIst-Presentation-Product` (PPTX и PDF), видео демонстрации `AIst-Demo-Video.mp4`, видео прогона моделей `AIst-Benchmark-ModelCV-Video.mp4` |
 | Материалы для проверки | `Materials_for_testing.zip` в релизе: шильдики агрегатов и фото дефектов из открытых источников с авторами и лицензиями |
 | Исходный код приложения | [mobile/](mobile): Flutter, Android и iOS из одного кода |
 | Сервер и веб-панель | [server/](server): FastAPI, веб-панель администраторов в [server/webadmin/](server/webadmin), адрес `/web/` |
@@ -198,7 +198,7 @@ APK подписан отладочным ключом сборки. Новая 
 
 Пороги сервера: узлы 0,25, дефекты 0,15. Модели узлов и дефектов работают вместе, рамки объединяются.
 
-**Прогон моделей на видео.** `benchmark.mp4` в релизе: обе модели на тестовых наборах (рендеры 3D-модели, реальные фото узлов, фото дефектов из открытых источников, шильдики) с рамками на каждом кадре и итоговой таблицей, все числа посчитаны этим прогоном.
+**Прогон моделей на видео.** `AIst-Benchmark-ModelCV-Video.mp4` в релизе: обе модели на тестовых наборах (рендеры 3D-модели, реальные фото узлов, фото дефектов из открытых источников, шильдики) с рамками на каждом кадре и итоговой таблицей, все числа посчитаны этим прогоном.
 
 **Замеры.** Все числа из [models/models.json](models/models.json). Рамка верна при совпадении класса и пересечении от 0,5. Ни один из наборов ниже не участвовал в обучении и выборе модели.
 
