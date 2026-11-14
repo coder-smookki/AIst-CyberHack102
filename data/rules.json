@@ -1,0 +1,522 @@
+{
+ "version": 1,
+ "severity_scale": {
+  "1": "наблюдение и проверка",
+  "2": "устранить в плановом порядке",
+  "3": "критично: остановка или запрет эксплуатации"
+ },
+ "parameters": {
+  "rpm": {"name": "Обороты", "unit": "об/мин"},
+  "vib_rms": {"name": "СКЗ вибрации", "unit": "мм/с"},
+  "vib_1x": {"name": "Амплитуда вибрации 1x", "unit": "мм/с"},
+  "vib_2x": {"name": "Амплитуда вибрации 2x", "unit": "мм/с"},
+  "vib_hf": {"name": "ВЧ шум вибрации", "unit": "g"},
+  "vib_axial": {"name": "Осевая вибрация на муфте", "unit": "мм/с"},
+  "temp_bearing": {"name": "Температура подшипника", "unit": "°C"},
+  "temp_winding": {"name": "Температура обмоток двигателя", "unit": "°C"},
+  "current_a": {"name": "Ток фазы A", "unit": "А"},
+  "current_b": {"name": "Ток фазы B", "unit": "А"},
+  "current_c": {"name": "Ток фазы C", "unit": "А"},
+  "current_unbalance": {"name": "Небаланс токов по фазам", "unit": "%"},
+  "press_in": {"name": "Давление на входе", "unit": "бар"},
+  "press_out": {"name": "Давление нагнетания по датчику", "unit": "бар"},
+  "press_out_true": {"name": "Давление нагнетания по манометру", "unit": "бар"},
+  "flow": {"name": "Расход", "unit": "м³/ч"},
+  "power": {"name": "Потребляемая мощность", "unit": "кВт"},
+  "efficiency": {"name": "КПД", "unit": "%"},
+  "run_hours": {"name": "Наработка", "unit": "ч"},
+  "gauge_reading": {"name": "Показание стрелочного манометра", "unit": "бар"},
+  "temp_bearing_excess": {"name": "Температура подшипника относительно нормы", "unit": "°C"},
+  "press_in_drop_pct": {"name": "Снижение давления на входе относительно нормы", "unit": "%"},
+  "current_load_pct": {"name": "Ток двигателя относительно номинального", "unit": "%"},
+  "efficiency_drop_pct": {"name": "Снижение КПД относительно паспортного", "unit": "%"},
+  "gauge_diff_pct": {"name": "Расхождение манометра и датчика давления", "unit": "%"}
+ },
+ "baselines": {
+  "inline_centrifugal_pump": {"temp_bearing": 50.0, "temp_winding": 65.0, "press_in": 1.5}
+ },
+ "signs": {
+  "leak": "Течь, капли или влажное пятно",
+  "corrosion": "Коррозия",
+  "anchor_bolt_loose": "Анкерный болт выступает или ослаблен",
+  "anchor_bolt_missing": "Анкерный болт отсутствует",
+  "oil_dark": "Масло в смотровом стекле тёмное или мутное",
+  "oil_low": "Уровень масла ниже отметки MIN",
+  "terminal_box_burnt": "Следы перегрева, окисление или потемнение изоляции на клеммной коробке",
+  "local_heating": "Локальный нагрев клеммника",
+  "coupling_no_guard": "Кожух муфты отсутствует",
+  "coupling_guard_broken": "Кожух муфты разрушен",
+  "coupling_guard_shifted": "Кожух муфты смещён",
+  "flow_instability": "Нестабильность потока",
+  "cavitation_noise": "Шум кавитации",
+  "crack": "Трещина",
+  "damage": "Механическое повреждение: трещина, излом или повреждение изоляции"
+ },
+ "conditions": {
+  "vibration_rising": {"any": [
+   {"kind": "threshold", "param": "vib_hf", "op": ">", "value": 2.5},
+   {"kind": "trend", "param": "vib_hf", "op": ">=", "value": 0.03},
+   {"kind": "trend", "param": "vib_rms", "op": ">=", "value": 0.025}
+  ]},
+  "hf_vibration_rising": {"any": [
+   {"kind": "threshold", "param": "vib_hf", "op": ">", "value": 2.5},
+   {"kind": "trend", "param": "vib_hf", "op": ">=", "value": 0.03}
+  ]},
+  "lf_vibration_rising": {"any": [
+   {"kind": "threshold", "param": "vib_1x", "op": ">", "value": 2.8},
+   {"kind": "trend", "param": "vib_1x", "op": ">=", "value": 0.025}
+  ]},
+  "bearing_temp_rising": {"any": [
+   {"kind": "threshold", "param": "temp_bearing", "op": ">", "value": 75},
+   {"kind": "threshold", "param": "temp_bearing_excess", "op": ">=", "value": 10},
+   {"kind": "trend", "param": "temp_bearing", "op": ">=", "value": 0.35}
+  ]},
+  "inlet_pressure_falling": {"any": [
+   {"kind": "threshold", "param": "press_in_drop_pct", "op": ">=", "value": 20},
+   {"kind": "trend", "param": "press_in", "op": "<=", "value": -0.02}
+  ]},
+  "vibration_normal": {"kind": "label", "label": "vibration"},
+  "temperature_normal": {"kind": "label", "label": "temperature"}
+ },
+ "rules": [
+  {
+   "id": "R01",
+   "group": "customer",
+   "title": "Деградация уплотнения вала",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "seal",
+   "camera_text": "Влажное пятно, капли, блеск жидкости у вала",
+   "sensor_text": "Рост вибрации и температуры подшипникового узла",
+   "status": "defect",
+   "severity": 3,
+   "diagnosis": "Деградация уплотнения вала, риск заклинивания подшипника: течь у вала подтверждена ростом вибрации и температуры подшипникового узла",
+   "recommendation": "Перевести насос в резерв. Осмотреть зону уплотнения вала и точку контроля смазки подшипника, заменить уплотнение.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Течь у вала", "signs": ["leak"], "normal": ["seal_dry"], "hint": "наведите камеру на зону уплотнения вала"}},
+    {"source": "sensor", "expr": {"all": [{"ref": "vibration_rising"}, {"ref": "bearing_temp_rising"}]}}
+   ],
+   "camera_only": {
+    "status": "defect",
+    "severity": 2,
+    "diagnosis": "Течь у вала насоса. Рост вибрации и температуры подшипника датчики не подтверждают. Тип уплотнения в карточке узла не указан: для торцевого уплотнения течь недопустима, для сальниковой набивки норма - 5-20 капель в минуту",
+    "recommendation": "Уточнить тип уплотнения и оценить интенсивность течи. При торцевом уплотнении запланировать его замену; контролировать вибрацию и температуру подшипника."
+   },
+   "partial": {
+    "diagnosis": "Вибрация и температура подшипникового узла растут - возможна деградация уплотнения вала. Течь камерой не подтверждена",
+    "recommendation": "Осмотреть зону уплотнения вала: навести камеру и проверить, нет ли капель или влажного пятна."
+   },
+   "node_variants": {
+    "attr": "seal_type",
+    "values": {
+     "mechanical": {
+      "camera_only": {
+       "status": "defect",
+       "severity": 2,
+       "diagnosis": "Течь торцевого уплотнения: торцевое уплотнение не должно течь, любая течь - признак износа пар трения. Рост вибрации и температуры подшипника датчики пока не подтверждают",
+       "recommendation": "Запланировать замену торцевого уплотнения; до замены контролировать течь, вибрацию и температуру подшипника. Сухой ход не допускается."
+      }
+     },
+     "gland": {
+      "camera_only": {
+       "status": "check",
+       "severity": 1,
+       "diagnosis": "Капли у сальникового уплотнения: для сальниковой набивки 5-20 капель в минуту - норма (смазка и охлаждение набивки). Рост вибрации и температуры подшипника датчики не подтверждают",
+       "recommendation": "Посчитать капли за минуту. До 20 капель в минуту - замечаний нет; больше - подтянуть или перенабить сальник."
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "R02",
+   "group": "customer",
+   "title": "Ослабление крепления к фундаменту",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "frame",
+   "node_fallbacks": ["casing"],
+   "camera_text": "Коррозия рамы, отсутствует или выступает анкерный болт",
+   "sensor_text": "Рост низкочастотной вибрации (1-я гармоника)",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Ослабление посадки на фундамент («мягкая лапа»): коррозия или дефект анкерного крепления подтверждены ростом вибрации на оборотной частоте",
+   "recommendation": "Проверить и затянуть анкерные болты нормированным моментом, затем проверить соосность валов.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Коррозия рамы или дефект анкерного болта", "signs": ["corrosion", "anchor_bolt_loose", "anchor_bolt_missing"], "normal": ["anchor_bolt_ok"], "hint": "наведите камеру на раму и анкерные болты"}},
+    {"source": "sensor", "expr": {"ref": "lf_vibration_rising"}}
+   ],
+   "camera_only": {
+    "status": "defect",
+    "severity": 2,
+    "diagnosis": "Коррозия или дефект анкерного крепления. Рост вибрации на оборотной частоте датчики не подтверждают",
+    "recommendation": "Осмотреть раму и анкерные болты, оценить глубину коррозии, проверить затяжку. Контролировать вибрацию на оборотной частоте."
+   },
+   "partial": {
+    "diagnosis": "Вибрация на оборотной частоте растёт. Без осмотра это дисбаланс ротора; коррозия рамы или ослабленный анкерный болт укажут на ослабление крепления к фундаменту",
+    "recommendation": "Осмотреть раму и анкерные болты: навести камеру на крепление агрегата."
+   }
+  },
+  {
+   "id": "R03",
+   "group": "customer",
+   "title": "Потеря свойств смазки или её нехватка",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "gearbox",
+   "node_fallbacks": ["motor_bearings", "unit"],
+   "camera_text": "Масло в смотровом стекле тёмное, мутное или ниже отметки MIN",
+   "sensor_text": "Температура подшипника выше нормы на 10-15 °C",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Потеря свойств смазки или её нехватка: состояние масла подтверждено повышенной температурой подшипника",
+   "recommendation": "Заменить масло и промыть узел в течение 48 часов. Тип и объём масла - по карточке узла.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Масло в смотровом стекле тёмное, мутное или ниже MIN", "signs": ["oil_dark", "oil_low"], "normal": ["oil_ok"], "hint": "проверьте масло в смотровом стекле: цвет, прозрачность и уровень; отметьте признак вручную, если камера его не распознаёт"}},
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "temp_bearing_excess", "op": ">=", "value": 10}}
+   ],
+   "camera_only": {
+    "status": "defect",
+    "severity": 2,
+    "diagnosis": "Масло в смотровом стекле тёмное, мутное или ниже отметки MIN. Повышение температуры подшипника датчик не подтверждает",
+    "recommendation": "Проверить уровень и состояние масла, запланировать его замену. Контролировать температуру подшипника."
+   },
+   "partial": {
+    "diagnosis": "Температура подшипника выше нормы на 10 °C и более - возможна потеря свойств смазки или её нехватка. Состояние масла не проверено",
+    "recommendation": "Проверить масло в смотровом стекле: цвет, прозрачность и уровень относительно отметки MIN."
+   }
+  },
+  {
+   "id": "R04",
+   "group": "customer",
+   "title": "Плохой контакт в клеммной коробке",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "terminal_box",
+   "node_fallbacks": ["motor"],
+   "camera_text": "Окисление, потемнение изоляции, следы перегрева на клеммной коробке",
+   "sensor_text": "Небаланс токов по фазам более 5 % или локальный нагрев",
+   "status": "defect",
+   "severity": 3,
+   "diagnosis": "Высокое переходное сопротивление контакта в клеммной коробке: следы перегрева подтверждены небалансом токов или локальным нагревом",
+   "recommendation": "Обесточить двигатель и протянуть клеммы, зачистить контакты. Работы выполнять по наряду с проверкой отсутствия напряжения.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Следы перегрева или окисление на клеммной коробке", "signs": ["terminal_box_burnt"], "normal": ["terminal_box"], "hint": "наведите камеру на клеммную коробку"}},
+    {"source": "sensor", "expr": {"any": [
+     {"kind": "threshold", "param": "current_unbalance", "op": ">", "value": 5},
+     {"kind": "sign", "what": "Локальный нагрев клеммника", "signs": ["local_heating"], "source": "manual", "hint": "измерьте нагрев клеммника пирометром и отметьте признак вручную"}
+    ]}}
+   ],
+   "camera_only": {
+    "status": "defect",
+    "severity": 2,
+    "diagnosis": "Следы перегрева, окисление или потемнение изоляции на клеммной коробке. Небаланс токов и локальный нагрев не подтверждены",
+    "recommendation": "Осмотреть клеммную коробку при снятом напряжении, проверить затяжку клемм. Контролировать токи по фазам."
+   },
+   "partial": {
+    "diagnosis": "Небаланс токов по фазам более 5 % или локальный нагрев - возможен плохой контакт в клеммной коробке. Следы перегрева камерой не подтверждены",
+    "recommendation": "Осмотреть клеммную коробку: навести камеру, проверить следы перегрева и окисления."
+   }
+  },
+  {
+   "id": "R05",
+   "group": "customer",
+   "title": "Расхождение манометра и датчика давления",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "gauge",
+   "camera_text": "Показание стрелочного манометра (чтение шкалы)",
+   "sensor_text": "Значение электронного датчика отличается более чем на 15 %",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Показания стрелочного манометра и электронного датчика давления расходятся более чем на 15 %: дрейф датчика, засор импульсной линии или неисправность манометра",
+   "recommendation": "Выполнить поверку датчика давления или продувку импульсной линии. До выяснения причины ориентироваться на манометр.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "threshold", "param": "gauge_diff_pct", "op": ">", "value": 15, "source": "camera", "hint": "наведите камеру на манометр и считайте показание"}}
+   ]
+  },
+  {
+   "id": "R06",
+   "group": "customer",
+   "title": "Кожух муфты отсутствует, разрушен или смещён",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "coupling",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Кожух муфты отсутствует, разрушен или смещён",
+   "sensor_text": "Не требуются",
+   "status": "defect",
+   "severity": 3,
+   "diagnosis": "Нарушение охраны труда, риск травмы: кожух муфты отсутствует, разрушен или смещён",
+   "recommendation": "Эксплуатация запрещена. Остановить агрегат и установить кожух муфты в штатное положение.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Кожух муфты отсутствует, разрушен или смещён", "signs": ["coupling_no_guard", "coupling_guard_broken", "coupling_guard_shifted"], "normal": ["coupling_guard"], "hint": "наведите камеру на муфту и её кожух"}}
+   ]
+  },
+  {
+   "id": "R07",
+   "group": "customer",
+   "title": "Кавитация, подтверждённая на месте и по датчикам",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "casing",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Нестабильность потока (при наличии признаков)",
+   "sensor_text": "Падение давления на входе, рост высокочастотной вибрации",
+   "status": "defect",
+   "severity": 3,
+   "diagnosis": "Кавитация, эрозия рабочего колеса: признаки на месте подтверждены падением давления на входе и ростом высокочастотной вибрации",
+   "recommendation": "Проверить уровень в ёмкости и фильтры на всасывании, полностью открыть задвижку на всасе. Не допускать длительной работы в этом режиме.",
+   "parts": [
+    {"source": "camera", "expr": {"kind": "sign", "what": "Нестабильность потока или шум кавитации", "signs": ["flow_instability", "cavitation_noise"], "source": "manual", "hint": "проверьте на месте признаки кавитации: шум перекатывающегося гравия, колебания стрелки манометра, нестабильность потока; отметьте признак вручную"}},
+    {"source": "sensor", "expr": {"all": [{"ref": "inlet_pressure_falling"}, {"ref": "hf_vibration_rising"}]}}
+   ],
+   "camera_only": {
+    "status": "check",
+    "severity": 1,
+    "diagnosis": "Отмечена нестабильность потока или шум кавитации. Падение давления на входе и рост высокочастотной вибрации датчики не подтверждают",
+    "recommendation": "Проверить давление на входе и уровень в ёмкости, повторить контроль шума."
+   },
+   "partial": {
+    "diagnosis": "Давление на входе падает, высокочастотная вибрация растёт - по датчикам это кавитация. Признаки на месте не подтверждены",
+    "recommendation": "Проверить на месте шум насоса, колебания стрелки манометра и стабильность потока; отметить признак вручную."
+   }
+  },
+  {
+   "id": "R08",
+   "group": "customer",
+   "title": "Проблема смазки или износ подшипников",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "motor_bearings",
+   "node_fallbacks": ["gearbox", "motor", "unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Вибрация и температура растут, ток в норме",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Проблема смазки или износ подшипников: вибрация и температура подшипника растут при нормальном токе двигателя",
+   "recommendation": "Проверить смазку подшипникового узла, запланировать замену подшипника.",
+   "parts": [
+    {"source": "sensor", "expr": {"all": [{"ref": "vibration_rising"}, {"ref": "bearing_temp_rising"}]}},
+    {"source": "sensor", "qualifier": true, "expr": {"kind": "threshold", "param": "current_load_pct", "op": "<=", "value": 104, "what": "Ток двигателя в норме"}}
+   ],
+   "partial": {
+    "diagnosis": "Вибрация и температура подшипника растут - возможны проблема смазки или износ подшипников. Условие «ток в норме» не подтверждено",
+    "recommendation": "Проверить ток двигателя по фазам и смазку подшипникового узла."
+   }
+  },
+  {
+   "id": "R09",
+   "group": "customer",
+   "title": "Расцентровка валов",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "coupling",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Высокая осевая вибрация на муфте, температура в норме, ток слегка повышен",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Расцентровка валов: высокая вибрация на муфте при нормальной температуре и слегка повышенном токе двигателя",
+   "recommendation": "Проверить и скорректировать соосность валов насоса и двигателя, проверить состояние муфты.",
+   "parts": [
+    {"source": "sensor", "expr": {"any": [
+     {"kind": "threshold", "param": "vib_axial", "op": ">", "value": 2.8},
+     {"kind": "threshold", "param": "vib_2x", "op": ">", "value": 1.8}
+    ]}},
+    {"source": "sensor", "qualifier": true, "expr": {"ref": "temperature_normal"}},
+    {"source": "sensor", "qualifier": true, "expr": {"kind": "threshold", "param": "current_load_pct", "op": ">", "value": 104, "what": "Ток двигателя слегка повышен"}}
+   ],
+   "partial": {
+    "diagnosis": "Высокая вибрация на муфте - возможна расцентровка валов. Условия «температура в норме» и «ток слегка повышен» подтверждены не полностью",
+    "recommendation": "Проверить ток двигателя и температуры, запланировать проверку соосности валов."
+   }
+  },
+  {
+   "id": "R10",
+   "group": "customer",
+   "title": "Износ проточной части",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "casing",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "КПД упал на 15 %, вибрация и температура в норме",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Износ проточной части: КПД снизился на 15 % и более от паспортного при нормальных вибрации и температуре",
+   "recommendation": "Запланировать ремонт проточной части, заказать запасные части.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "efficiency_drop_pct", "op": ">=", "value": 15}},
+    {"source": "sensor", "qualifier": true, "expr": {"ref": "vibration_normal"}},
+    {"source": "sensor", "qualifier": true, "expr": {"ref": "temperature_normal"}}
+   ],
+   "partial": {
+    "diagnosis": "КПД снизился на 15 % и более от паспортного, но вибрация или температура не в норме либо по ним нет данных - износ проточной части не подтверждён",
+    "recommendation": "Проверить вибрацию и температуры, сверить расход и напор с паспортной характеристикой."
+   }
+  },
+  {
+   "id": "R11",
+   "group": "customer",
+   "title": "Достигнут межремонтный интервал",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "unit",
+   "camera_text": "Не требуется",
+   "sensor_text": "Наработка достигла 4000 / 8000 / 16000 моточасов",
+   "status": "check",
+   "severity": 2,
+   "diagnosis": "Достигнут межремонтный интервал: {items}",
+   "recommendation": "Провести обслуживание по регламенту. {works}",
+   "parts": [
+    {"source": "resource", "expr": {"kind": "maintenance"}}
+   ]
+  },
+  {
+   "id": "R12",
+   "group": "customer",
+   "title": "Кавитация по данным датчиков",
+   "applies_to": ["inline_centrifugal_pump", "progressive_cavity_pump"],
+   "node": "casing",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Рост широкополосной вибрации, падение давления на входе",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Кавитация по данным датчиков: давление на входе падает, широкополосная вибрация растёт",
+   "recommendation": "Проверить уровень в ёмкости и фильтры на всасывании, полностью открыть задвижку на всасе.",
+   "parts": [
+    {"source": "sensor", "expr": {"ref": "inlet_pressure_falling"}},
+    {"source": "sensor", "qualifier": true, "expr": {"ref": "vibration_rising"}}
+   ],
+   "partial": {
+    "diagnosis": "Давление на входе падает - риск кавитации. Рост вибрации не подтверждён",
+    "recommendation": "Проверить уровень в ёмкости, фильтры и задвижку на всасывании; контролировать высокочастотную вибрацию."
+   }
+  },
+  {
+   "id": "S01",
+   "group": "threshold",
+   "title": "Дисбаланс ротора по уставке заказчика",
+   "applies_to": ["*"],
+   "node": "casing",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Амплитуда 1x выше 2.8 мм/с - предупреждение, выше 4.5 мм/с - тревога",
+   "status": "check",
+   "severity": 1,
+   "diagnosis": "Рост дисбаланса ротора: амплитуда вибрации на оборотной частоте выше уставки предупреждения. Диагноз по уставкам заказчика: «Пред: Рост дисбаланса»",
+   "recommendation": "Запланировать проверку балансировки рабочего колеса, осмотреть колесо на налипание и эрозию.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "vib_1x", "op": ">", "value": 2.8}}
+   ],
+   "escalation": {
+    "expr": {"kind": "threshold", "param": "vib_1x", "op": ">", "value": 4.5},
+    "status": "defect",
+    "severity": 3,
+    "diagnosis": "Высокий дисбаланс рабочего колеса: амплитуда вибрации на оборотной частоте выше уставки тревоги. Диагноз по уставкам заказчика: «Тревога: Выс. дисбаланс (РК)»",
+    "recommendation": "Остановить насос при первой возможности, выполнить балансировку или замену рабочего колеса."
+   }
+  },
+  {
+   "id": "S02",
+   "group": "threshold",
+   "title": "Нарушение центровки по уставке заказчика",
+   "applies_to": ["*"],
+   "node": "coupling",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Амплитуда 2x выше 1.8 мм/с - предупреждение, выше 3.0 мм/с - тревога",
+   "status": "check",
+   "severity": 1,
+   "diagnosis": "Ухудшение центровки: амплитуда вибрации на удвоенной частоте выше уставки предупреждения. Диагноз по уставкам заказчика: «Пред: Ухудшение центровки»",
+   "recommendation": "Запланировать проверку центровки валов и затяжки крепежа.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "vib_2x", "op": ">", "value": 1.8}}
+   ],
+   "escalation": {
+    "expr": {"kind": "threshold", "param": "vib_2x", "op": ">", "value": 3.0},
+    "status": "defect",
+    "severity": 3,
+    "diagnosis": "Расцентровка валов: амплитуда вибрации на удвоенной частоте выше уставки тревоги. Диагноз по уставкам заказчика: «Тревога: Расцентровка»",
+    "recommendation": "Вывести агрегат в ремонт: проверить и восстановить соосность валов, проверить муфту."
+   }
+  },
+  {
+   "id": "S03",
+   "group": "threshold",
+   "title": "Износ подшипника или шум по уставке заказчика",
+   "applies_to": ["*"],
+   "node": "motor_bearings",
+   "node_fallbacks": ["gearbox", "motor", "unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "ВЧ шум выше 2.5 g - предупреждение, выше 5.0 g - тревога",
+   "status": "check",
+   "severity": 1,
+   "diagnosis": "Начало износа подшипника или кавитационный шум: высокочастотная вибрация выше уставки предупреждения. Диагноз по уставкам заказчика: «Пред: Износ/Шум»",
+   "recommendation": "Проверить смазку и шум подшипников; проверить давление на входе, чтобы исключить кавитацию.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "vib_hf", "op": ">", "value": 2.5}}
+   ],
+   "escalation": {
+    "expr": {"kind": "threshold", "param": "vib_hf", "op": ">", "value": 5.0},
+    "status": "defect",
+    "severity": 3,
+    "diagnosis": "Дефект подшипника: высокочастотная вибрация выше уставки тревоги. Диагноз по уставкам заказчика: «Тревога: Дефект подшипника»",
+    "recommendation": "Перевести насос в резерв, заменить подшипник."
+   }
+  },
+  {
+   "id": "S04",
+   "group": "threshold",
+   "title": "Перегрев подшипника по уставке заказчика",
+   "applies_to": ["*"],
+   "node": "motor_bearings",
+   "node_fallbacks": ["gearbox", "unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Температура подшипника выше 75 °C - предупреждение, выше 90 °C - тревога",
+   "status": "check",
+   "severity": 1,
+   "diagnosis": "Рост температуры подшипника выше уставки предупреждения. Диагноз по уставкам заказчика: «Пред: Рост темп. подш.»",
+   "recommendation": "Проверить смазку и охлаждение подшипникового узла.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "temp_bearing", "op": ">", "value": 75}}
+   ],
+   "escalation": {
+    "expr": {"kind": "threshold", "param": "temp_bearing", "op": ">", "value": 90},
+    "status": "defect",
+    "severity": 3,
+    "diagnosis": "Перегрев подшипника насоса выше уставки тревоги, риск заклинивания. Диагноз по уставкам заказчика: «Тревога: Перегрев подш. насоса»",
+    "recommendation": "Остановить насос, проверить подшипниковый узел и смазку."
+   }
+  },
+  {
+   "id": "S05",
+   "group": "threshold",
+   "title": "Перегрев обмоток двигателя по уставке заказчика",
+   "applies_to": ["*"],
+   "node": "motor",
+   "node_fallbacks": ["unit"],
+   "camera_text": "Не требуется",
+   "sensor_text": "Температура обмоток выше 90 °C - предупреждение, выше 110 °C - тревога",
+   "status": "check",
+   "severity": 1,
+   "diagnosis": "Рост температуры обмоток двигателя выше уставки предупреждения. Диагноз по уставкам заказчика: «Пред: Рост темп. ЭД»",
+   "recommendation": "Проверить нагрузку двигателя, чистоту крыльчатки и кожуха вентилятора.",
+   "parts": [
+    {"source": "sensor", "expr": {"kind": "threshold", "param": "temp_winding", "op": ">", "value": 90}}
+   ],
+   "escalation": {
+    "expr": {"kind": "threshold", "param": "temp_winding", "op": ">", "value": 110},
+    "status": "defect",
+    "severity": 3,
+    "diagnosis": "Перегрев обмоток двигателя выше уставки тревоги, риск пробоя изоляции. Диагноз по уставкам заказчика: «Тревога: Перегрев обмоток ЭД»",
+    "recommendation": "Остановить двигатель; проверить токи по фазам, охлаждение и центровку."
+   }
+  },
+  {
+   "id": "V01",
+   "group": "visual",
+   "title": "Визуальный признак возможного дефекта",
+   "applies_to": ["*"],
+   "node": "equipment",
+   "camera_text": "Любой дефектный признак, не входящий в правила с датчиками",
+   "sensor_text": "Не требуются",
+   "status": "defect",
+   "severity": 2,
+   "diagnosis": "Обнаружен визуальный признак возможного дефекта: {sign}",
+   "recommendation": "Осмотреть узел, подтвердить или снять замечание и зафиксировать результат осмотра.",
+   "parts": []
+  }
+ ]
+}
