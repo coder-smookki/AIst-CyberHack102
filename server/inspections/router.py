@@ -1,7 +1,10 @@
 """Маршруты осмотров: начало, фиксация результатов, завершение, замечания и отчёты PDF и Excel.
 
-Все запросы требуют входа. Маршруты замечаний объявлены раньше маршрутов с номером осмотра, иначе слово
-findings в адресе принималось бы за номер.
+Все запросы требуют входа и права по роли: просмотр - «Просмотр замечаний», осмотр - «Проведение осмотров»,
+записи в осмотр - ещё и «Фиксация замечаний», смена состояния замечания - «Подтверждение замечаний»,
+отчёт - «Отчёты по своим осмотрам» для своего осмотра или «Отчёты по всем осмотрам» для любого.
+Маршруты замечаний объявлены раньше маршрутов с номером осмотра, иначе слово findings в адресе
+принималось бы за номер.
 """
 from typing import Annotated, Literal
 
@@ -10,13 +13,16 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from server.auth import current_user, require_role
+from server.auth import current_user, granted, require_permission
 from server.db import get_session
 from server.inspections import service
 from server.models import User
 from server.reports import build_pdf, build_xlsx
 
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+VIEW = require_permission("findings.view")
+INSPECT = require_permission("inspect.run")
+REPORTS = require_permission("reports.own", "reports.all", any_of=True)
 
 router = APIRouter(prefix="/inspections", tags=["inspections"], dependencies=[Depends(current_user)])
 
@@ -35,7 +41,7 @@ class StateBody(BaseModel):
 
 
 @router.post("", status_code=201)
-def start(body: StartBody, response: Response, user: Annotated[User, Depends(current_user)],
+def start(body: StartBody, response: Response, user: Annotated[User, Depends(INSPECT)],
           session: Annotated[Session, Depends(get_session)]) -> dict:
     """Начинает осмотр; если у сотрудника уже идёт осмотр этого агрегата, возвращает его с кодом 200."""
     inspection, created = service.start_inspection(session, user, body.equipment_id)
@@ -44,7 +50,7 @@ def start(body: StartBody, response: Response, user: Annotated[User, Depends(cur
     return {**service.inspection_view(session, inspection), "resumed": not created}
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(VIEW)])
 def list_inspections(
     session: Annotated[Session, Depends(get_session)],
     equipment_id: Annotated[str | None, Query(max_length=32)] = None,
@@ -55,7 +61,7 @@ def list_inspections(
     return service.list_inspections(session, equipment_id, status, limit)
 
 
-@router.get("/findings")
+@router.get("/findings", dependencies=[Depends(VIEW)])
 def list_findings(
     session: Annotated[Session, Depends(get_session)],
     state: Annotated[Literal["open", "in_work", "resolved"] | None, Query()] = None,
@@ -67,13 +73,13 @@ def list_findings(
     return service.list_findings(session, equipment_id=equipment_id, state=state, include_ok=include_ok, limit=limit)
 
 
-@router.get("/findings/{finding_id}")
+@router.get("/findings/{finding_id}", dependencies=[Depends(VIEW)])
 def finding(finding_id: int, session: Annotated[Session, Depends(get_session)]) -> dict:
     """Одно замечание с основаниями."""
     return service.one_finding_view(session, service.get_finding(session, finding_id))
 
 
-@router.get("/findings/{finding_id}/photo")
+@router.get("/findings/{finding_id}/photo", dependencies=[Depends(VIEW)])
 def finding_photo(finding_id: int, session: Annotated[Session, Depends(get_session)]) -> FileResponse:
     """Стоп-кадр камеры, приложенный к замечанию."""
     path = service.photo_file(service.get_finding(session, finding_id))
@@ -81,20 +87,20 @@ def finding_photo(finding_id: int, session: Annotated[Session, Depends(get_sessi
 
 
 @router.post("/findings/{finding_id}/state")
-def set_state(finding_id: int, body: StateBody, user: Annotated[User, Depends(require_role("master", "admin"))],
+def set_state(finding_id: int, body: StateBody, user: Annotated[User, Depends(require_permission("findings.confirm"))],
               session: Annotated[Session, Depends(get_session)]) -> dict:
-    """Переводит замечание в следующее состояние; доступно мастеру и администратору."""
+    """Переводит замечание в следующее состояние; нужно право «Подтверждение замечаний»."""
     changed = service.set_finding_state(session, service.get_finding(session, finding_id), body.state, user, body.comment)
     return service.one_finding_view(session, changed)
 
 
-@router.get("/{inspection_id}")
+@router.get("/{inspection_id}", dependencies=[Depends(VIEW)])
 def inspection(inspection_id: int, session: Annotated[Session, Depends(get_session)]) -> dict:
     """Осмотр с находками и полнотой обхода."""
     return service.inspection_view(session, service.get_inspection(session, inspection_id))
 
 
-@router.get("/{inspection_id}/findings")
+@router.get("/{inspection_id}/findings", dependencies=[Depends(VIEW)])
 def inspection_findings(inspection_id: int, session: Annotated[Session, Depends(get_session)]) -> list[dict]:
     """Все записи осмотра в порядке их появления."""
     return service.inspection_view(session, service.get_inspection(session, inspection_id))["findings"]
@@ -103,7 +109,7 @@ def inspection_findings(inspection_id: int, session: Annotated[Session, Depends(
 @router.post("/{inspection_id}/findings", status_code=201)
 def add_finding(
     inspection_id: int,
-    user: Annotated[User, Depends(current_user)],
+    user: Annotated[User, Depends(require_permission("inspect.run", "findings.create"))],
     session: Annotated[Session, Depends(get_session)],
     kind: Annotated[Literal["checked", "defect", "maintenance", "replacement"], Form()],
     node: Annotated[str | None, Form(max_length=64)] = None,
@@ -130,16 +136,22 @@ def add_finding(
 
 
 @router.post("/{inspection_id}/finish")
-def finish(inspection_id: int, user: Annotated[User, Depends(current_user)],
+def finish(inspection_id: int, user: Annotated[User, Depends(INSPECT)],
            session: Annotated[Session, Depends(get_session)]) -> dict:
     """Завершает осмотр и возвращает его со сводкой: число записей по статусам, длительность, оценки по узлам."""
     finished = service.finish_inspection(session, service.get_inspection(session, inspection_id), user)
     return service.inspection_view(session, finished)
 
 
-def _report(session: Session, inspection_id: int, build, media_type: str, extension: str) -> Response:
-    """Формирует файл отчёта и отдаёт его как вложение; без шрифта с кириллицей отвечает 503."""
-    data = service.report_data(session, service.get_inspection(session, inspection_id))
+def _report(session: Session, user: User, inspection_id: int, build, media_type: str, extension: str) -> Response:
+    """Формирует файл отчёта и отдаёт его как вложение; без шрифта с кириллицей отвечает 503.
+
+    Отчёт по чужому осмотру доступен только с правом «Отчёты по всем осмотрам».
+    """
+    found = service.get_inspection(session, inspection_id)
+    if found.user_id != user.id and "reports.all" not in granted(session, user):
+        raise HTTPException(status_code=403, detail="Отчёт по чужому осмотру доступен с правом «Отчёты по всем осмотрам»")
+    data = service.report_data(session, found)
     try:
         content = build(data)
     except RuntimeError as error:
@@ -149,12 +161,14 @@ def _report(session: Session, inspection_id: int, build, media_type: str, extens
 
 
 @router.get("/{inspection_id}/report.pdf")
-def report_pdf(inspection_id: int, session: Annotated[Session, Depends(get_session)]) -> Response:
+def report_pdf(inspection_id: int, user: Annotated[User, Depends(REPORTS)],
+               session: Annotated[Session, Depends(get_session)]) -> Response:
     """Отчёт об осмотре в формате PDF."""
-    return _report(session, inspection_id, build_pdf, "application/pdf", "pdf")
+    return _report(session, user, inspection_id, build_pdf, "application/pdf", "pdf")
 
 
 @router.get("/{inspection_id}/report.xlsx")
-def report_xlsx(inspection_id: int, session: Annotated[Session, Depends(get_session)]) -> Response:
+def report_xlsx(inspection_id: int, user: Annotated[User, Depends(REPORTS)],
+                session: Annotated[Session, Depends(get_session)]) -> Response:
     """Отчёт об осмотре в формате Excel."""
-    return _report(session, inspection_id, build_xlsx, XLSX_TYPE, "xlsx")
+    return _report(session, user, inspection_id, build_xlsx, XLSX_TYPE, "xlsx")

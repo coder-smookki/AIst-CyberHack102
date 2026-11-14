@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from server.assistant import search
-from server.auth import ROLE_TITLES
+from server.auth import role_title
 from server.equipment import equipment_card
 from server.models import Equipment, Finding, Inspection, MaintenanceRecord
 from server.rules import diagnose, load_rules, maintenance_intervals, resource_estimates
@@ -346,7 +346,7 @@ def _person(user) -> str:
     """Кто выполнил осмотр или работу: имя и должность."""
     if user is None:
         return "исполнитель не указан"
-    return f"{user.name} ({ROLE_TITLES.get(user.role, user.role)})"
+    return f"{user.name} ({role_title(user)})"
 
 
 def _finding_line(finding: Finding, names: dict[str, str]) -> str:

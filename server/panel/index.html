@@ -14,7 +14,7 @@
     <form id="login-form" class="login-card" novalidate>
       <p class="wordmark">КСТ Визор</p>
       <h1>Пульт демонстрации</h1>
-      <p class="muted">Вход по рабочей почте и паролю. Сценариями и временем управляют мастер и администратор.</p>
+      <p class="muted">Вход по рабочей почте и паролю. Сценариями и временем управляют мастер и администратор системы.</p>
       <label class="field">
         <span>Почта</span>
         <input id="login-email" type="email" name="email" autocomplete="username" required>
@@ -30,7 +30,27 @@
         <button type="button" class="chip-button" data-demo="master@kst.demo">Мастер</button>
         <button type="button" class="chip-button" data-demo="admin@kst.demo">Администратор</button>
         <button type="button" class="chip-button" data-demo="engineer@kst.demo">Инженер</button>
+        <button type="button" class="chip-button" data-demo="operator@kst.demo">Оператор</button>
       </div>
+    </form>
+    <form id="password-form" class="login-card" novalidate hidden>
+      <p class="wordmark">КСТ Визор</p>
+      <h1>Смена временного пароля</h1>
+      <p class="muted">Администратор ИБ выдал временный пароль. Придумайте постоянный, чтобы продолжить работу.</p>
+      <label class="field">
+        <span>Временный пароль</span>
+        <input id="password-current" type="password" name="current" autocomplete="current-password" required>
+      </label>
+      <label class="field">
+        <span>Новый пароль</span>
+        <input id="password-new" type="password" name="new" autocomplete="new-password" required>
+      </label>
+      <label class="field">
+        <span>Новый пароль ещё раз</span>
+        <input id="password-repeat" type="password" name="repeat" autocomplete="new-password" required>
+      </label>
+      <p id="password-error" class="form-error" role="alert" hidden></p>
+      <button id="password-submit" class="button primary wide" type="submit">Сменить пароль</button>
     </form>
   </main>
 

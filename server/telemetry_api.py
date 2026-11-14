@@ -4,6 +4,7 @@
 ряды для графиков, прогноз времени до уставки, сценарии и курсор времени (пульт мастера), диагноз по
 правилам, маршрут осмотра и три раздельные оценки по каждому узлу. Текущий момент для всех расчётов -
 курсор проигрывателя телеметрии; у агрегата без телеметрии оценки строятся по карточке и сегодняшней дате.
+Чтение требует права «Просмотр телеметрии», выбор сценария и перестановка времени - «Управление лентой телеметрии».
 """
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -13,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from server.auth import current_user, require_role
+from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
 from server.inspections import current_diagnosis, get_inspection, node_route, tracker_for
@@ -40,7 +41,7 @@ THRESHOLD_TITLES = {"warn": "уставка предупреждения", "alar
 LABELS = {"vibration": vibration_label, "temperature": temperature_label}
 NOT_INSPECTED = "Узел не осмотрен, данных по нему нет"
 
-router = APIRouter(prefix="/equipment", tags=["telemetry"], dependencies=[Depends(current_user)])
+router = APIRouter(prefix="/equipment", tags=["telemetry"], dependencies=[Depends(require_permission("telemetry.view"))])
 
 
 class CursorBody(BaseModel):
@@ -308,9 +309,9 @@ def scenarios(equipment_id: str, session: Annotated[Session, Depends(get_session
     return [_scenario_view(scenario, cursor) for scenario in player.scenarios()]
 
 
-@router.post("/{equipment_id}/scenarios/{scenario_id}", dependencies=[Depends(require_role("master", "admin"))])
+@router.post("/{equipment_id}/scenarios/{scenario_id}", dependencies=[Depends(require_permission("telemetry.control"))])
 def select_scenario(equipment_id: str, scenario_id: str, session: Annotated[Session, Depends(get_session)]) -> dict:
-    """Ставит текущий момент ленты на час наибольшего отклонения сценария; доступно мастеру и администратору."""
+    """Ставит текущий момент ленты на час наибольшего отклонения сценария; нужно право управления лентой."""
     player = require_player(get_equipment(session, equipment_id).id)
     try:
         chosen = player.select_scenario(scenario_id)
@@ -320,9 +321,9 @@ def select_scenario(equipment_id: str, scenario_id: str, session: Annotated[Sess
     return {"equipment_id": equipment_id, "at": stamp(cursor), "scenario": _scenario_view(chosen, cursor)}
 
 
-@router.post("/{equipment_id}/cursor", dependencies=[Depends(require_role("master", "admin"))])
+@router.post("/{equipment_id}/cursor", dependencies=[Depends(require_permission("telemetry.control"))])
 def set_cursor(equipment_id: str, body: CursorBody, session: Annotated[Session, Depends(get_session)]) -> dict:
-    """Переставляет текущий момент ленты телеметрии; доступно мастеру и администратору.
+    """Переставляет текущий момент ленты телеметрии; нужно право управления лентой.
 
     Момент вне записи отклоняется с кодом 422 и указанием доступного интервала.
     """

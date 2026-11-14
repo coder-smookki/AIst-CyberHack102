@@ -1,4 +1,7 @@
-"""Сервер «КСТ Визор»: вход, оборудование, телеметрия, осмотры, отчёты, помощник и распознавание кадров камеры.
+"""Сервер «КСТ Визор»: вход, оборудование, телеметрия, осмотры, отчёты, помощник и распознавание кадров камеры,
+сообщения о неисправностях и задания на осмотр, администрирование учётных записей и ролей.
+
+Доступ к каждому разделу определяется правами роли сотрудника (server/permissions.py), а не названием роли.
 
 Приложение собирает маршруты всех разделов, при запуске создаёт таблицы базы и заполняет её начальными
 данными, раздаёт пульт демонстрации по адресу /panel/. Кадры камеры приходят по WebSocket: /ws/detect
@@ -19,11 +22,12 @@ import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import assistant, auth, db, equipment, inspections, recognition, telemetry_api
-from server.auth import current_user
+from server import admin, assistant, auth, db, equipment, inspections, recognition, telemetry_api, workflow
+from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
 from server.inspections import can_edit, current_diagnosis, get_inspection, note_gauge_reading, tracker_for
+from server.inspections.service import FOREIGN_INSPECTION
 from server.models import Equipment, Inspection, User, now
 from server.rules import gauge_difference_percent
 from server.seed import seed
@@ -36,6 +40,7 @@ CLOSE_UNAUTHORIZED = 4401
 CLOSE_FORBIDDEN = 4403
 CLOSE_NOT_FOUND = 4404
 CLOSE_FINISHED = 4409
+INSPECT = "inspect.run"
 NO_FRAME = "Ожидается кадр камеры в формате JPEG"
 NO_TOKEN = "Требуется вход: передайте токен доступа в параметре token"
 
@@ -86,7 +91,7 @@ def _active_inspection(session: Session, inspection_id: int, equipment_id: str, 
     if inspection.equipment_id != equipment_id:
         raise HTTPException(status_code=422, detail="Осмотр относится к другому оборудованию")
     if not can_edit(inspection, user):
-        raise HTTPException(status_code=403, detail="Изменять осмотр может начавший его сотрудник, мастер или администратор")
+        raise HTTPException(status_code=403, detail=FOREIGN_INSPECTION)
     if inspection.status != "active":
         raise HTTPException(status_code=409, detail="Осмотр уже завершён - начните новый осмотр")
     return inspection
@@ -108,10 +113,14 @@ def _live_view(session: Session, inspection: Inspection, coverage: dict) -> tupl
 
 
 def _socket_user(session: Session, token: str | None) -> User:
-    """Сотрудник по токену из адреса соединения; без действующего токена соединение закрывается."""
+    """Сотрудник по токену из адреса соединения с правом проводить осмотры; иначе соединение закрывается."""
     user = auth.user_from_token(session, token) if token else None
     if user is None:
         raise SocketClosed(CLOSE_UNAUTHORIZED, "Сеанс завершён или токен истёк - войдите заново")
+    if user.must_change_password:
+        raise SocketClosed(CLOSE_FORBIDDEN, auth.CHANGE_PASSWORD)
+    if INSPECT not in auth.granted(session, user):
+        raise SocketClosed(CLOSE_FORBIDDEN, "Недостаточно прав - нужно право «Проведение осмотров»")
     return user
 
 
@@ -121,7 +130,7 @@ def _socket_inspection(session: Session, inspection_id: int, user: User) -> Insp
     if inspection is None:
         raise SocketClosed(CLOSE_NOT_FOUND, "Осмотр не найден")
     if not can_edit(inspection, user):
-        raise SocketClosed(CLOSE_FORBIDDEN, "Вести осмотр может начавший его сотрудник, мастер или администратор")
+        raise SocketClosed(CLOSE_FORBIDDEN, FOREIGN_INSPECTION)
     if inspection.status != "active":
         raise SocketClosed(CLOSE_FINISHED, "Осмотр уже завершён - начните новый осмотр")
     return inspection
@@ -239,6 +248,7 @@ def create_app(detector=None) -> FastAPI:
         db.init_db()
         with db.SessionLocal() as session:
             seed(session)
+        app.state.started_at = now()
         warm_up = getattr(detector, "warm_up", None)
         if callable(warm_up):
             warm_up()
@@ -252,6 +262,9 @@ def create_app(detector=None) -> FastAPI:
     app.include_router(telemetry_api.router)
     app.include_router(inspections.router)
     app.include_router(assistant.router)
+    app.include_router(workflow.router)
+    app.include_router(admin.router)
+    app.include_router(admin.system_router)
 
     @app.get("/health")
     def health(session: Annotated[Session, Depends(get_session)]) -> dict:
@@ -268,7 +281,7 @@ def create_app(detector=None) -> FastAPI:
         return {"ok": database == "ok", "service": TITLE, "time": now().isoformat(timespec="seconds"),
                 "database": database, "equipment": units, "detector": state}
 
-    @app.post("/recognize/nameplate", dependencies=[Depends(current_user)])
+    @app.post("/recognize/nameplate", dependencies=[Depends(require_permission("equipment.view"))])
     async def recognize_nameplate(frame: Annotated[UploadFile, File()],
                                   session: Annotated[Session, Depends(get_session)]) -> dict:
         """Читает заводской шильдик со стоп-кадра камеры и находит оборудование по серийному номеру или модели.
@@ -303,7 +316,7 @@ def create_app(detector=None) -> FastAPI:
     @app.post("/recognize/gauge")
     async def recognize_gauge(frame: Annotated[UploadFile, File()],
                               equipment_id: Annotated[str, Form(min_length=1, max_length=32)],
-                              user: Annotated[User, Depends(current_user)],
+                              user: Annotated[User, Depends(require_permission(INSPECT))],
                               session: Annotated[Session, Depends(get_session)],
                               inspection_id: Annotated[int | None, Form(ge=1)] = None) -> dict:
         """Читает стрелочный манометр по вырезанному кадру прибора и сравнивает с электронным датчиком.

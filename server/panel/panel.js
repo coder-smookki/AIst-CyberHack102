@@ -14,7 +14,13 @@ const DAY_MS = 24 * HOUR_MS;
 const PLAY_STEP_HOURS = 1;
 const SESSION_KEY = "kst-vizor-panel-session";
 const DEMO_PASSWORD = "demo12345";
-const CONTROL_ROLES = ["master", "admin"];
+const PERMISSION = {
+  panel: "equipment.view",
+  control: "telemetry.control",
+  confirm: "findings.confirm",
+  findings: "findings.view",
+  assistant: "assistant.use",
+};
 const DEFAULT_PARAM = "vib_rms";
 const WHOLE_UNIT = "Агрегат в целом";
 const NO_LINK = "Нет связи с сервером";
@@ -221,6 +227,11 @@ function readStoredSession() {
 /** Запоминает токены и пользователя из ответа сервера на вход или обновление. */
 function storeSession(reply) {
   state.session = {access: reply.access_token, refresh: reply.refresh_token, user: reply.user};
+  saveSession();
+}
+
+/** Записывает текущую сессию в хранилище вкладки; без хранилища сессия живёт только в памяти страницы. */
+function saveSession() {
   try {
     window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
   } catch (error) {
@@ -240,6 +251,8 @@ function endSession(message) {
   setPlaying(false);
   dom.app.hidden = true;
   dom.login.hidden = false;
+  dom.passwordForm.hidden = true;
+  dom.loginForm.hidden = false;
   dom.loginError.hidden = !message;
   dom.loginError.textContent = message || "";
   dom.loginPassword.value = "";
@@ -438,9 +451,20 @@ function renderIfChanged(key, data, draw) {
   draw();
 }
 
-/** Может ли вошедший пользователь управлять сценариями, временем и состояниями замечаний. */
+/** Есть ли у вошедшего пользователя право с этим кодом: права приходят от сервера при входе и обновлении. */
+function can(permission) {
+  const user = state.session ? state.session.user : null;
+  return Boolean(user && Array.isArray(user.permissions) && user.permissions.includes(permission));
+}
+
+/** Может ли вошедший пользователь переключать сценарии и время стенда. */
 function canControl() {
-  return Boolean(state.session && state.session.user && CONTROL_ROLES.includes(state.session.user.role));
+  return can(PERMISSION.control);
+}
+
+/** Может ли вошедший пользователь переводить замечания по состояниям. */
+function canConfirm() {
+  return can(PERMISSION.confirm);
 }
 
 /** Запись выбранного агрегата из списка оборудования. */
@@ -807,6 +831,10 @@ async function loadRoute(unitId) {
 
 /** Загружает замечания для доски: по выбранному агрегату или по всему оборудованию. */
 async function loadFindings() {
+  if (!can(PERMISSION.findings)) {
+    setSectionError("findings", "Доска замечаний недоступна: у вашей роли нет права «Просмотр замечаний».");
+    return;
+  }
   const scope = state.boardScope;
   const unitId = state.unitId;
   const query = scope === "unit" && unitId ? `?limit=200&equipment_id=${encodeURIComponent(unitId)}` : "?limit=200";
@@ -815,7 +843,7 @@ async function loadFindings() {
     return;
   }
   const findings = listFrom(raw, ["items", "findings"]);
-  renderIfChanged("board", {findings, scope, control: canControl()}, () => renderBoard(findings));
+  renderIfChanged("board", {findings, scope, control: canConfirm()}, () => renderBoard(findings));
 }
 
 /** Редкое обновление: оборудование, история, порядок осмотра и доска замечаний. */
@@ -1105,7 +1133,7 @@ function renderConsole() {
       ? `Телеметрия агрегата «${unit.name}» недоступна: ${state.telemetryReason}`
       : `К агрегату «${unit.name}» датчики не подключены: сценарии и время действуют только для насоса с телеметрией.`;
   } else if (!canControl()) {
-    note = "Сценарии и время переключают мастер и администратор - для вашей роли управление отключено.";
+    note = "Сценарии и время переключают роли с правом «Управление лентой телеметрии» - для вашей роли управление отключено.";
   }
   dom.consoleNote.hidden = !note;
   dom.consoleNote.textContent = note;
@@ -1706,7 +1734,7 @@ async function advanceFinding(finding, button) {
 
 /** Рисует доску замечаний в три колонки: открыто, в работе, устранено. */
 function renderBoard(findings) {
-  const allowed = canControl();
+  const allowed = canConfirm();
   for (const column of ["open", "in_work", "resolved"]) {
     const own = findings.filter((finding) => finding.state === column);
     document.getElementById(`count-${column}`).textContent = String(own.length);
@@ -1740,6 +1768,10 @@ function chooseScope(scope) {
 async function askAssistant(event) {
   event.preventDefault();
   const question = dom.askInput.value.trim();
+  if (!can(PERMISSION.assistant)) {
+    setSectionError("assistant", "Помощник недоступен: у вашей роли нет права «Вопросы помощнику».");
+    return;
+  }
   if (!question) {
     setSectionError("assistant", "Введите вопрос.");
     return;
@@ -1785,6 +1817,74 @@ function startApp() {
   slowTick();
 }
 
+/**
+ * Решает, что показать вошедшему: смену временного пароля, отказ роли без права «Просмотр оборудования»
+ * или рабочий экран. password - только что введённый пароль, чтобы не просить его повторно.
+ */
+async function enterApp(password) {
+  const user = state.session.user || {};
+  if (user.must_change_password) {
+    askNewPassword(password || "");
+    return;
+  }
+  if (!can(PERMISSION.panel)) {
+    await signOut(`Для роли «${user.role_title || user.role || "без названия"}» пульт демонстрации недоступен: `
+      + "нужно право «Просмотр оборудования».");
+    return;
+  }
+  startApp();
+}
+
+/** Показывает форму смены временного пароля; известный временный пароль подставляется сам. */
+function askNewPassword(current) {
+  dom.app.hidden = true;
+  dom.login.hidden = false;
+  dom.loginForm.hidden = true;
+  dom.passwordForm.hidden = false;
+  dom.passwordCurrent.value = current;
+  dom.passwordNew.value = "";
+  dom.passwordRepeat.value = "";
+  dom.passwordError.hidden = true;
+  (current ? dom.passwordNew : dom.passwordCurrent).focus();
+}
+
+/** Показывает ошибку под формой смены пароля. */
+function passwordFailed(message) {
+  dom.passwordError.hidden = false;
+  dom.passwordError.textContent = message;
+}
+
+/** Меняет временный пароль на постоянный и после успеха открывает пульт. */
+async function changePassword(event) {
+  event.preventDefault();
+  const current = dom.passwordCurrent.value;
+  const fresh = dom.passwordNew.value;
+  if (!current || !fresh) {
+    passwordFailed("Заполните все поля.");
+    return;
+  }
+  if (fresh !== dom.passwordRepeat.value) {
+    passwordFailed("Новый пароль и повтор не совпадают.");
+    return;
+  }
+  dom.passwordSubmit.disabled = true;
+  dom.passwordError.hidden = true;
+  try {
+    const reply = await request("POST", "/auth/password", {json: {current_password: current, new_password: fresh}});
+    state.session.user = reply.user;
+    saveSession();
+    dom.passwordForm.hidden = true;
+    dom.loginForm.hidden = false;
+    await enterApp("");
+  } catch (error) {
+    if (state.session) {
+      passwordFailed(error instanceof ApiError ? `Пароль не изменён: ${error.message}` : "Пароль не изменён: ошибка страницы");
+    }
+  } finally {
+    dom.passwordSubmit.disabled = false;
+  }
+}
+
 /** Выполняет вход по почте и паролю; ошибка показывается под формой. */
 async function signIn(email, password) {
   dom.loginSubmit.disabled = true;
@@ -1792,7 +1892,7 @@ async function signIn(email, password) {
   try {
     const reply = await request("POST", "/auth/login", {json: {email, password, device: "Пульт демонстрации"}, open: true});
     storeSession(reply);
-    startApp();
+    await enterApp(password);
   } catch (error) {
     dom.loginError.hidden = false;
     dom.loginError.textContent = error instanceof ApiError ? `Вход не выполнен: ${error.message}` : "Вход не выполнен: ошибка страницы";
@@ -1801,14 +1901,14 @@ async function signIn(email, password) {
   }
 }
 
-/** Выходит из системы: сервер отзывает сессию, страница возвращается ко входу. */
-async function signOut() {
+/** Выходит из системы: сервер отзывает сессию, страница возвращается ко входу с пояснением message. */
+async function signOut(message = "") {
   try {
     await request("POST", "/auth/logout");
   } catch (error) {
     notify("Сервер не подтвердил выход - сессия стёрта только на этой странице");
   }
-  endSession("");
+  endSession(message);
 }
 
 /** Обрабатывает клавиши на шкале времени: стрелки сдвигают на час, PageUp и PageDown - на сутки. */
@@ -1852,6 +1952,8 @@ function bind() {
     chartHours: "chart-hours", chart: "chart", forecast: "forecast", verdict: "verdict", diagnosis: "diagnosis",
     route: "route", history: "history", boardScope: "board-scope", askForm: "ask-form", askInput: "ask-input",
     askSubmit: "ask-submit", answer: "answer", photoDialog: "photo-dialog", photoImage: "photo-image",
+    passwordForm: "password-form", passwordCurrent: "password-current", passwordNew: "password-new",
+    passwordRepeat: "password-repeat", passwordError: "password-error", passwordSubmit: "password-submit",
   };
   for (const [name, id] of Object.entries(ids)) {
     dom[name] = document.getElementById(id);
@@ -1875,7 +1977,8 @@ function bind() {
       signIn(button.dataset.demo, DEMO_PASSWORD);
     });
   }
-  dom.logout.addEventListener("click", signOut);
+  dom.logout.addEventListener("click", () => signOut(""));
+  dom.passwordForm.addEventListener("submit", changePassword);
   for (const button of dom.steps) {
     button.addEventListener("click", () => stepCursor(Number(button.dataset.step)));
   }
@@ -1921,7 +2024,8 @@ async function main() {
   }
   try {
     state.session.user = await request("GET", "/auth/me");
-    startApp();
+    saveSession();
+    await enterApp("");
   } catch (error) {
     if (state.session) {
       endSession(error instanceof ApiError && error.status === 0

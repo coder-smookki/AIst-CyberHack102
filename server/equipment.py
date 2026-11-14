@@ -1,7 +1,7 @@
 """Оборудование: список с поиском, цифровая карточка, узлы, история осмотров и работ, режим работы.
 
 Карточка отдаётся в том же виде, что и запись в data/equipment.json, но с текущими значениями из базы:
-режим, наработка агрегата и узлов, даты замены. Все запросы требуют входа.
+режим, наработка агрегата и узлов, даты замены. Все запросы требуют права «Просмотр оборудования».
 """
 from datetime import datetime
 from typing import Annotated, Literal
@@ -11,11 +11,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from server.auth import ROLE_TITLES, current_user, require_role
+from server.auth import require_permission, role_title
 from server.db import get_session
 from server.models import Equipment, Finding, Inspection, MaintenanceRecord, Node, User
 
-router = APIRouter(prefix="/equipment", tags=["equipment"], dependencies=[Depends(current_user)])
+router = APIRouter(prefix="/equipment", tags=["equipment"], dependencies=[Depends(require_permission("equipment.view"))])
 
 
 class ModeBody(BaseModel):
@@ -105,7 +105,7 @@ def _person(user: User | None) -> dict | None:
     """Кто выполнил осмотр или работу: имя и роль, без почты."""
     if user is None:
         return None
-    return {"id": user.id, "name": user.name, "role": user.role, "role_title": ROLE_TITLES[user.role]}
+    return {"id": user.id, "name": user.name, "role": user.role, "role_title": role_title(user)}
 
 
 def _finding_view(finding: Finding, node_names: dict[str, str]) -> dict:
@@ -197,9 +197,9 @@ def history(
     return [event[3] for event in events[:limit]]
 
 
-@router.post("/{equipment_id}/mode", dependencies=[Depends(require_role("master", "admin"))])
+@router.post("/{equipment_id}/mode", dependencies=[Depends(require_permission("equipment.mode"))])
 def set_mode(equipment_id: str, body: ModeBody, session: Annotated[Session, Depends(get_session)]) -> dict:
-    """Переводит агрегат в режим «в работе» или «остановлен»; доступно мастеру и администратору."""
+    """Переводит агрегат в режим «в работе» или «остановлен»; нужно право «Смена режима агрегата»."""
     item = get_equipment(session, equipment_id)
     item.mode = body.mode
     session.commit()

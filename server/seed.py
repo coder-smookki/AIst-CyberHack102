@@ -1,7 +1,9 @@
-"""Начальное наполнение базы: оборудование из data/equipment.json, демонстрационные учётные записи и прошлая история.
+"""Начальное наполнение базы: системные роли, политика безопасности, оборудование из data/equipment.json,
+демонстрационные учётные записи и прошлая история.
 
 Наполнение только добавляет недостающее и никогда не меняет существующие строки, поэтому его можно вызывать при
-каждом запуске сервера: наработка, режим, замены узлов и пароли, изменённые в ходе работы, сохраняются.
+каждом запуске сервера: наработка, режим, замены узлов, пароли, а также права ролей и политика, изменённые
+администратором ИБ, сохраняются.
 Прошлые осмотры и работы - демонстрационные записи, согласованные с карточками оборудования.
 """
 import json
@@ -13,13 +15,17 @@ from sqlalchemy.orm import Session
 
 from server import config
 from server.auth import hash_password
-from server.models import FINDING_STATUSES, Equipment, Finding, Inspection, MaintenanceRecord, Node, User
+from server.models import FINDING_STATUSES, Equipment, Finding, Inspection, MaintenanceRecord, Node, Role, User
+from server.permissions import SYSTEM_ROLES, ordered
+from server.security import get_policy
 
 DEMO_PASSWORD = "demo12345"
 DEMO_USERS = (
     ("engineer@kst.demo", "Алексей Смирнов", "engineer"),
     ("master@kst.demo", "Марина Орлова", "master"),
     ("admin@kst.demo", "Игорь Власов", "admin"),
+    ("operator@kst.demo", "Ольга Кузнецова", "operator"),
+    ("security@kst.demo", "Дмитрий Захаров", "security_admin"),
 )
 EQUIPMENT_COLUMNS = ("id", "name", "type", "model", "serial", "location", "mode", "run_hours")
 NODE_COLUMNS = ("id", "name", "hours", "installed", "replaced")
@@ -114,6 +120,15 @@ def _day(text: str | None) -> date | None:
     return date.fromisoformat(text) if text else None
 
 
+def _add_roles(session: Session) -> None:
+    """Добавляет недостающие системные роли; уже существующие роли и их права не трогает."""
+    for code, (title, description, permissions) in SYSTEM_ROLES.items():
+        if session.get(Role, code) is None:
+            session.add(Role(code=code, title=title, description=description, is_system=True,
+                             permissions=ordered(permissions)))
+    session.flush()
+
+
 def _add_users(session: Session) -> dict[str, User]:
     """Добавляет недостающие демонстрационные учётные записи и возвращает их по почте."""
     users = {}
@@ -171,6 +186,8 @@ def _add_history(session: Session, equipment_id: str, users: dict[str, User]) ->
 
 def seed(session: Session) -> None:
     """Наполняет базу и сохраняет изменения; повторный вызов ничего не дублирует и не перезаписывает."""
+    _add_roles(session)
+    get_policy(session)
     users = _add_users(session)
     for card in load_cards():
         if _add_equipment(session, card):

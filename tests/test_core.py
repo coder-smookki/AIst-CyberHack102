@@ -1,4 +1,4 @@
-"""Проверки ядра сервера: вход и токены, роли, оборудование, история агрегата, начальное наполнение базы."""
+"""Проверки ядра сервера: вход и токены, права по ролям, оборудование, история агрегата, начальное наполнение базы."""
 import hashlib
 import json
 import shutil
@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from server import auth, config, db, equipment
 from server import seed as seeding
 from server.models import (FINDING_SOURCES, FINDING_STATUSES, INSPECTION_STATUSES, Equipment, Finding, Inspection,
-                           MaintenanceRecord, Node, RefreshToken, User)
+                           MaintenanceRecord, Node, RefreshToken, Role, User)
 from server.seed import DEMO_HISTORY, DEMO_PASSWORD, DEMO_USERS, seed
 
 SECRET = "k" * 48
@@ -115,10 +115,15 @@ def test_login_success(client):
     response = client.post("/auth/login", json=form)
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"access_token", "refresh_token", "token_type", "expires_in", "user"}
+    assert set(body) == {"access_token", "refresh_token", "token_type", "expires_in", "user", "must_change_password",
+                         "permissions", "biometrics_allowed"}
     assert body["token_type"] == "bearer" and body["expires_in"] == 30 * 60
+    assert body["must_change_password"] is False and body["biometrics_allowed"] is True
+    assert body["permissions"] == ["inspect.run", "findings.view", "findings.create", "equipment.view", "telemetry.view",
+                                   "reports.own", "assistant.use"]
     assert body["user"] == {"id": body["user"]["id"], "email": "engineer@kst.demo", "name": DEMO_USERS[0][1],
-                            "role": "engineer", "role_title": "инженер"}
+                            "role": "engineer", "role_title": "инженер", "permissions": body["permissions"],
+                            "must_change_password": False}
     assert client.get("/auth/me", headers=bearer(body)).json() == body["user"]
     access = jwt.decode(body["access_token"], SECRET, algorithms=["HS256"])
     renewal = jwt.decode(body["refresh_token"], SECRET, algorithms=["HS256"])
@@ -146,14 +151,15 @@ def test_login_failure(client):
 def test_login_throttle(client, monkeypatch):
     """После десяти неудач подряд вход для этой почты закрывается на время, даже с верным паролем, и потом открывается."""
     monkeypatch.setattr(auth, "verify_password", lambda password, stored: password == DEMO_PASSWORD)
-    for _ in range(auth.LOGIN_ATTEMPTS):
+    attempts, window = 10, 300
+    for _ in range(attempts):
         assert client.post("/auth/login", json={"email": "master@kst.demo", "password": "мимо"}).status_code == 401
     blocked = client.post("/auth/login", json={"email": "master@kst.demo", "password": DEMO_PASSWORD})
     assert blocked.status_code == 429 and "Слишком много" in blocked.json()["detail"]
-    assert 0 < int(blocked.headers["retry-after"]) <= auth.LOGIN_WINDOW_SECONDS + 1
+    assert 0 < int(blocked.headers["retry-after"]) <= window + 1
     assert client.post("/auth/login", json={"email": "admin@kst.demo", "password": DEMO_PASSWORD}).status_code == 200
     for moments in auth._failures.values():
-        moments[:] = [moment - auth.LOGIN_WINDOW_SECONDS for moment in moments]
+        moments[:] = [moment - window for moment in moments]
     assert client.post("/auth/login", json={"email": "master@kst.demo", "password": DEMO_PASSWORD}).status_code == 200
     assert auth._failures == {}
 
@@ -271,22 +277,23 @@ def test_user_from_token(client):
 
 
 def test_role_restriction(client):
-    """Режим агрегата меняют только мастер и администратор; инженер получает 403, и режим остаётся прежним."""
+    """Режим агрегата меняет только мастер (право «Смена режима агрегата»); инженер и администратор системы - 403."""
     engineer, master, admin = (bearer(sign_in(client, role)) for role in ("engineer", "master", "admin"))
     denied = client.post("/equipment/N-101/mode", headers=engineer, json={"mode": "stopped"})
-    assert denied.status_code == 403 and "мастер, администратор" in denied.json()["detail"]
+    assert denied.status_code == 403 and "Смена режима агрегата" in denied.json()["detail"]
+    assert client.post("/equipment/N-101/mode", headers=admin, json={"mode": "stopped"}).status_code == 403
     assert client.get("/equipment/N-101", headers=engineer).json()["mode"] == "running"
     assert client.post("/equipment/N-101/mode", json={"mode": "stopped"}).status_code == 401
     stopped = client.post("/equipment/N-101/mode", headers=master, json={"mode": "stopped"})
     assert stopped.status_code == 200 and stopped.json()["mode"] == "stopped"
     assert client.get("/equipment/N-101", headers=engineer).json()["mode"] == "stopped"
-    assert client.post("/equipment/N-101/mode", headers=admin, json={"mode": "running"}).json()["mode"] == "running"
-    assert client.post("/equipment/N-101/mode", headers=admin, json={"mode": "paused"}).status_code == 422
-    assert client.post("/equipment/NOPE/mode", headers=admin, json={"mode": "stopped"}).status_code == 404
+    assert client.post("/equipment/N-101/mode", headers=master, json={"mode": "running"}).json()["mode"] == "running"
+    assert client.post("/equipment/N-101/mode", headers=master, json={"mode": "paused"}).status_code == 422
+    assert client.post("/equipment/NOPE/mode", headers=master, json={"mode": "stopped"}).status_code == 404
     with pytest.raises(ValueError):
-        auth.require_role("boss")
+        auth.require_permission("boss.rule")
     with pytest.raises(ValueError):
-        auth.require_role()
+        auth.require_permission()
 
 
 def test_equipment_list_and_filters(client):
@@ -416,7 +423,7 @@ def test_seed_is_idempotent(client):
     """Повторное наполнение ничего не дублирует и не затирает изменённые наработку, режим, замены и пароли."""
     before = table_counts()
     cards = cards_from_file()
-    assert before["users"] == 3 and before["equipment"] == len(cards)
+    assert before["users"] == len(DEMO_USERS) == 5 and before["equipment"] == len(cards)
     assert before["nodes"] == sum(len(card["nodes"]) for card in cards)
     assert before["inspections"] == sum(len(history["inspections"]) for history in DEMO_HISTORY.values())
     assert before["maintenance_records"] == sum(len(history["maintenance"]) for history in DEMO_HISTORY.values())
@@ -532,6 +539,7 @@ def test_database_path_follows_environment(client, tmp_path, monkeypatch):
     assert other.is_file() and stat.S_IMODE(other.stat().st_mode) == 0o600
     db.init_db()
     with db.SessionLocal() as session:
+        session.add(Role(code="engineer", title="Инженер", permissions=[]))
         session.add(User(email="new@kst.demo", name="Проверка", role="engineer", password_hash="-"))
         session.commit()
     monkeypatch.setenv("KST_DB", str(tmp_path / "kst.db"))

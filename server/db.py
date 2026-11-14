@@ -55,6 +55,8 @@ def init_db() -> None:
 
     Все таблицы создаются одной записью на диск: так схема появляется целиком или не появляется вовсе,
     а новая база создаётся в несколько раз быстрее, чем при отдельной записи на каждую таблицу.
+    База прежней схемы (роли без таблицы roles) после этого переводится на нынешнюю на месте, с сохранением
+    сотрудников, осмотров и истории.
     """
     import_module("server.models")
     engine.dispose()
@@ -63,3 +65,6 @@ def init_db() -> None:
         if not driver.in_transaction:
             driver.execute("BEGIN")
         Base.metadata.create_all(connection)
+    engine.dispose()
+    if import_module("server.migrate").upgrade(os.path.abspath(config.db_path())):
+        engine.dispose()

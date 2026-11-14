@@ -694,8 +694,8 @@ def test_diagnosis_uses_telemetry_and_gauge_reading(api, monkeypatch):
     assert finished["summary"]["telemetry_at"] == "2026-11-20T12:00:00"
 
 
-def test_only_author_master_and_admin_change_inspection(api):
-    """Чужой осмотр инженер изменить и завершить не может; мастер и администратор могут."""
+def test_only_author_and_master_change_inspection(api):
+    """Чужой осмотр инженер и администратор системы изменить и завершить не могут; мастер может."""
     number = api.start()["id"]
     author = api.user
     with db.SessionLocal() as session:
@@ -703,18 +703,21 @@ def test_only_author_master_and_admin_change_inspection(api):
         assert service.can_edit(found, author) is True
         assert service.can_edit(found, api.act("second@kst.demo")) is False
         assert service.can_edit(found, api.act("master@kst.demo")) is True
+        assert service.can_edit(found, api.act("admin@kst.demo")) is False
     api.act("second@kst.demo")
     assert api.add(number, kind="checked", node="motor").status_code == 403
     assert api.finish(number).status_code == 403
     assert api.client.get(f"/inspections/{number}").status_code == 200
+    api.act("admin@kst.demo")
+    assert api.add(number, kind="checked", node="motor").status_code == 403
+    assert api.finish(number).status_code == 403
     api.act("master@kst.demo")
     assert api.add(number, kind="checked", node="motor").status_code == 201
-    api.act("admin@kst.demo")
     assert api.finish(number).status_code == 200
 
 
 def test_finding_state_transitions(api):
-    """Замечание проходит путь «открыто - в работе - устранено»; переводят его мастер и администратор."""
+    """Замечание проходит путь «открыто - в работе - устранено»; переводит его мастер, а не инженер и не администратор."""
     number = api.start("AMS-1")["id"]
     finding = api.add(number, kind="defect", node="frame", sign="corrosion", comment="Очаг у анкера").json()
     address = f"/inspections/findings/{finding['id']}/state"
@@ -730,6 +733,8 @@ def test_finding_state_transitions(api):
     assert same.status_code == 200 and same.json()["comment"] == moved.json()["comment"]
     assert api.client.post(address, json={"state": "open"}).status_code == 409
     api.act("admin@kst.demo")
+    assert api.client.post(address, json={"state": "resolved"}).status_code == 403
+    api.act("master@kst.demo")
     done = api.client.post(address, json={"state": "resolved"})
     assert done.status_code == 200 and done.json()["state"] == "resolved"
     assert api.client.post(address, json={"state": "in_work"}).status_code == 409

@@ -1,6 +1,7 @@
 """Осмотры оборудования: начало, фиксация результатов, завершение со сводкой, замечания и данные для отчёта.
 
-Осмотр ведёт сотрудник, начавший его; мастер и администратор могут дополнять чужой осмотр. Пока осмотр идёт,
+Осмотр ведёт сотрудник, начавший его; сотрудник с правом «Дополнение чужих осмотров» (мастер) может
+дополнять и завершать чужой осмотр. Пока осмотр идёт,
 сервер держит в памяти счётчик полноты обхода и показание манометра, считанное камерой. При завершении
 в сводку осмотра сохраняются три раздельные оценки по каждому узлу, а находки диагностики, которые инженер
 не зафиксировал сам, записываются автоматически - увиденный признак дефекта не должен потеряться.
@@ -17,7 +18,8 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from server import config
-from server.auth import ROLE_TITLES
+from server import workflow
+from server.auth import has_permission, role_title
 from server.equipment import equipment_card, get_equipment
 from server.inspections.coverage import CoverageTracker, static_priority
 from server.models import Equipment, Finding, Inspection, MaintenanceRecord, User, now
@@ -56,6 +58,7 @@ ROUTINE_RANK = 6
 ROUTINE_REASON = "Плановый осмотр: отклонений по данным нет"
 NOT_WALKED = "Камерой при обходе узел не осмотрен и инженером не отмечен"
 CAMERA_MISSED = "Камерой узел не осмотрен"
+FOREIGN_INSPECTION = "Изменять осмотр может начавший его сотрудник или мастер"
 
 _live: dict[tuple[str, int], dict] = {}
 _live_lock = Lock()
@@ -70,7 +73,7 @@ def _person(user: User | None) -> dict | None:
     """Кто выполнил осмотр: имя и роль, без почты."""
     if user is None:
         return None
-    return {"id": user.id, "name": user.name, "role": user.role, "role_title": ROLE_TITLES[user.role]}
+    return {"id": user.id, "name": user.name, "role": user.role, "role_title": role_title(user)}
 
 
 def _meta(finding: Finding) -> dict:
@@ -131,14 +134,14 @@ def get_finding(session: Session, finding_id: int) -> Finding:
 
 
 def can_edit(inspection: Inspection, user: User) -> bool:
-    """Сообщает, может ли сотрудник изменять осмотр: это его автор, мастер или администратор."""
-    return inspection.user_id == user.id or user.role in ("master", "admin")
+    """Сообщает, может ли сотрудник изменять осмотр: это его автор или у него право дополнять чужие осмотры."""
+    return inspection.user_id == user.id or has_permission(user, "inspect.supervise")
 
 
 def _ensure_editor(inspection: Inspection, user: User) -> None:
-    """Пропускает к изменению осмотра его автора, мастера и администратора."""
+    """Пропускает к изменению осмотра его автора и сотрудника с правом дополнять чужие осмотры."""
     if not can_edit(inspection, user):
-        raise HTTPException(status_code=403, detail="Изменять осмотр может начавший его сотрудник, мастер или администратор")
+        raise HTTPException(status_code=403, detail=FOREIGN_INSPECTION)
 
 
 def _ensure_active(inspection: Inspection) -> None:
@@ -628,7 +631,8 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
     """Завершает осмотр: дописывает незафиксированные находки диагностики и сохраняет сводку.
 
     В сводке - число записей по статусам, длительность, общий статус, полнота обхода и три оценки по узлам
-    на момент завершения. Повторное завершение ничего не меняет и возвращает тот же осмотр.
+    на момент завершения. Задания на осмотр этого агрегата, выданные автору осмотра, закрываются.
+    Повторное завершение ничего не меняет и возвращает тот же осмотр.
     """
     _ensure_editor(inspection, user)
     if inspection.status != "active":
@@ -662,6 +666,7 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
             "telemetry_at": _stamp(assessment["moment"]),
             "estimates_on": assessment["today"].isoformat(),
         }
+        workflow.close_tasks(session, inspection, finished)
         session.commit()
     except Exception:
         session.rollback()

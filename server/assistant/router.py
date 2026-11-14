@@ -1,4 +1,7 @@
-"""Помощник: вопрос об оборудовании и истории осмотров - ответ из данных базы и ссылки для приложения."""
+"""Помощник: вопрос об оборудовании и истории осмотров - ответ из данных базы и ссылки для приложения.
+
+Вопросы задаёт сотрудник с правом «Вопросы помощнику».
+"""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -6,11 +9,11 @@ from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.orm import Session
 
 from server.assistant import intents, llm
-from server.auth import current_user
+from server.auth import require_permission
 from server.db import get_session
 from server.equipment import get_equipment
 
-router = APIRouter(prefix="/assistant", tags=["assistant"], dependencies=[Depends(current_user)])
+router = APIRouter(prefix="/assistant", tags=["assistant"], dependencies=[Depends(require_permission("assistant.use"))])
 
 
 class AskBody(BaseModel):
