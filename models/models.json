@@ -1,0 +1,100 @@
+[
+ {
+  "file": "detector.onnx",
+  "role": "stand",
+  "classes": [
+   "motor",
+   "pump_casing",
+   "flange",
+   "coupling_guard",
+   "coupling_no_guard",
+   "terminal_box",
+   "terminal_box_burnt",
+   "nameplate",
+   "gauge",
+   "leak",
+   "corrosion"
+  ],
+  "imgsz": 640,
+  "defect_classes": [
+   "coupling_no_guard",
+   "terminal_box_burnt",
+   "leak",
+   "corrosion"
+  ],
+  "conf_check": 0.25,
+  "conf_defect": 0.5,
+  "input": "images",
+  "size_mb": 8.4,
+  "family": "LibreYOLO9t",
+  "weights_licence": "MIT (huggingface.co/LibreYOLO/LibreYOLO9t)",
+  "code_licence": "MIT (libreyolo 1.7.4)",
+  "trained_from": "LibreYOLO9t.pt",
+  "weights_pt": "runs/detector/weights/best.pt",
+  "data": "data/blender/ds: рендеры макета насосного агрегата, обучение 296, проверка 50 кадров, 40 эпох, 33.8 мин на mps",
+  "measured": {
+   "blender_test_70_conf_0.25": {
+    "precision": 0.912,
+    "recall": 0.951
+   },
+   "blender_test_70_conf_0.5": {
+    "precision": 0.942,
+    "recall": 0.929
+   },
+   "latency_640_ms": {
+    "cpu": 41.3,
+    "coreml": 9.3
+   }
+  },
+  "limits": "обучена только на кадрах макета; реальные дефекты заказчика не находит (полнота 0 на отложенных снимках), для них служит модель defects"
+ },
+ {
+  "file": "defects.onnx",
+  "role": "defects",
+  "classes": [
+   "corrosion",
+   "leak",
+   "terminal_box_burnt",
+   "damage"
+  ],
+  "imgsz": 384,
+  "defect_classes": [
+   "corrosion",
+   "leak",
+   "terminal_box_burnt",
+   "damage"
+  ],
+  "conf_check": 0.25,
+  "conf_defect": 0.5,
+  "input": "input",
+  "size_mb": 33.6,
+  "family": "RF-DETR nano (LibreRFDETRn)",
+  "weights_licence": "Apache-2.0 (huggingface.co/LibreYOLO/LibreRFDETRn)",
+  "code_licence": "MIT (libreyolo 1.7.4), Apache-2.0 (rfdetr)",
+  "trained_from": "LibreRFDETRn.pt, 5 эпох, вход 384 px, 21.1 мин на mps",
+  "weights_pt": "runs/defects_rfdetr_n/weights/best.pt",
+  "compression": "ONNX 384 px, веса MatMul и Gemm в int8 (cv/quantize.py), 33.6 МБ; float32 версия runs/onnx/defects_rfdetr_n_384.onnx 107.6 МБ",
+  "data": "data/open/defects_ds_v2: 554 кадра обучения (снимки заказчика 30 и их 360 копий с имитацией монитора, Ostrava 64, corrosion-bi3q3 40, макет 60), 4 класса",
+  "measured": {
+   "customer_holdout_8_conf_0.25": {
+    "box_precision": 0.235,
+    "box_recall": 0.444,
+    "image_defect_found": 0.75
+   },
+   "customer_holdout_screen_40_conf_0.25": {
+    "box_precision": 0.214,
+    "box_recall": 0.333,
+    "image_defect_found": 0.85
+   },
+   "web_testset_conf_0.25": {
+    "image_recall_any_defect": 0.87,
+    "false_alarm_rate": 0.517
+   },
+   "latency_384_ms": {
+    "cpu": 64.8,
+    "coreml": 234.4
+   }
+  },
+  "limits": "подгорание клеммной коробки и повреждения (трещины) на отложенных снимках почти не находятся; много ложных рамок коррозии; при пороге 0.5 полнота резко падает, поэтому порог 0.25 для статуса 'проверить' важен; устойчивость к съёмке экрана проверена только на имитации; сервер запускает ONNX на процессоре"
+ }
+]

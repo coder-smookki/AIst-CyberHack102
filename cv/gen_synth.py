@@ -80,16 +80,17 @@ def photometric(img):
     return cv2.imdecode(cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, q])[1], 1)
 
 
-def make_frame(src, boxes, bgs):
+def make_frame(src, boxes, bgs, scale_range=(0.45, 1.25), center_range=(0.3, 0.7)):
     """Строит один кадр: искажает изображение перспективой и пересчитывает рамки.
 
     Рамка сохраняется, только если после искажения в кадре видно больше половины её площади.
+    Диапазоны масштаба и положения центра задают, какую часть кадра занимает экран с изображением.
     """
     h, w = src.shape[:2]
-    scale = random.uniform(0.45, 1.25)
-    tw = S * scale
+    scale = random.uniform(*scale_range)
+    tw = S * scale * min(1.0, w / h)
     th = tw * h / w
-    cx, cy = random.uniform(0.3, 0.7) * S, random.uniform(0.3, 0.7) * S
+    cx, cy = random.uniform(*center_range) * S, random.uniform(*center_range) * S
     quad = np.float32([[cx - tw / 2, cy - th / 2], [cx + tw / 2, cy - th / 2], [cx + tw / 2, cy + th / 2], [cx - tw / 2, cy + th / 2]])
     quad += np.float32([[random.uniform(-0.12, 0.12) * tw, random.uniform(-0.12, 0.12) * th] for _ in range(4)])
     H = cv2.getPerspectiveTransform(np.float32([[0, 0], [w, 0], [w, h], [0, h]]), quad)

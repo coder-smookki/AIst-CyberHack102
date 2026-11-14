@@ -7,22 +7,53 @@ import difflib
 import json
 import re
 import sys
+from pathlib import Path
 
 import cv2
 import numpy as np
 
-SERIAL_RE = re.compile(r"\d{6,8}\s*[-–]\s*\d{3,5}")
+SERIAL_RE = re.compile(r"\d{6,8}\s*[-–]\s*\d{1,5}")
 MODEL_RE = re.compile(r"[A-Z]{2,3}\s*\d{2,3}\s*/\s*\d{2,3}\s*-\s*\d+[,.]?\d*\s*/\s*\d")
+LOOKALIKES = str.maketrans("АВЕКМНОРСТХУЗ", "ABEKMHOPCTXY3")
+CONFUSED = str.maketrans("OILSBZ", "011582")
+MARGIN = 0.05
+
+OCR_MODELS = {
+    "Det.model_path": "PP-OCRv6_det_small.onnx",
+    "Cls.model_path": "ch_ppocr_mobile_v2.0_cls_mobile.onnx",
+    "Rec.model_path": "PP-OCRv6_rec_small.onnx",
+}
 
 _engine = None
 
 
+def ocr_model_paths() -> dict[str, str]:
+    """Находит файлы моделей распознавания текста на диске: сначала models/ocr проекта, затем папку пакета.
+
+    Пути передаются распознавателю явно, поэтому он не скачивает модели из сети. Если файла нет, выдаётся
+    понятная ошибка вместо обращения к внешнему адресу.
+    """
+    import rapidocr
+    folders = [Path(__file__).resolve().parent.parent / "models" / "ocr", Path(rapidocr.__file__).resolve().parent / "models"]
+    found, missing = {}, []
+    for key, name in OCR_MODELS.items():
+        path = next((folder / name for folder in folders if (folder / name).is_file()), None)
+        if path is None:
+            missing.append(name)
+        else:
+            found[key] = str(path)
+    if missing:
+        raise FileNotFoundError("Нет файлов моделей распознавания текста: " + ", ".join(missing)
+                                + ". Положите их в models/ocr")
+    return found
+
+
 def engine():
-    """Возвращает общий экземпляр распознавателя текста, создавая его при первом вызове."""
+    """Возвращает общий экземпляр распознавателя текста с локальными моделями, создавая его при первом вызове."""
     global _engine
     if _engine is None:
         from rapidocr import RapidOCR
-        _engine = RapidOCR()
+        _engine = RapidOCR(params=ocr_model_paths())
     return _engine
 
 
@@ -58,31 +89,95 @@ def parse_fields(lines: list[dict]) -> dict:
     }
 
 
-def match_equipment(fields: dict, cards: list[dict], cutoff: float = 0.72) -> dict | None:
-    """Находит карточку оборудования по серийному номеру с допуском на ошибки распознавания."""
-    serial = fields.get("serial")
-    if serial:
-        by_serial = {card["serial"]: card for card in cards}
-        if serial in by_serial:
-            return {"card": by_serial[serial], "by": "serial", "ratio": 1.0}
-        close = difflib.get_close_matches(serial, list(by_serial), n=1, cutoff=cutoff)
-        if close:
-            ratio = difflib.SequenceMatcher(None, serial, close[0]).ratio()
-            return {"card": by_serial[close[0]], "by": "serial_fuzzy", "ratio": round(ratio, 3)}
-    model = fields.get("model")
-    if model:
-        compact = re.sub(r"\s+", "", model)
-        same = [card for card in cards if re.sub(r"\s+", "", card["model"]).upper().endswith(compact)]
-        if len(same) == 1:
-            return {"card": same[0], "by": "model", "ratio": 1.0}
+def compact(text: str) -> str:
+    """Приводит текст к виду для сравнения.
+
+    Похожие кириллические буквы заменяются латинскими, буквы, которые распознаватель путает с цифрами,
+    заменяются цифрами, пробелы и знаки убираются. Так запись на шильдике и запись в реестре совпадают,
+    даже если они набраны с разными разделителями.
+    """
+    return re.sub(r"[^A-Z0-9]", "", text.upper().translate(LOOKALIKES).translate(CONFUSED))
+
+
+def model_key(model: str) -> str:
+    """Берёт начало обозначения модели, достаточное для узнавания.
+
+    Исполнение и материалы в конце обозначения на шильдике часто записаны иначе, чем в реестре.
+    """
+    key = ""
+    for token in model.split():
+        key += compact(token)
+        if len(key) >= 8:
+            break
+    return key
+
+
+def similarity(key: str, haystack: str) -> float:
+    """Возвращает долю совпадения ключа с самым похожим на него участком текста."""
+    if not key or not haystack:
+        return 0.0
+    if key in haystack:
+        return 1.0
+    matcher = difflib.SequenceMatcher(None, autojunk=False)
+    matcher.set_seq2(key)
+    best = 0.0
+    for start in range(max(1, len(haystack) - len(key) + 1)):
+        matcher.set_seq1(haystack[start:start + len(key)])
+        if matcher.quick_ratio() > best:
+            best = max(best, matcher.ratio())
+    return best
+
+
+def rank(cards: list[dict], key_of, haystack: str) -> list[tuple[float, int, dict]]:
+    """Оценивает сходство ключа каждой карточки с текстом шильдика, самые похожие и длинные в начале."""
+    scored = [(similarity(key, haystack), len(key), card) for card in cards if len(key := key_of(card)) >= 5]
+    return sorted(scored, key=lambda item: item[:2], reverse=True)
+
+
+def same_model(haystack: str, cards: list[dict], cutoff: float = 0.85) -> list[tuple[float, dict]]:
+    """Возвращает карточки, модель которых читается в тексте шильдика."""
+    ranked = rank(cards, lambda card: model_key(card["model"]), haystack)
+    if not ranked or ranked[0][0] < cutoff:
+        return []
+    return [(ratio, card) for ratio, _, card in ranked if ranked[0][0] - ratio < MARGIN]
+
+
+def haystack_of(fields: dict) -> str:
+    """Готовит текст шильдика к поиску: строки сравниваются по отдельности и не склеиваются между собой."""
+    return "|".join(compact(part) for part in re.split(r"\s{2,}", fields["text"]))
+
+
+def match_equipment(fields: dict, cards: list[dict], cutoff: float = 0.8) -> dict | None:
+    """Находит карточку оборудования по тексту шильдика.
+
+    Серийные номера и модели берутся из реестра и ищутся в распознанном тексте, поэтому формат номера
+    у разных производителей значения не имеет. Сначала проверяется серийный номер, с допуском на ошибки
+    распознавания. Если несколько карточек подходят одинаково, выбор не делается. Когда номер не прочитан,
+    карточка находится по модели, если такая модель в реестре одна.
+    """
+    haystack = haystack_of(fields)
+    by_serial = rank(cards, lambda card: compact(card["serial"]), haystack)
+    if by_serial and by_serial[0][0] >= cutoff:
+        ratio, _, card = by_serial[0]
+        if ratio == 1.0 or len(by_serial) == 1 or ratio - by_serial[1][0] >= MARGIN:
+            return {"card": card, "by": "serial" if ratio == 1.0 else "serial_fuzzy", "ratio": round(ratio, 3)}
+    by_model = same_model(haystack, cards)
+    if len(by_model) == 1:
+        return {"card": by_model[0][1], "by": "model", "ratio": round(by_model[0][0], 3)}
     return None
 
 
 def identify(image: np.ndarray, cards: list[dict]) -> dict:
-    """Полный путь: кадр шильдика, распознанные поля и найденная карточка оборудования."""
+    """Полный путь: кадр шильдика, распознанные поля и найденная карточка оборудования.
+
+    Если карточка не определена однозначно, в `candidates` попадают карточки с той же моделью,
+    чтобы инженер выбрал агрегат сам.
+    """
     lines = read_lines(image)
     fields = parse_fields(lines)
-    return {"fields": fields, "match": match_equipment(fields, cards), "lines": lines}
+    match = match_equipment(fields, cards)
+    candidates = [] if match else [card for _, card in same_model(haystack_of(fields), cards)]
+    return {"fields": fields, "match": match, "candidates": candidates, "lines": lines}
 
 
 if __name__ == "__main__":

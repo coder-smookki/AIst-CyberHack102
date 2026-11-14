@@ -1,0 +1,660 @@
+{
+ "classes": [
+  "corrosion",
+  "leak",
+  "terminal_box_burnt",
+  "damage"
+ ],
+ "titles": {
+  "corrosion": "коррозия",
+  "leak": "течь или следы течи",
+  "terminal_box_burnt": "подгорание или окисление клеммной коробки",
+  "damage": "механическое повреждение: трещина, излом, повреждение изоляции"
+ },
+ "images": [
+  {
+   "file": "Насосные агрегаты/16c811b0db124c77b276a1a06bc1d3fb.png",
+   "split": "train",
+   "boxes": [
+    [
+     "terminal_box_burnt",
+     0.12,
+     0.2,
+     0.82,
+     0.88
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/2c510abd88b648efb8841d297d432aee.png",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.6,
+     0.1,
+     0.93,
+     0.72
+    ],
+    [
+     "corrosion",
+     0.19,
+     0.63,
+     0.9,
+     0.86
+    ],
+    [
+     "corrosion",
+     0.44,
+     0.36,
+     0.63,
+     0.56
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/60cb39e72d7e4bc38d47e945b66900f8.png",
+   "split": "train",
+   "boxes": [
+    [
+     "leak",
+     0.44,
+     0.33,
+     0.56,
+     0.97
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/6bd1015378aa4382aedc45fe4b7adda4.png",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.05,
+     0.08,
+     0.92,
+     0.85
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/obsledovanie-hvs-gvs-2.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.12,
+     0.5,
+     0.8,
+     0.99
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-46-46.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.19,
+     0.0,
+     0.31,
+     0.3
+    ],
+    [
+     "corrosion",
+     0.82,
+     0.0,
+     0.95,
+     0.3
+    ],
+    [
+     "corrosion",
+     0.7,
+     0.6,
+     0.93,
+     0.83
+    ],
+    [
+     "corrosion",
+     0.52,
+     0.78,
+     0.8,
+     0.95
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-48-02.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "terminal_box_burnt",
+     0.3,
+     0.28,
+     0.7,
+     0.72
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-48-03.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "terminal_box_burnt",
+     0.28,
+     0.36,
+     0.72,
+     0.76
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-48-48.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "terminal_box_burnt",
+     0.18,
+     0.4,
+     0.85,
+     0.56
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-51-10 (2).jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.22,
+     0.22,
+     0.82,
+     0.92
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-51-10.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "leak",
+     0.42,
+     0.31,
+     0.7,
+     0.58
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/silnaja-korrozija-1-450x338.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "corrosion",
+     0.28,
+     0.35,
+     0.63,
+     0.95
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/td_010_02.png",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.15,
+     0.42,
+     0.97,
+     0.58
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/Безымянный.png",
+   "split": "train",
+   "boxes": [
+    [
+     "terminal_box_burnt",
+     0.22,
+     0.12,
+     0.72,
+     0.72
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/Сниимок.PNG",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.38,
+     0.28,
+     0.72,
+     0.82
+    ]
+   ]
+  },
+  {
+   "file": "Насосные агрегаты/насос.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.63,
+     0.22,
+     0.92,
+     0.85
+    ],
+    [
+     "corrosion",
+     0.02,
+     0.72,
+     0.9,
+     0.98
+    ],
+    [
+     "corrosion",
+     0.37,
+     0.35,
+     0.63,
+     0.62
+    ]
+   ]
+  },
+  {
+   "file": "ЭД/65d7bec338d641b8ab2a8718af266a74.png",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.27,
+     0.18,
+     0.62,
+     0.8
+    ],
+    [
+     "corrosion",
+     0.14,
+     0.25,
+     0.44,
+     0.97
+    ]
+   ]
+  },
+  {
+   "file": "ЭД/81316b33970247cdbc980ceccd88cb9a.png",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.2,
+     0.18,
+     0.82,
+     0.92
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/0831c2a9-3a2b-5bf7-b70f-05f1d51f5cdb (1).jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.05,
+     0.42,
+     0.57,
+     0.92
+    ],
+    [
+     "corrosion",
+     0.56,
+     0.63,
+     0.97,
+     0.87
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/0831c2a9-3a2b-5bf7-b70f-05f1d51f5cdb.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.21,
+     0.33,
+     0.5,
+     0.85
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/1396430378_7447321.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "damage",
+     0.27,
+     0.27,
+     0.53,
+     0.8
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/IMG_20160324_100411.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "leak",
+     0.08,
+     0.3,
+     0.72,
+     0.75
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/IMG_20261113_142550.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "corrosion",
+     0.38,
+     0.17,
+     0.67,
+     0.87
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/IMG_20261113_142555.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "leak",
+     0.3,
+     0.27,
+     0.6,
+     0.82
+    ],
+    [
+     "corrosion",
+     0.5,
+     0.05,
+     1.0,
+     0.9
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/cca9d029-459e-5007-8f88-181843ed8665.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "leak",
+     0.31,
+     0.33,
+     0.65,
+     0.95
+    ]
+   ]
+  },
+  {
+   "file": "Запорная арматура/i.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.34,
+     0.1,
+     0.8,
+     0.92
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/1corrsia.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "leak",
+     0.26,
+     0.58,
+     0.58,
+     1.0
+    ],
+    [
+     "corrosion",
+     0.26,
+     0.28,
+     0.85,
+     0.74
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/354c86b2f75e35fdf90ce044cf02d997-big.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.42,
+     0.0,
+     0.6,
+     1.0
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/IMG_20261113_143107.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.24,
+     0.48,
+     0.4,
+     0.7
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/IMG_20261113_143112.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.0,
+     0.25,
+     0.97,
+     0.82
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/IMG_20261113_143116.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "damage",
+     0.25,
+     0.38,
+     0.62,
+     0.6
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/IMG_20261113_143119.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.0,
+     0.52,
+     1.0,
+     0.85
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/Photo-9-Mechanically-Damaged-Insulation-on-Chilled-Water-Pipe.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "damage",
+     0.25,
+     0.1,
+     0.75,
+     0.75
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/korroziya.png",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.0,
+     0.18,
+     1.0,
+     0.72
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/stock-photo-corroded-flanged-joint-with-peeling-paint-and-oxidation-2738414417.jpg",
+   "split": "holdout",
+   "boxes": [
+    [
+     "corrosion",
+     0.15,
+     0.17,
+     0.85,
+     0.88
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/stock-photo-corroded-industrial-water-pump-flange-joint-covered-in-heavy-mineral-salt-2840981719.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.2,
+     0.0,
+     0.85,
+     0.55
+    ],
+    [
+     "leak",
+     0.2,
+     0.5,
+     0.88,
+     0.97
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/stock-photo-rusty-industrial-pipe-and-flange-connection-this-rusty-industrial-pipe-and-flange-connection-2733059369.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.25,
+     0.25,
+     0.52,
+     0.75
+    ]
+   ]
+  },
+  {
+   "file": "Трубопровод/unnamed.jpg",
+   "split": "train",
+   "boxes": [
+    [
+     "corrosion",
+     0.02,
+     0.02,
+     0.98,
+     0.98
+    ]
+   ]
+  }
+ ],
+ "excluded": [
+  {
+   "file": "Насосные агрегаты/4.jpg",
+   "reason": "внутренний дефект: разрушенный подшипник"
+  },
+  {
+   "file": "Насосные агрегаты/kavitacija2.jpg",
+   "reason": "внутренний дефект: рабочее колесо"
+  },
+  {
+   "file": "Насосные агрегаты/photo_2026-11-13_12-53-12.jpg",
+   "reason": "неразборчивый снимок"
+  },
+  {
+   "file": "Насосные агрегаты/Снимок.PNG",
+   "reason": "повтор снимка photo_2026-11-13_12-51-10.jpg"
+  },
+  {
+   "file": "Насосные агрегаты/Снимок1.PNG",
+   "reason": "повтор снимка photo_2026-11-13_12-51-10 (2).jpg"
+  },
+  {
+   "file": "ЭД/1.PNG",
+   "reason": "внутренний дефект: деталь в разборе"
+  },
+  {
+   "file": "ЭД/3.PNG",
+   "reason": "внутренний дефект: ротор"
+  },
+  {
+   "file": "ЭД/55.PNG",
+   "reason": "внутренний дефект: дорожка подшипника"
+  },
+  {
+   "file": "ЭД/66.PNG",
+   "reason": "внутренний дефект: обмотка статора"
+  },
+  {
+   "file": "ЭД/8.PNG",
+   "reason": "внутренний дефект: крыльчатка в разборе"
+  },
+  {
+   "file": "ЭД/IMG_20261113_142620.jpg",
+   "reason": "внутренний дефект: вал в разборе"
+  },
+  {
+   "file": "ЭД/Снимок.PNG",
+   "reason": "внутренний дефект: поверхность детали"
+  },
+  {
+   "file": "ЭД/эд.PNG",
+   "reason": "внутренний дефект: обмотка"
+  },
+  {
+   "file": "ЭД/эдд.PNG",
+   "reason": "внутренний дефект: обмотка"
+  },
+  {
+   "file": "Запорная арматура/86.PNG",
+   "reason": "внутренний дефект: диск затвора в разборе"
+  },
+  {
+   "file": "Запорная арматура/Безымянный.png",
+   "reason": "признак дефекта на снимке неоднозначен"
+  }
+ ]
+}
