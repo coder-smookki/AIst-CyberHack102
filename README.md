@@ -29,7 +29,7 @@
 <p align="center">
   <img src="assets/readme/02-objects.jpg" alt="Объекты смены" width="200">
   <img src="assets/readme/03-card.jpg" alt="Карточка агрегата с параметрами" width="200">
-  <img src="assets/readme/04-scan.jpg" alt="Осмотр с камерой и рамками узлов" width="200">
+  <img src="assets/readme/04-scan.jpg" alt="Распознавание коррозии на снимке заказчика" width="200">
   <img src="assets/readme/05-summary.jpg" alt="Итог осмотра и отчёт" width="200">
 </p>
 
