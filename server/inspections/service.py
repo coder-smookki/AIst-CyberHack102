@@ -549,6 +549,7 @@ def _defect_finding(session: Session, inspection: Inspection, node: str | None, 
         if found:
             finding = _from_rule(inspection, found, automatic=False)
             finding.evidence = [{**finding.evidence[0], "sign": sign}, *finding.evidence[1:]]
+            finding.title = titles[sign]
         else:
             finding = Finding(
                 inspection_id=inspection.id, equipment_id=inspection.equipment_id, node_code=node, source="manual",
