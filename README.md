@@ -5,9 +5,9 @@
 <h1 align="center">КСТ Визор</h1>
 
 <p align="center">
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest"><img alt="Релиз" src="https://img.shields.io/github/v/release/coder-smookki/AIst-CyberHack102?style=for-the-badge&label=релиз&color=245DCC"></a>
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/actions/workflows/mobile.yml"><img alt="Сборка" src="https://github.com/coder-smookki/AIst-CyberHack102/actions/workflows/mobile.yml/badge.svg"></a>
-  <img alt="Без интернета" src="https://img.shields.io/badge/работает-в%20сети%20цеха-121316?style=for-the-badge&logo=wifi&logoColor=white">
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest"><img alt="Релиз v0.1.1" src="https://img.shields.io/badge/%D1%80%D0%B5%D0%BB%D0%B8%D0%B7-v0.1.1-245DCC?style=for-the-badge"></a>
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/KST-Vizor.apk"><img alt="Скачать APK" src="https://img.shields.io/badge/%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
+  <img alt="Работает в сети цеха" src="https://img.shields.io/badge/%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82-%D0%B2%20%D1%81%D0%B5%D1%82%D0%B8%20%D1%86%D0%B5%D1%85%D0%B0-121316?style=for-the-badge">
   <br>
   <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.44.7-02569B?style=flat-square&logo=flutter&logoColor=white">
   <img alt="Dart" src="https://img.shields.io/badge/Dart-3.12-0175C2?style=flat-square&logo=dart&logoColor=white">
@@ -38,6 +38,17 @@
   <img src="assets/readme/06-history.jpg" alt="История агрегата" width="160">
 </p>
 
+## Видео
+
+<p align="center">
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/demo_3min.mp4"><img src="assets/readme/demo.gif" alt="Демонстрация: телефон инженера и веб-панель в реальном времени" width="820"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/demo_3min.mp4"><b>Демонстрация, 2:40</b></a>: телефон инженера и веб-панель одновременно - шильдик, карточка, осмотр, находки, звук, отчёт, роли мастера, оператора и администратора ИБ<br>
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/benchmark.mp4"><b>Прогон моделей, 1:09</b></a>: рамки на тестовых наборах и итоговая таблица точности
+</p>
+
 ## Что где
 
 | Что | Где |
@@ -51,7 +62,7 @@
 | Данные | [data/DATASETS.txt](data/DATASETS.txt): источники, лицензии, объёмы, проверка повторов |
 | Запуск и развёртывание | `docker compose up -d --build` в корне ([Запуск в Docker](#запуск-в-docker)), [deploy/](deploy): Caddy и `deploy.sh` для стенда |
 | Сборка приложения | [.github/workflows/mobile.yml](.github/workflows/mobile.yml) |
-| Демо-стенд | https://kct.lumnex.ru, веб-панель `/web/`, закрыт паролем сайта; логин и пароль - в описании решения на странице хакатона |
+| Демо-стенд | https://kct.lumnex.ru (открывается на https://kct-vizor.lumnex.ru:4433), веб-панель `/web/`, закрыт паролем сайта; логин и пароль - в описании решения на странице хакатона |
 
 ## Команда AIst
 
@@ -63,7 +74,7 @@
 ## Быстрый старт
 
 1. Скачайте `KST-Vizor.apk` из [последнего релиза](https://github.com/coder-smookki/AIst-CyberHack102/releases/latest) и установите на Android 7.0 и новее (`arm64`)
-2. Приложение уже подключено к демо-стенду https://kct.lumnex.ru. Кнопка «Сервер» на экране входа задаёт адрес своего сервера цеха, без сервера приложение работает в «Демо-режиме» на встроенных данных
+2. Приложение уже подключено к демо-стенду https://kct-vizor.lumnex.ru:4433. Кнопка «Сервер» на экране входа задаёт адрес своего сервера цеха, без сервера приложение работает в «Демо-режиме» на встроенных данных
 3. Войдите под одной из демо-учётных записей
 4. iOS 16.4 и новее: приложение собирается из того же кода, см. [Сборка приложения](#сборка-приложения)
 
