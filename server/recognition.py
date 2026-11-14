@@ -13,6 +13,7 @@ import logging
 import os
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from pathlib import Path
 
@@ -191,7 +192,8 @@ class Detector:
         self._dir = Path(models_dir)
         self._loader = loader or _load_model
         self._load_lock = threading.Lock()
-        self._run_lock = threading.Lock()
+        self._model_locks: list[threading.Lock] = []
+        self._pool = None
         self._models = None
         self._failure = None
 
@@ -276,16 +278,30 @@ class Detector:
             if not models:
                 self._failure = "Модель детектора не загрузилась: " + ", ".join(failed)
                 raise DetectorUnavailable(self._failure)
+            self._model_locks = [threading.Lock() for _ in models]
+            if len(models) > 1:
+                self._pool = ThreadPoolExecutor(max_workers=len(models), thread_name_prefix="detector")
             self._models = models
             return models
 
+    def _run_one(self, index: int, frame: np.ndarray) -> list[dict]:
+        """Прогоняет кадр через одну модель; одна и та же модель не вызывается из двух потоков одновременно."""
+        model, default, classes = self._models[index]
+        with self._model_locks[index]:
+            return _model_boxes(model, frame, default, classes)
+
     def detect(self, frame: np.ndarray) -> list[dict]:
-        """Находит узлы и дефекты на кадре всеми загруженными моделями с их порогами и объединяет рамки."""
+        """Находит узлы и дефекты на кадре всеми загруженными моделями с их порогами и объединяет рамки.
+
+        Разные модели работают параллельно, поэтому время кадра близко ко времени самой медленной модели,
+        а кадры из разных соединений не ждут друг друга целиком.
+        """
         models = self.load()
-        boxes = []
-        with self._run_lock:
-            for model, default, classes in models:
-                boxes.extend(_model_boxes(model, frame, default, classes))
+        if self._pool is None:
+            boxes = [box for index in range(len(models)) for box in self._run_one(index, frame)]
+        else:
+            futures = [self._pool.submit(self._run_one, index, frame) for index in range(len(models))]
+            boxes = [box for future in futures for box in future.result()]
         return merge_boxes(boxes)
 
     def _warm(self) -> None:

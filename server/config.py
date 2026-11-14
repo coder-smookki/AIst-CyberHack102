@@ -1,5 +1,7 @@
-"""Настройки сервера: пути к данным, файл базы, секрет подписи токенов и сроки их действия."""
+"""Настройки сервера: пути к данным, файл базы, секрет подписи токенов, сроки их действия и разрешённые
+источники запросов из браузера (CORS)."""
 import os
+import re
 import secrets
 from datetime import timedelta
 from functools import lru_cache
@@ -13,7 +15,26 @@ EQUIPMENT_FILE = DATA_DIR / "equipment.json"
 ACCESS_TTL = timedelta(minutes=30)
 REFRESH_TTL = timedelta(days=30)
 SECRET_MIN_LENGTH = 32
+CORS_DEFAULT_REGEX = r"http://(localhost|127\.0\.0\.1)(:\d{1,5})?|null"
 _secret_lock = Lock()
+
+
+def cors_origin_regex() -> str | None:
+    """Возвращает шаблон источников, которым браузер разрешит читать ответы сервера, или None - CORS выключен.
+
+    Без переменной KST_CORS_ORIGINS разрешены только страницы с этой же машины: http://localhost и
+    http://127.0.0.1 с любым портом и страницы, открытые из файла (браузер присылает источник null) - так
+    презентация с живой демонстрацией обращается к локальному серверу. В KST_CORS_ORIGINS через запятую
+    перечисляются точные источники, например http://localhost:3000,null; звёздочка заменяет любой порт или
+    часть имени без косой черты. Пустое значение или off выключают CORS.
+    """
+    value = os.environ.get("KST_CORS_ORIGINS")
+    if value is None:
+        return CORS_DEFAULT_REGEX
+    items = [item.strip().rstrip("/") for item in value.split(",") if item.strip()]
+    if not items or items == ["off"]:
+        return None
+    return "|".join(re.escape(item).replace(r"\*", "[^/]*") for item in items)
 
 
 def db_path() -> str:

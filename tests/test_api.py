@@ -508,3 +508,19 @@ def test_decode_frame_limits():
         recognition.decode_frame(b"\xff\xd8\xff\xe0broken")
     assert broken.value.status == 422
     assert recognition.decode_frame(jpeg()).shape == (FRAME_H, FRAME_W, 3)
+
+
+def test_detect_stream_answers_two_frames_in_flight_in_order(server):
+    """Два кадра подряд без ожидания ответа: оба распознаны, ответы идут по порядку с номерами кадров."""
+    client, detector = server
+    detector.boxes = [box("leak", 0.9)]
+    _, token = login(client, "engineer@kst.demo")
+    with client.websocket_connect(f"/ws/detect?token={token}") as socket:
+        socket.send_bytes(jpeg())
+        socket.send_bytes(jpeg())
+        socket.send_text("ping")
+        replies = [socket.receive_json() for _ in range(3)]
+    frames = [reply for reply in replies if reply.get("type") == "frame"]
+    assert [reply["seq"] for reply in frames] == [1, 2]
+    assert all(reply["boxes"][0]["cls"] == "leak" for reply in frames)
+    assert {"type": "pong"} in replies

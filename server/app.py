@@ -9,20 +9,23 @@
 пересчитывает диагноз агрегата. Следующий кадр телефон отправляет только после ответа на предыдущий, поэтому
 очередь кадров не копится. Сервер работает в локальной сети цеха и не обращается к внешним адресам.
 """
+import asyncio
 import logging
+from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import admin, assistant, auth, db, equipment, inspections, recognition, telemetry_api, webadmin_api, workflow
+from server import admin, assistant, auth, config, db, equipment, inspections, recognition, telemetry_api, webadmin_api, workflow
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -44,6 +47,8 @@ CLOSE_FINISHED = 4409
 INSPECT = "inspect.run"
 NO_FRAME = "Ожидается кадр камеры в формате JPEG"
 NO_TOKEN = "Требуется вход: передайте токен доступа в параметре token"
+
+PIPELINE_DEPTH = 2
 
 logger = logging.getLogger(__name__)
 
@@ -189,11 +194,27 @@ def inspect_step(detector, token: str | None, inspection_id: int, data: bytes | 
     """
     found = None
     if data is not None:
-        with db.SessionLocal() as session:
-            _socket_inspection(session, inspection_id, _socket_user(session, token))
-        found = _detect(detector, data)
+        found = inspect_detect(detector, token, inspection_id, data)
         if found.get("type") == "error":
             return found
+    return inspect_apply(detector, token, inspection_id, found, previous)
+
+
+def inspect_detect(detector, token: str | None, inspection_id: int, data: bytes) -> dict:
+    """Распознавание кадра осмотра без изменения его состояния; кадры можно распознавать параллельно.
+
+    Права и состояние осмотра проверяются до работы детектора, чтобы закрытый сеанс не тратил время сервера.
+    """
+    with db.SessionLocal() as session:
+        _socket_inspection(session, inspection_id, _socket_user(session, token))
+    return _detect(detector, data)
+
+
+def inspect_apply(detector, token: str | None, inspection_id: int, found: dict | None, previous: tuple | None) -> dict:
+    """Учитывает распознанный кадр в полноте обхода и диагнозе; вызывается строго в порядке кадров.
+
+    Без кадра (found = None) возвращает текущее состояние осмотра.
+    """
     with db.SessionLocal() as session:
         user = _socket_user(session, token)
         inspection = _socket_inspection(session, inspection_id, user)
@@ -222,6 +243,48 @@ async def _close(socket: WebSocket, code: int, detail: str) -> None:
         await socket.close(code=code, reason=detail.encode("utf-8")[:120].decode("utf-8", "ignore"))
     except (WebSocketDisconnect, RuntimeError):
         pass
+
+
+async def _frame_pipeline(socket: WebSocket, on_text, start, finish) -> None:
+    """Принимает кадры соединения и распознаёт до PIPELINE_DEPTH кадров одновременно.
+
+    start(кадр) распознаёт кадр, finish(результат) готовит ответ; ответы уходят строго в порядке кадров и
+    несут номер кадра seq. Пока распознаются PIPELINE_DEPTH кадров, следующий кадр не принимается - телефон
+    ждёт, и очередь на сервере не растёт. Текстовые команды обрабатывает on_text. При разрыве соединения
+    незавершённые задачи отменяются.
+    """
+    pending = deque()
+    receiving = None
+    number = 0
+    try:
+        while True:
+            if receiving is None and len(pending) < PIPELINE_DEPTH:
+                receiving = asyncio.ensure_future(_next_frame(socket))
+            waits = {receiving} if receiving is not None else set()
+            if pending:
+                waits.add(pending[0][1])
+            await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+            if pending and pending[0][1].done():
+                sequence, task = pending.popleft()
+                reply = await finish(task.result())
+                if reply.get("type") != "error":
+                    reply["seq"] = sequence
+                await socket.send_json(reply)
+                continue
+            if receiving is not None and receiving.done():
+                data = receiving.result()
+                receiving = None
+                if data is None:
+                    return
+                if isinstance(data, str):
+                    await on_text(data)
+                    continue
+                number += 1
+                pending.append((number, asyncio.ensure_future(start(data))))
+    finally:
+        for task in [receiving, *(task for _, task in pending)]:
+            if task is not None and not task.done():
+                task.cancel()
 
 
 async def _next_frame(socket: WebSocket) -> bytes | str | None:
@@ -257,6 +320,10 @@ def create_app(detector=None) -> FastAPI:
         db.engine.dispose()
 
     app = FastAPI(title=TITLE, docs_url=None, redoc_url=None, lifespan=lifespan)
+    origins = config.cors_origin_regex()
+    if origins is not None:
+        app.add_middleware(CORSMiddleware, allow_origin_regex=origins, allow_methods=["GET", "POST"],
+                           allow_headers=["Authorization", "Content-Type"], allow_credentials=False, max_age=600)
     app.state.detector = detector
     app.include_router(auth.router)
     app.include_router(equipment.router)
@@ -366,16 +433,21 @@ def create_app(detector=None) -> FastAPI:
         if not token:
             await _close(socket, CLOSE_UNAUTHORIZED, NO_TOKEN)
             return
+        async def on_text(text: str) -> None:
+            """Отвечает на текстовую команду: ping - проверка связи, остальное - ошибка формата."""
+            await socket.send_json({"type": "pong"} if text == "ping" else _error(415, NO_FRAME))
+
+        async def start(data: bytes) -> dict:
+            """Распознаёт кадр в пуле потоков."""
+            return await run_in_threadpool(detect_step, detector, token, data)
+
+        async def finish(found: dict) -> dict:
+            """Ответ на кадр - результат распознавания без изменений."""
+            return found
+
         try:
             await run_in_threadpool(check_token, token)
-            while True:
-                data = await _next_frame(socket)
-                if data is None:
-                    return
-                if isinstance(data, str):
-                    await socket.send_json({"type": "pong"} if data == "ping" else _error(415, NO_FRAME))
-                    continue
-                await socket.send_json(await run_in_threadpool(detect_step, detector, token, data))
+            await _frame_pipeline(socket, on_text, start, finish)
         except SocketClosed as closed:
             await _close(socket, closed.code, closed.detail)
         except (WebSocketDisconnect, OSError):
@@ -396,22 +468,33 @@ def create_app(detector=None) -> FastAPI:
             await _close(socket, CLOSE_UNAUTHORIZED, NO_TOKEN)
             return
         previous = None
+
+        async def apply(found: dict | None) -> dict:
+            """Учитывает кадр или запрос состояния в осмотре; вызывается строго по порядку кадров."""
+            nonlocal previous
+            if found is not None and found.get("type") == "error":
+                return found
+            reply = await run_in_threadpool(inspect_apply, detector, token, inspection_id, found, previous)
+            if "signature" in reply:
+                previous = reply.pop("signature")
+            return reply
+
+        async def on_text(text: str) -> None:
+            """Отвечает на текстовую команду: ping - проверка связи, state - текущее состояние осмотра."""
+            if text == "ping":
+                await socket.send_json({"type": "pong"})
+            elif text == "state":
+                await socket.send_json(await apply(None))
+            else:
+                await socket.send_json(_error(415, NO_FRAME))
+
+        async def start(data: bytes) -> dict:
+            """Распознаёт кадр осмотра в пуле потоков, не меняя состояние осмотра."""
+            return await run_in_threadpool(inspect_detect, detector, token, inspection_id, data)
+
         try:
-            data = None
-            while True:
-                if data == "ping":
-                    await socket.send_json({"type": "pong"})
-                elif isinstance(data, str) and data != "state":
-                    await socket.send_json(_error(415, NO_FRAME))
-                else:
-                    reply = await run_in_threadpool(inspect_step, detector, token, inspection_id,
-                                                    data if isinstance(data, bytes) else None, previous)
-                    if "signature" in reply:
-                        previous = reply.pop("signature")
-                    await socket.send_json(reply)
-                data = await _next_frame(socket)
-                if data is None:
-                    return
+            await socket.send_json(await apply(None))
+            await _frame_pipeline(socket, on_text, start, apply)
         except SocketClosed as closed:
             await _close(socket, closed.code, closed.detail)
         except (WebSocketDisconnect, OSError):
