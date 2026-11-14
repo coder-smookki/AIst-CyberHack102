@@ -341,10 +341,11 @@ def login(body: LoginBody, request: Request, session: Annotated[Session, Depends
 
 
 @router.post("/refresh")
-def refresh(body: RefreshBody, session: Annotated[Session, Depends(get_session)]) -> dict:
+def refresh(body: RefreshBody, session: Annotated[Session, Depends(get_session)], request: Request = None) -> dict:
     """Меняет токен обновления на новую пару токенов; старый токен после этого больше не действует.
 
-    Сеанс старше срока из политики закрывается; вход по биометрии отклоняется, если политика его запрещает.
+    Сеанс старше срока из политики закрывается; вход по биометрии отклоняется, если политика его запрещает,
+    а успешный вход по биометрии записывается в журнал безопасности.
     """
     payload = _decode(body.refresh_token, "refresh")
     if payload is None:
@@ -372,6 +373,10 @@ def refresh(body: RefreshBody, session: Annotated[Session, Depends(get_session)]
             raise _unauthorized("Срок сеанса истёк - войдите по паролю")
         raise _unauthorized("Токен обновления уже использован или отозван - войдите по паролю")
     tokens = _issue(session, user, spent.family, spent.device, auth_time)
+    if body.biometric:
+        user.last_login_at = now()
+        security.record(session, "login_biometric", actor=user, target_user=user, ip=_client_ip(request) if request else None,
+                        details={"device": spent.device} if spent.device else None)
     session.commit()
     return tokens
 

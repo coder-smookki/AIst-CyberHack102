@@ -120,7 +120,7 @@ def test_admin_metrics_models_events(client):
     bench = client.post("/webadmin/models/benchmark", headers=admin)
     assert bench.status_code == 200 and bench.json()["boxes"] == 0 and bench.json()["w"] == 640
     events = client.get("/webadmin/events", headers=admin, params={"limit": 50}).json()
-    assert events[0]["kind"] in {"server", "inspection", "finding"}
+    assert events[0]["kind"] in {"server", "inspection", "finding", "sound"}
     assert any(item["kind"] == "server" for item in events)
     assert [item["at"] for item in events] == sorted((item["at"] for item in events), reverse=True)
 

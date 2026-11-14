@@ -609,3 +609,28 @@ def test_seed_refreshes_detector_classes(seeded_database, tmp_path, monkeypatch)
             assert node.data["classes"] == ["leak"] and node.hours == 123.0
     finally:
         db.engine.dispose()
+
+
+def test_live_panel_sources(client):
+    """Панель видит в реальном времени: вход по биометрии в журнале безопасности, решения и звук в журнале событий."""
+    login = client.post("/auth/login", json={"email": "engineer@kst.demo", "password": PASSWORD}).json()
+    again = client.post("/auth/refresh", json={"refresh_token": login["refresh_token"], "biometric": True})
+    assert again.status_code == 200, again.text
+    plain = client.post("/auth/refresh", json={"refresh_token": again.json()["refresh_token"]})
+    assert plain.status_code == 200
+    log = client.get("/admin/security-log?limit=20", headers=headers(client, "security")).json()
+    biometric = [row for row in log if row["event"] == "login_biometric"]
+    assert len(biometric) == 1 and biometric[0]["title"] == "Вход по биометрии"
+    engineer, master = headers(client, "engineer"), headers(client, "master")
+    inspection_id = start(client, engineer)
+    upload(client, engineer, inspection_id, wav(tone(2 * SHAFT_HZ)))
+    finding = defect(client, engineer, inspection_id)
+    client.post(f"/inspections/findings/{finding['id']}/state", json={"state": "rejected", "comment": "блик"}, headers=master)
+    events = client.get("/webadmin/events?limit=50", headers=headers(client, "admin")).json()
+    titles = [row["title"] for row in events]
+    assert any(title.startswith(f"Находка отклонена · № {finding['id']}") for title in titles)
+    assert any(row["kind"] == "sound" and f"осмотр № {inspection_id}" in row["title"] for row in events)
+    assert [row["at"] for row in events] == sorted((row["at"] for row in events), reverse=True)
+    recent = client.get("/inspections/sound/recent?limit=5", headers=master).json()
+    assert recent[0]["inspection_id"] == inspection_id and recent[0]["candidates"]
+    assert client.get("/inspections/sound/recent", headers=headers(client, "security")).status_code == 403

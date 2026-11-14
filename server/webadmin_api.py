@@ -29,13 +29,15 @@ from server import config, recognition, security
 from server.admin import _user_response
 from server.auth import current_user, require_permission
 from server.db import get_session
-from server.models import Finding, Inspection, SecurityEvent, User, now
+from server.models import Finding, Inspection, SecurityEvent, SoundRecord, User, now
 
 MODELS_FILE = Path(__file__).resolve().parents[1] / "models" / "models.json"
 SYSTEM = require_permission("system.manage")
 USERS = require_permission("users.manage")
 BACKUP_PREFIX = "kst-"
 SEVERITY_LEVEL = {1: "info", 2: "warn", 3: "bad"}
+NOTE_EVENTS = {"rejected": ("warn", "Находка отклонена"), "state": ("info", "Состояние замечания изменено"),
+               "comment": ("info", "Комментарий к замечанию")}
 MODEL_FIELDS = ("file", "role", "family", "classes", "defect_classes", "imgsz", "conf_check", "conf_defect", "size_mb",
                 "weights_licence", "code_licence", "trained_from", "data", "measured", "thresholds", "every_n")
 
@@ -157,7 +159,7 @@ async def benchmark(request: Request) -> dict:
 @router.get("/events", dependencies=[Depends(SYSTEM)])
 def events(request: Request, session: Annotated[Session, Depends(get_session)],
            limit: Annotated[int, Query(ge=1, le=500)] = 100) -> list[dict]:
-    """Журнал событий сервера, сначала новые: запуск сервера, начало и завершение осмотров, записанные находки."""
+    """Журнал событий сервера, сначала новые: запуск, осмотры, находки, решения по ним и записи звука."""
     rows = []
     started = getattr(request.app.state, "started_at", None)
     if started:
@@ -175,7 +177,23 @@ def events(request: Request, session: Annotated[Session, Depends(get_session)],
     findings = session.scalars(select(Finding).order_by(Finding.created_at.desc()).limit(limit))
     for item in findings:
         rows.append({"at": item.created_at, "level": SEVERITY_LEVEL.get(item.severity or 1, "info"), "kind": "finding",
-                     "title": f"Находка · {item.equipment_id}", "text": item.title})
+                     "title": f"Находка № {item.id} · {item.equipment_id}", "text": item.title})
+    noted = session.scalars(select(Finding).where(Finding.notes.is_not(None)).order_by(Finding.id.desc()).limit(limit))
+    for item in noted:
+        for note in item.notes or []:
+            level, title = NOTE_EVENTS.get(note.get("kind"), NOTE_EVENTS["comment"])
+            if note.get("at"):
+                rows.append({"at": datetime.fromisoformat(note["at"]), "level": level, "kind": "finding",
+                             "title": f"{title} · № {item.id} · {item.equipment_id}",
+                             "text": f"{note.get('user_name') or 'сотрудник'}: {note.get('text') or ''}"})
+    sounds = session.scalars(select(SoundRecord).options(joinedload(SoundRecord.user))
+                             .order_by(SoundRecord.created_at.desc()).limit(limit))
+    for item in sounds:
+        found = len((item.summary or {}).get("candidates") or [])
+        rows.append({"at": item.created_at, "level": "warn" if found else "info", "kind": "sound",
+                     "title": f"Запись звука · осмотр № {item.inspection_id} · {item.equipment_id}",
+                     "text": f"{item.user.name if item.user else 'сотрудник'}: уровень {(item.summary or {}).get('level_dbfs')} дБ, "
+                             f"признаков-кандидатов: {found}"})
     rows.sort(key=lambda row: row["at"], reverse=True)
     return [{**row, "at": _stamp(row["at"])} for row in rows[:limit]]
 

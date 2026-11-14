@@ -18,7 +18,7 @@
   /* ---------- Обзор системы ---------- */
   function overviewLoad() {
     var soft = function (p) { return p.catch(function () { return null; }); };
-    return Promise.all([A.get('/system/status'), A.get('/health'), soft(A.get('/webadmin/metrics')), A.get('/equipment'), soft(A.get('/webadmin/events?limit=6'))]).then(function (d) {
+    return Promise.all([A.get('/system/status'), A.get('/health'), soft(A.get('/webadmin/metrics')), A.get('/equipment'), soft(A.get('/webadmin/events?limit=8'))]).then(function (d) {
       var tele = d[3].filter(function (u) { return u.telemetry; });
       return Promise.all(tele.map(function (u) {
         return Promise.all([soft(A.get('/equipment/' + encodeURIComponent(u.id) + '/diagnosis')), soft(A.get('/equipment/' + encodeURIComponent(u.id) + '/telemetry'))]).then(function (x) { return { unit: u, diag: x[0], tel: x[1] }; });
@@ -53,6 +53,10 @@
 
   A.page('overview', { title: 'Обзор системы', guard: function () { return A.isAdmin(); },
     load: overviewLoad,
+    sig: function (d) {
+      var s = d.status || {};
+      return JSON.stringify([d.equipment, d.events, d.diags, s.users, s.open_sessions, s.database && s.database.equipment, (s.detector || {}).loaded, d.health && d.health.ok]);
+    },
     render: function (d) {
       var s = d.status, h = d.health, m = d.metrics, det = s.detector || h.detector || {};
       note(m);
@@ -96,6 +100,8 @@
             W.panel({ title: 'Активные тревоги', sub: 'Диагноз на текущий момент ленты телеметрии', right: W.link('Телеметрия', { arrow: true, attrs: 'data-route="telemetry"' }), body: '<div class="wlist">' + alarmHtml + '</div>' }) +
             W.panel({ title: 'Распознавание', sub: (det.loaded ? models.length : 0) + ' из ' + models.length + ' моделей загружены', right: W.link('Модели', { arrow: true, attrs: 'data-route="models"' }), body: '<div class="wlist">' + modelHtml + '</div>' }) +
           '</div>' +
+          W.panel({ title: 'Последние события', sub: 'Осмотры, находки, решения по ним и записи звука', right: W.link('Журнал', { arrow: true, attrs: 'data-route="log"' }),
+            body: d.events.length ? '<div class="wlist">' + d.events.map(function (e) { return W.li({ tone: e.level === 'bad' ? 'bad' : e.level === 'warn' ? 'warn' : e.level === 'ok' ? 'ok' : 'info', icon: e.kind === 'sound' ? 'wave' : e.kind === 'finding' ? 'alert' : e.kind === 'inspection' ? 'clipboard' : 'server', title: e.title, text: e.text || '', right: A.dt(e.at, { time: true, sec: true }) }); }).join('') + '</div>' : '<p class="wlabel">Событий пока нет.</p>' }) +
           W.panel({ title: 'Сервер', sub: 'Ответ GET /health · ' + A.dt(h.time, { sec: true }) + ' · база данных ' + (h.database === 'ok' ? 'в порядке' : 'с ошибкой'), right: W.btn('Скопировать сведения', { kind: 'ghost', size: 'sm', icon: 'copy', attrs: 'data-copy-info="1"' }), body: W.kv(kv, { cols: true }) }) };
     },
     after: function (main, d) {
@@ -163,7 +169,7 @@
   /* ---------- Телеметрия и сценарии ---------- */
   var tel = { unit: null };
   function ms(iso) { return new Date(iso).getTime(); }
-  A.page('telemetry', { title: 'Телеметрия и сценарии', guard: function () { return A.isAdmin() && A.can('telemetry.view'); },
+  A.page('telemetry', { title: 'Телеметрия и сценарии', guard: function () { return A.isAdmin() && A.can('telemetry.view'); }, live: false,
     load: function () {
       return A.get('/equipment').then(function (list) {
         var withTel = list.filter(function (u) { return u.telemetry; });
@@ -238,6 +244,11 @@
           at = ms(r.at); show(); return refreshLive();
         }).then(function () { busy = false; }, function (err) { busy = false; stop(); A.fail(err, 'Время не изменено'); });
       };
+      timers.push(setInterval(function () {
+        if (timer || busy || A.top() || document.hidden || !document.contains(live)) return;
+        busy = true;
+        refreshLive().then(function () { busy = false; }, function () { busy = false; });
+      }, 2000));
       var stop = function () { clearInterval(timer); timer = null; play.classList.remove('is-on'); play.innerHTML = icon('play', 18); stEl.textContent = 'пауза · шаг ' + speed()[2]; };
       var start = function () {
         var sp = speed(); clearInterval(timer);
@@ -355,15 +366,15 @@
     load: function () { return Promise.all([A.get('/webadmin/events?limit=300'), A.get('/webadmin/backups')]); },
     render: function (d) {
       var ev = d[0], bk = d[1];
-      var KIND = { server: 'Сервер', inspection: 'Осмотры', finding: 'Находки' };
+      var KIND = { server: 'Сервер', inspection: 'Осмотры', finding: 'Находки', sound: 'Звук' };
       var rows = ev.map(function (e) {
         return { key: e.kind + ' ' + e.level, text: [e.title, e.text, KIND[e.kind]].join(' '), cells: ['<span class="wmono">' + esc(A.dt(e.at, { sec: true })) + '</span>', W.level(e.level), esc(KIND[e.kind] || e.kind), '<div class="wcell"><div><span class="t-main">' + esc(e.title) + '</span><span class="t-sub">' + esc(e.text || '') + '</span></div></div>'] };
       });
       var bkHtml = bk.backups.length ? '<div class="wlist">' + bk.backups.slice(0, 8).map(function (b) { return W.li({ tone: 'ok', icon: 'archive', title: b.file, text: A.dt(b.created_at, { sec: true }) + ' · ' + A.bytes(b.size_bytes) }); }).join('') + '</div>' : '<p class="wlabel">Резервных копий пока нет.</p>';
-      return { title: 'Журнал и резервные копии', sub: 'События сервера из базы: запуск, осмотры, находки · копии базы SQLite',
+      return { title: 'Журнал и резервные копии', sub: 'События сервера из базы: запуск, осмотры, находки, решения, звук · копии базы SQLite',
         actions: W.btn('Создать копию', { kind: 'primary', icon: 'archive', attrs: 'data-backup="1"' }),
         body: '<div class="wgrid wg-side"><div class="wcol l">' +
-          '<div class="wcol"><div class="wtoolbar">' + W.search('Текст события') + W.filters([{ label: 'Все', key: '', on: true, count: ev.length }, { label: 'Осмотры', key: 'inspection', dot: 'info' }, { label: 'Находки', key: 'finding', dot: 'warn' }, { label: 'Сервер', key: 'server', dot: 'ok' }], { group: 'k' }) + '</div></div>' +
+          '<div class="wcol"><div class="wtoolbar">' + W.search('Текст события') + W.filters([{ label: 'Все', key: '', on: true, count: ev.length }, { label: 'Осмотры', key: 'inspection', dot: 'info' }, { label: 'Находки', key: 'finding', dot: 'warn' }, { label: 'Звук', key: 'sound', dot: 'info' }, { label: 'Сервер', key: 'server', dot: 'ok' }], { group: 'k' }) + '</div></div>' +
           W.table([{ label: 'Время', cls: 'nw' }, { label: 'Уровень' }, { label: 'Раздел' }, { label: 'Событие' }], rows, { dense: true, empty: W.empty({ icon: 'search', title: 'Событий не найдено', text: 'Измените раздел или текст поиска.' }) }) +
         '</div><div class="wcol l">' +
           W.panel({ title: 'Резервные копии', sub: 'Папка ' + bk.folder, body: bkHtml }) +

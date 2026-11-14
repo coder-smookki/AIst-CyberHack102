@@ -88,6 +88,11 @@ def list_sounds(session: Session, inspection_id: int) -> list[SoundRecord]:
                                 .order_by(SoundRecord.id)))
 
 
+def recent_sounds(session: Session, limit: int = 20) -> list[SoundRecord]:
+    """Последние записи звука по всем осмотрам, сначала новые."""
+    return list(session.scalars(select(SoundRecord).order_by(SoundRecord.id.desc()).limit(limit)))
+
+
 def get_sound(session: Session, record_id: int) -> SoundRecord:
     """Запись звука по номеру или 404."""
     record = session.get(SoundRecord, record_id)

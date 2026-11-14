@@ -613,3 +613,12 @@ html.solo.desk body { background: var(--w-app); }
   .wscr *, .wscr *::before, .wscr *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; }
   .wskel { animation: none; }
 }
+
+.wlive{display:inline-flex;align-items:center;gap:5px;margin-left:8px;font-size:12px;font-weight:600;color:#2E7D4F;vertical-align:1px}
+.wlive i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:wlivePulse 1.6s ease-in-out infinite}
+@keyframes wlivePulse{0%,100%{opacity:1}50%{opacity:.25}}
+tr[data-new]>td,.wli[data-new]{animation:wNew var(--new-left,8s) ease-out both}
+.wli[data-new]{border-radius:10px}
+@keyframes wNew{0%{background-color:rgba(19,90,166,.18)}70%{background-color:rgba(19,90,166,.08)}100%{background-color:transparent}}
+tr[data-new]>td:first-child::after,.wli[data-new] .wli-t b::after{content:'только что';display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;font-size:10.5px;line-height:16px;font-weight:600;letter-spacing:.01em;background:rgba(19,90,166,.12);color:#135AA6;white-space:nowrap;vertical-align:1px}
+[data-theme="dark"] tr[data-new]>td:first-child::after,[data-theme="dark"] .wli[data-new] .wli-t b::after{background:rgba(120,170,230,.18);color:#9CC3F0}

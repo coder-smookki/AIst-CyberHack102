@@ -115,6 +115,13 @@ def comment(finding_id: int, body: CommentBody, user: Annotated[User, Depends(cu
     return service.one_finding_view(session, service.add_comment(session, found, user, body.text))
 
 
+@router.get("/sound/recent", dependencies=[Depends(VIEW)])
+def recent_sounds(session: Annotated[Session, Depends(get_session)],
+                  limit: Annotated[int, Query(ge=1, le=100)] = 20) -> list[dict]:
+    """Последние записи звука по всем осмотрам, сначала новые: для панели мастера."""
+    return [acoustics.record_view(record) for record in acoustics.recent_sounds(session, limit)]
+
+
 @router.get("/sound/{record_id}/audio", dependencies=[Depends(VIEW)])
 def sound_audio(record_id: int, session: Annotated[Session, Depends(get_session)]) -> FileResponse:
     """Файл записи звука в формате WAV."""

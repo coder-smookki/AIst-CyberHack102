@@ -210,28 +210,87 @@
       });
     } });
 
-  /** Сводка смены мастера: только просмотр оборудования и открытых замечаний. */
-  var STATE = { open: ['Открыто', 'warn'], in_work: ['В работе', 'info'], resolved: ['Устранено', 'ok'] };
+  /** Сводка смены мастера: живая картина смены - текущий осмотр, замечания и решения по ним, звук, телеметрия. */
+  var STATE = { open: ['Открыто', 'warn'], in_work: ['В работе', 'info'], resolved: ['Устранено', 'ok'], rejected: ['Отклонено', 'unk'] };
+  var LEVEL = { ok: ['норма', 'ok'], warn: ['внимание', 'warn'], alarm: ['тревога', 'bad'] };
+  var FTONE = { defect: 'bad', check: 'warn', ok: 'ok' };
+  function soft(p) { return p.catch(function () { return null; }); }
+  function summaryLoad() {
+    return Promise.all([A.get('/equipment'), soft(A.get('/inspections/findings?limit=60&include_rejected=true')), soft(A.get('/inspections?limit=20')),
+      soft(A.get('/inspections/sound/recent?limit=6')), soft(A.get('/notifications?limit=8')), soft(A.get('/site'))]).then(function (d) {
+      var eq = d[0], ins = d[2] || [];
+      var active = ins.filter(function (i) { return i.status === 'active'; })[0];
+      var tele = eq.filter(function (u) { return u.telemetry; })[0];
+      return Promise.all([active ? soft(A.get('/inspections/' + active.id)) : null, tele ? soft(A.get('/equipment/' + encodeURIComponent(tele.id) + '/telemetry')) : null]).then(function (x) {
+        return { eq: eq, findings: d[1] || [], ins: ins, sounds: d[3] || [], notes: d[4] || [], site: d[5], current: x[0], tele: x[1], teleUnit: tele };
+      });
+    });
+  }
+  function stateChip(f) { var st = STATE[f.state] || [f.state, '']; return A.chip(st[0], st[1]); }
+  function findingRow(f) {
+    var sub = (f.node_name || '') + (f.rule_id ? ' · ' + f.rule_id : '') + (f.rejected && f.reject_reason ? ' · причина: ' + f.reject_reason : '');
+    var who = f.rejected && f.rejected_by ? f.rejected_by.name + ', ' + A.dt(f.rejected_at, { time: true }) : A.dt(f.created_at);
+    return { cells: ['<span class="wmono">' + esc(f.id) + '</span>', esc(f.equipment_id || ''), '<div class="wcell"><div><span class="t-main">' + esc(f.title) + '</span><span class="t-sub">' + esc(sub) + '</span></div></div>',
+      A.chip(f.status === 'defect' ? 'Дефект' : f.status === 'check' ? 'Проверить' : 'Норма', FTONE[f.status] || 'unk'), stateChip(f), '<span class="wt-3">' + esc(who) + '</span>'] };
+  }
+  function currentPanel(d) {
+    var c = d.current;
+    if (!c) return W.panel({ title: 'Текущий осмотр', sub: 'Сейчас осмотров нет', body: '<p class="wlabel" style="padding:8px 4px">Как только инженер начнёт осмотр в приложении, он появится здесь.</p>' });
+    var cov = c.coverage || {}, pct = cov.percent || 0;
+    var items = (c.findings || []).slice().reverse().slice(0, 6).map(function (f) {
+      return W.li({ tone: f.rejected ? 'unk' : FTONE[f.status] || 'info', icon: f.kind === 'checked' ? 'checkCircle' : f.rejected ? 'close' : 'alert', title: f.title + (f.rejected ? ' · отклонено' : ''),
+        text: (f.node_name || '') + ' · ' + (STATE[f.state] || [f.state])[0].toLowerCase() + (f.confidence != null ? ' · уверенность ' + KV.num(f.confidence, 2) : ''), right: A.dt(f.created_at, { time: true }) });
+    }).join('');
+    return W.panel({ title: 'Текущий осмотр № ' + c.id + ' · ' + c.equipment_id, sub: (c.user ? c.user.name : '') + ' · начат ' + A.dt(c.started_at, { time: true }) + (c.identified_title ? ' · ' + c.identified_title.toLowerCase() : ''),
+      right: A.chip('Идёт', 'info'), body: W.meter('Полнота обхода', (cov.inspected || 0) + ' из ' + (cov.total || 0) + ' узлов · ' + pct + ' %', pct, pct >= 80 ? 'ok' : '') +
+        (cov.hint ? '<p class="wmicro" style="margin:6px 0 10px">' + esc(cov.hint) + '</p>' : '') +
+        (items ? '<div class="wlist">' + items + '</div>' : '<p class="wlabel" style="padding:8px 4px">Записей в осмотре пока нет.</p>') });
+  }
+  function telePanel(d) {
+    if (!d.tele || !d.tele.available) return '';
+    var rows = d.tele.parameters.filter(function (p) { return p.level; }).slice(0, 8).map(function (p) {
+      var lv = LEVEL[p.level] || ['', ''];
+      return W.li({ tone: lv[1], icon: 'wave', title: p.name, text: lv[0] + (p.warn != null ? ' · уставка ' + KV.num(p.warn) + ' ' + (p.unit || '') : ''), right: '<span class="wnum">' + KV.num(p.value, Math.abs(p.value) < 10 ? 2 : 1) + '</span> ' + esc(p.unit || '') });
+    }).join('');
+    return W.panel({ title: 'Телеметрия ' + d.teleUnit.id, sub: 'Показания на ' + A.dt(d.tele.at) + (d.tele.level_title ? ' · ' + d.tele.level_title.toLowerCase() : ''), body: '<div class="wlist">' + rows + '</div>' });
+  }
+  function soundPanel(d) {
+    var rows = d.sounds.map(function (r) {
+      var c = r.candidates || [];
+      return W.li({ tone: c.length ? 'warn' : 'ok', icon: 'wave', title: r.equipment_id + ' · осмотр № ' + r.inspection_id + (r.normal ? ' · норма' : ''),
+        text: (c.length ? c.map(function (x) { return x.text; }).join('; ') : 'признаков не выявлено') + ' · уровень ' + KV.num(r.level_dbfs, 1) + ' дБ', right: A.dt(r.created_at, { time: true }) });
+    }).join('');
+    return W.panel({ title: 'Записи звука', sub: 'Кандидаты по звуку подтверждает инженер', body: rows ? '<div class="wlist">' + rows + '</div>' : '<p class="wlabel" style="padding:8px 4px">Записей звука пока нет.</p>' });
+  }
+  function notesPanel(d) {
+    var rows = d.notes.map(function (n) { return W.li({ tone: n.kind === 'fault_report_new' ? 'warn' : 'info', icon: 'bell', title: n.title, text: n.text, right: A.dt(n.at, { time: true }) }); }).join('');
+    return W.panel({ title: 'Уведомления', sub: 'Задания и сообщения о неисправностях', body: rows ? '<div class="wlist">' + rows + '</div>' : '<p class="wlabel" style="padding:8px 4px">Новых уведомлений нет.</p>' });
+  }
   A.page('summary', { title: 'Сводка смены', guard: function () { return A.isMaster(); },
-    load: function () {
-      return Promise.all([A.get('/equipment'), A.get('/inspections/findings?limit=100').catch(function () { return []; }), A.get('/inspections?limit=20').catch(function () { return []; })]);
-    },
+    load: summaryLoad,
     render: function (d) {
-      var eq = d[0], fs = d[1], ins = d[2];
-      var open = fs.filter(function (f) { return f.state !== 'resolved'; });
+      var eq = d.eq, fs = d.findings, ins = d.ins;
+      var open = fs.filter(function (f) { return f.state === 'open' || f.state === 'in_work'; });
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      var rejectedToday = fs.filter(function (f) { return f.rejected && f.rejected_at && new Date(f.rejected_at) >= today; }).length;
       var rows = eq.map(function (u) {
         return { cells: ['<div class="wcell"><div><span class="t-main">' + esc(u.id) + ' · ' + esc(u.name) + '</span><span class="t-sub">' + esc(u.model) + '</span></div></div>', esc(u.location),
           A.chip(u.mode === 'running' ? 'В работе' : 'Остановлен', u.mode === 'running' ? 'ok' : 'unk'), KV.num(u.run_hours, 0) + ' ч', u.open_findings ? A.chip(String(u.open_findings), 'warn') : '<span class="wt-3">нет</span>', A.dt(u.last_inspection_at, { date: true })] };
       });
-      var frows = open.slice(0, 30).map(function (f) {
-        var st = STATE[f.state] || [f.state, ''];
-        return { cells: ['<span class="wmono">' + esc(f.id) + '</span>', esc(f.equipment_id || ''), '<div class="wcell"><div><span class="t-main">' + esc(f.title) + '</span><span class="t-sub">' + esc(f.node_name || f.node_code || '') + '</span></div></div>', A.chip(st[0], st[1]), A.dt(f.created_at)] };
+      var irows = ins.slice(0, 10).map(function (i) {
+        var sm = i.summary || {};
+        return { cells: ['<span class="wmono">' + esc(i.id) + '</span>', esc(i.equipment_id), esc(i.user ? i.user.name : ''), A.chip(i.status_title, i.status === 'active' ? 'info' : 'ok'),
+          A.dt(i.started_at), i.status === 'active' ? '<span class="wt-3">идёт</span>' : esc((sm.findings != null ? 'записей ' + sm.findings : '') + (sm.rejected ? ' · отклонено ' + sm.rejected : ''))] };
       });
-      return { title: 'Сводка смены', sub: 'Только просмотр · подтверждение находок и план ТО - в приложении на телефоне',
+      var site = d.site;
+      return { title: 'Сводка смены', sub: (site ? site.name + ' · ' + site.shift_title.toLowerCase() + ' ' + site.shift + ' · ' : '') + 'подтверждение находок и план ТО - в приложении на телефоне',
         body: W.kpis([{ label: 'Агрегатов', icon: 'box', value: String(eq.length), note: eq.filter(function (u) { return u.mode === 'running'; }).length + ' в работе' },
-          { label: 'Открытые замечания', icon: 'alert', value: String(open.length), status: open.length ? 'warn' : '', note: 'по всем агрегатам' },
-          { label: 'Осмотров в списке', icon: 'clipboard', value: String(ins.length), note: ins.filter(function (i) { return i.status === 'active'; }).length + ' идёт сейчас' }]) +
-          W.sec({ title: 'Оборудование', body: W.table([{ label: 'Агрегат' }, { label: 'Место' }, { label: 'Режим' }, { label: 'Наработка', cls: 'nw' }, { label: 'Замечания' }, { label: 'Последний осмотр', cls: 'nw' }], rows) }) +
-          W.sec({ title: 'Открытые замечания', sub: 'Сначала новые', body: frows.length ? W.table([{ label: '№' }, { label: 'Агрегат' }, { label: 'Замечание' }, { label: 'Состояние' }, { label: 'Записано', cls: 'nw' }], frows, { dense: true }) : W.empty({ icon: 'checkCircle', title: 'Открытых замечаний нет', text: 'Новые замечания появятся после осмотров инженеров.' }) }) };
+          { label: 'Идёт осмотров', icon: 'clipboard', value: String(ins.filter(function (i) { return i.status === 'active'; }).length), note: 'в списке ' + ins.length },
+          { label: 'Открытые замечания', icon: 'alert', value: String(open.length), status: open.length ? 'warn' : '', note: 'открыто и в работе' },
+          { label: 'Отклонено сегодня', icon: 'close', value: String(rejectedToday), note: 'ложные находки' }]) +
+          '<div class="wgrid wg-21">' + currentPanel(d) + '<div class="wcol l">' + telePanel(d) + soundPanel(d) + '</div></div>' +
+          W.sec({ title: 'Замечания и решения', sub: 'Новые, подтверждённые и отклонённые - сначала новые', body: fs.length ? W.table([{ label: '№' }, { label: 'Агрегат' }, { label: 'Замечание' }, { label: 'Статус' }, { label: 'Состояние' }, { label: 'Когда', cls: 'nw' }], fs.slice(0, 15).map(findingRow), { dense: true }) : W.empty({ icon: 'checkCircle', title: 'Замечаний нет', text: 'Новые замечания появятся после осмотров инженеров.' }) }) +
+          '<div class="wgrid wg-21">' + W.sec({ title: 'Осмотры', sub: 'Последние осмотры смены', body: W.table([{ label: '№' }, { label: 'Агрегат' }, { label: 'Инженер' }, { label: 'Состояние' }, { label: 'Начат', cls: 'nw' }, { label: 'Итог' }], irows, { dense: true }) }) + notesPanel(d) + '</div>' +
+          W.sec({ title: 'Оборудование', body: W.table([{ label: 'Агрегат' }, { label: 'Место' }, { label: 'Режим' }, { label: 'Наработка', cls: 'nw' }, { label: 'Замечания' }, { label: 'Последний осмотр', cls: 'nw' }], rows) }) };
     } });
 })();

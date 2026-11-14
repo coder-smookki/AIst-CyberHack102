@@ -320,10 +320,85 @@
   };
 
   var current = null, token = 0;
+  var LIVE_MS = 1500, NEW_MS = 8000, live = null, fresh = {};
+  /** Строки, по которым видно появление нового: строки таблиц и элементы списков основной панели. */
+  function rowsOf(main) { return main.querySelectorAll('.wmain-in tbody tr, .wmain-in .wli'); }
+  function rowText(r) { return r.textContent.replace(/только что/g, '').replace(/\s+/g, ' ').trim(); }
+  function rowSet(main) { var set = {}; Array.prototype.forEach.call(rowsOf(main), function (r) { set[rowText(r)] = 1; }); return set; }
+  /** Помечает новые и изменившиеся строки на несколько секунд, чтобы зритель заметил изменение. */
+  function markNew(main, before) {
+    var now = Date.now();
+    Array.prototype.forEach.call(rowsOf(main), function (r) {
+      var t = rowText(r);
+      if (!before[t] && !fresh[t]) fresh[t] = now + NEW_MS;
+      if (fresh[t] && fresh[t] > now) {
+        r.setAttribute('data-new', '1'); r.style.setProperty('--new-left', ((fresh[t] - now) / 1000).toFixed(1) + 's');
+        setTimeout(function () { r.removeAttribute('data-new'); }, fresh[t] - now);
+      }
+    });
+    Object.keys(fresh).forEach(function (t) { if (fresh[t] <= now) delete fresh[t]; });
+  }
+  /** Пользователь работает со страницей: открыт диалог, введён поиск, выбран фильтр - обновление ждёт. */
+  function userBusy(main) {
+    if (A.top() || document.hidden) return true;
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && main.contains(a)) return true;
+    var q = main.querySelector('[data-wfilter]');
+    if (q && q.value) return true;
+    return filterKeys(main) !== main.__filters;
+  }
+  function filterKeys(main) {
+    return Array.prototype.map.call(main.querySelectorAll('.wfilters'), function (g) { var on = g.querySelector('.wf.is-on'); return on ? on.getAttribute('data-key') : ''; }).join('|');
+  }
+  function signature(page, data) { try { return page.sig ? page.sig(data) : JSON.stringify(data); } catch (e) { return String(Math.random()); } }
+  /** Рисует страницу по данным; при живом обновлении сохраняет прокрутку и не проигрывает появление блоков. */
+  function paint(main, page, key, data, again) {
+    var y = window.scrollY, inner = main.querySelector('.wmain-in'), iy = inner ? inner.scrollTop : 0, my0 = main.scrollTop;
+    var before = again ? rowSet(main) : null;
+    if (again && A.stopTimers) A.stopTimers();
+    var o = page.render(data, current.params);
+    main.innerHTML = A.top_(o) + (o.banner || '') + '<div class="wmain-in">' + (o.body || '') + '</div>';
+    W.typo(main);
+    KV.layoutSegs(main);
+    var stg = main.querySelector('.wmain-in'), i = 0;
+    if (!again) Array.prototype.forEach.call(stg.children, function (c) { if (i < 8) { c.classList.add('stg'); c.style.setProperty('--i', i++); } });
+    var rl = main.querySelector('[data-reload]');
+    if (rl) rl.addEventListener('click', function () { A.go(key, current.params); });
+    if (page.after) page.after(main, data, current.params);
+    main.__filters = filterKeys(main);
+    var top = main.querySelector('.wtop-t p');
+    if (top && page.live !== false) top.insertAdjacentHTML('beforeend', ' <span class="wlive" title="Данные обновляются автоматически каждые 1,5 с"><i></i>онлайн</span>');
+    if (again) {
+      markNew(main, before);
+      main.scrollTop = my0; if (stg) stg.scrollTop = iy; window.scrollTo(0, y);
+    }
+  }
+  /** Живое обновление: страница перечитывает данные раз в 1,5 с и перерисовывается, только если они изменились. */
+  function startLive(main, page, key, my, data) {
+    if (live) clearTimeout(live);
+    if (page.live === false || !page.load) return;
+    var last = signature(page, data), busy = false;
+    var tick = function () {
+      live = null;
+      if (my !== token || !document.contains(main)) return;
+      if (busy || userBusy(main)) { live = setTimeout(tick, LIVE_MS); return; }
+      busy = true;
+      Promise.resolve(page.load(current.params)).then(function (fresh_) {
+        busy = false;
+        if (my !== token) return;
+        var sig = signature(page, fresh_);
+        if (sig !== last && !userBusy(main)) { last = sig; paint(main, page, key, fresh_, true); }
+        live = setTimeout(tick, LIVE_MS);
+      }, function () { busy = false; if (my === token) live = setTimeout(tick, LIVE_MS * 2); });
+    };
+    live = setTimeout(tick, LIVE_MS);
+  }
   /** Показывает страницу: оболочка остаётся на месте, меняется только основная панель. */
   A.go = function (key, params) {
     A.closeAll();
     if (A.stopTimers) A.stopTimers();
+    if (live) { clearTimeout(live); live = null; }
+    fresh = {};
     var page = A.pages[key];
     if (!page) { key = A.user ? A.home() : 'login'; page = A.pages[key]; }
     if (page.guard && !page.guard()) { key = A.user ? A.home() : 'login'; page = A.pages[key]; }
@@ -347,15 +422,8 @@
     main.innerHTML = A.top_({ title: page.title, sub: 'Загрузка данных с сервера…' }) + '<div class="wmain-in"><div class="wa-load">' + W.skel('100%', 118, 18) + W.skel('100%', 280, 18) + W.skel('100%', 200, 18) + '</div></div>';
     Promise.resolve(page.load ? page.load(current.params) : null).then(function (data) {
       if (my !== token) return;
-      var o = page.render(data, current.params);
-      main.innerHTML = A.top_(o) + (o.banner || '') + '<div class="wmain-in">' + (o.body || '') + '</div>';
-      W.typo(main);
-      KV.layoutSegs(main);
-      var stg = main.querySelector('.wmain-in'), i = 0;
-      Array.prototype.forEach.call(stg.children, function (c) { if (i < 8) { c.classList.add('stg'); c.style.setProperty('--i', i++); } });
-      var rl = main.querySelector('[data-reload]');
-      if (rl) rl.addEventListener('click', function () { A.go(key, current.params); });
-      if (page.after) page.after(main, data, current.params);
+      paint(main, page, key, data, false);
+      startLive(main, page, key, my, data);
     }, function (err) {
       if (my !== token) return;
       if (err && err.status === 401) return;

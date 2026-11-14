@@ -20,6 +20,7 @@ services:
       TZ: Europe/Moscow
       KST_ORT_THREADS: "12"
       KST_CORS_ORIGINS: "off"
+      KST_SERVER_NAME: "Сервер цеха (КСТ)"
     volumes:
       - kst-runtime:/app/data/runtime
     expose:

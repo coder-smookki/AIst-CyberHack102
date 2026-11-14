@@ -340,7 +340,7 @@
   }
 
   /* ---------- Журнал безопасности ---------- */
-  var EV = { login_success: ['ok', 'in'], login_failure: ['warn', 'fail'], login_locked: ['bad', 'fail'], login_blocked: ['bad', 'fail'], password_change_failed: ['warn', 'fail'],
+  var EV = { login_success: ['ok', 'in'], login_biometric: ['ok', 'in'], login_failure: ['warn', 'fail'], login_locked: ['bad', 'fail'], login_blocked: ['bad', 'fail'], password_change_failed: ['warn', 'fail'],
     password_changed: ['info', 'acc'], password_reset: ['info', 'acc'], user_created: ['info', 'acc'], user_blocked: ['bad', 'acc'], user_unblocked: ['info', 'acc'], user_role_changed: ['info', 'acc'], sessions_revoked: ['info', 'acc'],
     role_created: ['info', 'role'], role_updated: ['info', 'role'], role_deleted: ['info', 'role'], policy_changed: ['info', 'role'] };
   function who(p) { return p ? p.name : '—'; }
@@ -356,7 +356,7 @@
       var trs = rows.map(function (l, n) {
         var ev = EV[l.event] || ['info', 'acc'], t = new Date(l.at).getTime();
         var per = (t >= start.getTime() ? 'today week' : t >= now - 7 * day ? 'week' : '') + ' month';
-        if (t >= start.getTime()) { c.today++; if (l.event === 'login_success') c.logins++; if (ev[1] === 'fail') c.fail++; }
+        if (t >= start.getTime()) { c.today++; if (l.event === 'login_success' || l.event === 'login_biometric') c.logins++; if (ev[1] === 'fail') c.fail++; }
         if (t >= now - 7 * day) c.week++;
         if (ev[1] === 'role') c.rights++;
         var account = l.target_user ? l.target_user.email : l.target_role ? 'роль ' + l.target_role : l.email || '—';
