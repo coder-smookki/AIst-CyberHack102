@@ -323,7 +323,7 @@
         var metrics = [];
         Object.keys(m.measured || {}).forEach(function (k) {
           var v = m.measured[k];
-          if (v && typeof v === 'object') metrics.push('<tr><td class="wa-mono">' + esc(k) + '</td>' + ['precision', 'recall', 'map50'].map(function (x) { return '<td>' + (v[x] != null ? num(v[x], 3) : '—') + '</td>'; }).join('') + '</tr>');
+          if (v && typeof v === 'object') metrics.push('<tr><td class="wa-mono">' + esc(k) + '</td>' + [['precision', 'box_precision'], ['recall', 'box_recall'], ['map50', 'map50_served']].map(function (keys) { var x = v[keys[0]] != null ? v[keys[0]] : v[keys[1]]; return '<td>' + (x != null ? num(x, 3) : '—') + '</td>'; }).join('') + '</tr>');
         });
         return W.panel({ cls: 'wa-model', title: m.file + (m.family ? ' · ' + m.family : ''), sub: (m.role === 'stand' ? 'узлы и дефекты стенда' : m.role || '') + ' · ' + (m.size_mb ? num(m.size_mb, 1) + ' МБ' : A.bytes(m.size_bytes)),
           right: m.loaded ? A.chip('Загружена', 'ok') : m.present ? A.chip('Файл на месте', 'info') : A.chip('Нет файла', 'bad'), body:

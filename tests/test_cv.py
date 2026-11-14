@@ -306,3 +306,127 @@ def test_quantize_keeps_metadata_and_output(tmp_path):
     exact = onnxruntime.InferenceSession(source, providers=["CPUExecutionProvider"]).run(None, feed)[0]
     packed = onnxruntime.InferenceSession(target, providers=["CPUExecutionProvider"]).run(None, feed)[0]
     assert np.abs(exact - packed).max() < 0.05 * np.abs(exact).max()
+
+
+def test_protocol_match_skips_unlabelled_classes():
+    """Рамка класса, не размеченного на снимке, не считается ни верной, ни лишней."""
+    from protocol import match
+    truth = [("motor", (0, 0, 100, 100))]
+    predicted = [("motor", (2, 2, 100, 100), 0.9), ("gauge", (300, 300, 350, 350), 0.8), ("motor", (400, 0, 500, 90), 0.4)]
+    assert match(predicted, truth, {"motor"}) == [("motor", 0.9, True), ("motor", 0.4, False)]
+    assert len(match(predicted, truth)) == 3
+
+
+def test_protocol_average_precision():
+    """AP50 равна 1 при идеальном порядке, падает при лишней рамке впереди и пуста без разметки."""
+    from protocol import average_precision
+    assert average_precision([(0.9, True), (0.8, True)], 2) == 1.0
+    assert average_precision([(0.9, False), (0.8, True)], 1) == 0.5
+    assert average_precision([(0.9, True)], 2) == 0.5
+    assert average_precision([], 3) == 0.0
+    assert average_precision([(0.9, False)], 0) is None
+
+
+def test_protocol_summary_levels_and_images():
+    """Сводка считает рамки, найденные дефекты и ложные тревоги отдельно для каждого порога."""
+    from protocol import summarize
+    box = (10, 10, 110, 110)
+    records = [
+        {"truth": [("corrosion", box)], "predicted": [("corrosion", box, 0.3)], "labelled": None, "group": None},
+        {"truth": [("leak", box)], "predicted": [("corrosion", box, 0.6)], "labelled": None, "group": None},
+        {"truth": [], "predicted": [("damage", box, 0.2)], "labelled": None, "group": None},
+        {"truth": [], "predicted": [("leak", box, 0.9)], "labelled": set(), "group": "leak"},
+        {"truth": [], "predicted": [], "labelled": set(), "group": "gauge"},
+    ]
+    report = summarize(records, ("corrosion", "leak", "terminal_box_burnt", "damage"), (0.15, 0.25, 0.5))
+    low, high = report["conf_0.15"], report["conf_0.5"]
+    assert low["classes"]["corrosion"] == {"tp": 1, "fp": 1, "fn": 0, "precision": 0.5, "recall": 1.0}
+    assert low["classes"]["leak"]["fn"] == 1 and low["classes"]["damage"]["fp"] == 1
+    assert low["defective_images"] == 3 and low["image_defect_found"] == 1.0
+    assert low["image_right_class_found"] == round(2 / 3, 3)
+    assert low["clean_images"] == 2 and low["false_alarm_rate"] == 0.5
+    assert report["conf_0.25"]["false_alarm_rate"] == 0.0
+    assert high["classes"]["corrosion"] == {"tp": 0, "fp": 1, "fn": 1, "precision": 0.0, "recall": 0.0}
+    assert high["image_defect_found"] == round(2 / 3, 3) and high["groups"]["leak"]["right_class"] == 1
+    assert report["ap50"]["corrosion"] == 0.5 and report["ap50"]["leak"] == 0.0 and report["boxes"] == {"corrosion": 1, "leak": 1}
+
+
+def test_protocol_run_writes_parts_report(tmp_path, monkeypatch):
+    """Прогон по набору YOLO с поддельной моделью даёт отчёт с неполной разметкой по классам."""
+    import protocol
+
+    class Boxes:
+        """Рамки в том виде, в каком их отдаёт LibreYOLO."""
+
+        def __init__(self):
+            """Одна рамка двигателя и одна рамка манометра."""
+            self.xyxy, self.cls, self.conf = [(0, 0, 50, 50), (60, 60, 90, 90)], [0, 8], [0.7, 0.3]
+
+    class Model:
+        """Поддельная модель с фиксированным ответом."""
+
+        def __call__(self, frame, conf):
+            """Возвращает одинаковые рамки для любого кадра."""
+            result = type("Result", (), {})()
+            result.boxes, result.names = Boxes(), dict(enumerate(protocol.PART_CLASSES))
+            return result
+
+    folder = tmp_path / "parts"
+    (folder / "images" / "test").mkdir(parents=True)
+    (folder / "labels" / "test").mkdir(parents=True)
+    cv2.imwrite(str(folder / "images" / "test" / "a.jpg"), np.full((100, 100, 3), 90, np.uint8))
+    (folder / "labels" / "test" / "a.txt").write_text("0 0.25 0.25 0.5 0.5\n")
+    (folder / "data.yaml").write_text("names:\n" + "".join(f"  {i}: {n}\n" for i, n in enumerate(protocol.PART_CLASSES)))
+    monkeypatch.setitem(protocol.SET_PATHS, "parts", (str(folder), "test"))
+    monkeypatch.setitem(protocol.SET_PATHS, "val", (str(tmp_path / "absent"), "val"))
+    monkeypatch.setattr(protocol, "parts_labelled", lambda: {"images/test/a.jpg": {"motor"}})
+    report = protocol.run([Model()], ["parts", "val"], "parts")
+    row = report["parts"]["conf_0.25"]
+    assert row["classes"]["motor"]["tp"] == 1 and "gauge" not in row["classes"]
+    assert report["parts"]["ap50"]["motor"] == 1.0
+    assert report["parts"]["conf_0.5"]["classes"]["motor"]["recall"] == 1.0
+    assert "missing" in report["val"]
+
+
+def test_delivered_applies_server_thresholds_and_merge():
+    """Проверка поставки применяет пороги из models.json и объединяет рамки моделей так же, как сервер."""
+    from delivered import combine, served
+    entries = [{"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.5}}, {"file": "defects.onnx", "conf_check": 0.15}]
+    stand = [("leak", (0, 0, 100, 100), 0.45), ("motor", (0, 0, 300, 300), 0.3), ("corrosion", (200, 200, 260, 260), 0.2)]
+    defects = [("leak", (2, 2, 100, 100), 0.4), ("leak", (0, 0, 99, 99), 0.35), ("corrosion", (500, 0, 560, 60), 0.14)]
+    assert served([stand, defects], entries) == [("leak", (2, 2, 100, 100), 0.4), ("motor", (0, 0, 300, 300), 0.3)]
+    record = {"file": "a.jpg", "truth": [("leak", (0, 0, 100, 100))], "labelled": None, "group": None}
+    rows = combine([[{**record, "predicted": stand}], [{**record, "predicted": defects}]], entries)
+    assert rows[0]["truth"] == record["truth"] and [name for name, _, _ in rows[0]["predicted"]] == ["leak", "motor"]
+
+
+def test_summary_reads_protocol_and_roundtrip_reports(tmp_path):
+    """Сводка берёт из отчёта протокола показатели наборов и уровень сервера, из замера круга - времена без рамок."""
+    from summary import protocol_row, roundtrip_summary
+    level = {"box_precision": 0.6, "box_recall": 0.5, "image_defect_found": 0.75, "image_right_class_found": 0.6,
+             "false_alarm_rate": None, "classes": {"leak": {"tp": 1, "fp": 0, "fn": 1}}}
+    report = {"sets": {"holdout": {"images": 8, "map50": 0.4, "ap50": {"leak": 0.4}, "conf_0.15": level, "conf_served": level},
+                       "val": {"missing": "нет"}}}
+    (tmp_path / "rep.json").write_text(json.dumps(report), encoding="utf-8")
+    row = protocol_row({"name": "x", "report": "rep", "latency": None, "note": ""}, str(tmp_path))
+    assert row["measured"] and list(row["sets"]) == ["holdout"]
+    assert row["sets"]["holdout"]["conf_served"]["classes"] == {"leak": [1, 0, 1]} and "conf_0.25" not in row["sets"]["holdout"]
+    assert protocol_row({"name": "y", "report": "absent", "latency": None, "note": ""}, str(tmp_path))["measured"] is False
+    trip = {"health": {"ready": True}, "results": [{"set": "holdout", "trip_median_ms": 170.0, "boxes": {"a.jpg": []}}]}
+    (tmp_path / "roundtrip_ws_detect.json").write_text(json.dumps(trip), encoding="utf-8")
+    assert roundtrip_summary(str(tmp_path))["results"] == [{"set": "holdout", "trip_median_ms": 170.0}]
+
+
+def test_truth_boxes_read_next_to_dataset_image(tmp_path):
+    """Разметка YOLO рядом со снимком набора читается в пиксели и рисуется; у снимка вне набора её нет."""
+    from draw_detections import truth_boxes
+    (tmp_path / "images" / "holdout").mkdir(parents=True)
+    (tmp_path / "labels" / "holdout").mkdir(parents=True)
+    (tmp_path / "data.yaml").write_text("names:\n  0: corrosion\n  1: leak\n", encoding="utf-8")
+    (tmp_path / "labels" / "holdout" / "h.txt").write_text("1 0.5 0.5 0.5 0.5\n")
+    frame = np.full((200, 400, 3), 90, np.uint8)
+    path = str(tmp_path / "images" / "holdout" / "h.jpg")
+    assert truth_boxes(path, frame) == [("leak", [100, 50, 300, 150])]
+    assert truth_boxes(str(tmp_path / "loose.jpg"), frame) == []
+    picture = annotate(frame, [], side=400, truth=truth_boxes(path, frame))
+    assert (picture[50, 100:300] == 255).all()

@@ -1,10 +1,14 @@
 """Рисует найденные моделями рамки на снимках и сохраняет небольшие файлы для описания проекта.
 
 Запуск:
-    python cv/draw_detections.py <папка_результата> <веса[,ещё_веса]> <снимок> [<снимок> ...]
+    python cv/draw_detections.py <папка_результата> <веса[,ещё_веса] | models/models.json> [<имя>=]<снимок> ...
 
-Рамки нескольких моделей наносятся на один снимок, как это делает сервер. Дефекты выделены красным
-и оранжевым, исправные узлы синим. Каждый файл ужимается до размера не больше 200 КБ.
+Рамки нескольких моделей наносятся на один снимок, как это делает сервер. Если вместо весов указан
+models.json, рамки получает детектор сервера (server.recognition.Detector) с порогами из этого файла,
+то есть ровно то, что увидит инженер. Если рядом со снимком набора YOLO есть файл разметки
+(images/<часть>/x.jpg -> labels/<часть>/x.txt), размеченные рамки рисуются тонкой белой линией с
+подписью GT. Дефекты выделены красным и оранжевым, исправные узлы синим. Каждый файл ужимается до
+размера не больше 200 КБ.
 """
 import os
 import sys
@@ -30,6 +34,47 @@ def detections(models: list, frame: np.ndarray, conf: float = 0.25) -> list[tupl
     return sorted(merge_same_class(rows), key=lambda row: row[2])
 
 
+def served_detections(manifest: str):
+    """Возвращает функцию кадр -> рамки детектора сервера с порогами из указанного models.json."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    from server.recognition import Detector
+    detector = Detector(os.path.dirname(os.path.abspath(manifest)))
+
+    def run(frame: np.ndarray) -> list[tuple]:
+        """Находит рамки на кадре так же, как сервер, и сортирует их по возрастанию уверенности."""
+        rows = [(box["cls"], [int(box["x1"]), int(box["y1"]), int(box["x2"]), int(box["y2"])], float(box["conf"]))
+                for box in detector.detect(frame)]
+        return sorted(rows, key=lambda row: row[2])
+    return run
+
+
+def truth_boxes(path: str, frame: np.ndarray) -> list[tuple]:
+    """Читает разметку YOLO для снимка набора, если она есть: (класс, рамка в пикселях)."""
+    folder, name = os.path.split(path)
+    split_dir, split = os.path.split(folder)
+    root = os.path.dirname(split_dir)
+    labels = os.path.join(root, "labels", split, os.path.splitext(name)[0] + ".txt")
+    names_file = os.path.join(root, "data.yaml")
+    if os.path.basename(split_dir) != "images" or not os.path.exists(labels) or not os.path.exists(names_file):
+        return []
+    from evaluate import load_names, read_truth
+    names = load_names(names_file)
+    height, width = frame.shape[:2]
+    return [(names[cls], [int(v) for v in box]) for cls, box in read_truth(labels, width, height)]
+
+
+def draw_truth(image: np.ndarray, truth: list[tuple], scale: float) -> np.ndarray:
+    """Наносит размеченные рамки тонкой белой линией с подписью GT внизу рамки."""
+    for name, (x1, y1, x2, y2) in truth:
+        x1, y1, x2, y2 = (int(v * scale) for v in (x1, y1, x2, y2))
+        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 255, 255), 1)
+        text = f"GT {name}"
+        bottom = min(image.shape[0] - 2, y2 + 14)
+        cv2.putText(image, text, (x1 + 2, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 3, cv2.LINE_AA)
+        cv2.putText(image, text, (x1 + 2, bottom), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+    return image
+
+
 def overlap(a: list, b: list) -> float:
     """Возвращает долю пересечения двух рамок от их объединения."""
     width, height = min(a[2], b[2]) - max(a[0], b[0]), min(a[3], b[3]) - max(a[1], b[1])
@@ -47,10 +92,11 @@ def merge_same_class(rows: list[tuple], limit: float = 0.5) -> list[tuple]:
     return kept
 
 
-def annotate(frame: np.ndarray, rows: list[tuple], side: int = 900) -> np.ndarray:
-    """Уменьшает снимок до заданной длинной стороны и наносит рамки с подписями."""
+def annotate(frame: np.ndarray, rows: list[tuple], side: int = 900, truth: list[tuple] | None = None) -> np.ndarray:
+    """Уменьшает снимок до заданной длинной стороны и наносит рамки с подписями, а при наличии - разметку."""
     scale = min(1.0, side / max(frame.shape[:2]))
     image = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else frame.copy()
+    draw_truth(image, truth or [], scale)
     for name, (x1, y1, x2, y2), score in rows:
         color = DEFECT_COLORS.get(name, NODE_COLOR)
         x1, y1, x2, y2 = (int(v * scale) for v in (x1, y1, x2, y2))
@@ -75,16 +121,20 @@ def save_small(image: np.ndarray, path: str) -> int:
 
 def main() -> None:
     """Обрабатывает перечисленные снимки и печатает, что найдено на каждом."""
-    out, weights, files = sys.argv[1], sys.argv[2].split(","), sys.argv[3:]
-    from libreyolo import LibreYOLO
-    models = [LibreYOLO(path) for path in weights]
+    out, weights, files = sys.argv[1], sys.argv[2], sys.argv[3:]
+    if weights.endswith(".json"):
+        find = served_detections(weights)
+    else:
+        from libreyolo import LibreYOLO
+        models = [LibreYOLO(path) for path in weights.split(",")]
+        find = lambda frame: detections(models, frame)
     os.makedirs(out, exist_ok=True)
     for index, path in enumerate(files):
         target, _, source = path.rpartition("=")
         frame = cv2.imdecode(np.fromfile(source, np.uint8), cv2.IMREAD_COLOR)
-        rows = detections(models, frame)
+        rows = find(frame)
         name = target or f"detect_{index:02d}"
-        size = save_small(annotate(frame, rows), os.path.join(out, name + ".jpg"))
+        size = save_small(annotate(frame, rows, truth=truth_boxes(source, frame)), os.path.join(out, name + ".jpg"))
         print(name, size, [(row[0], round(row[2], 2)) for row in reversed(rows)])
 
 

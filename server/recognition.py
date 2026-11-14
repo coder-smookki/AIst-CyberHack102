@@ -2,8 +2,10 @@
 
 Детектор загружается при первом обращении: подключение библиотеки занимает секунды, а сервер должен
 запускаться сразу и работать даже без файла модели. Если в папке models есть models.json, загружаются все
-перечисленные в нём модели и их рамки объединяются; иначе берётся models/detector.onnx. Чтение шильдика и
-манометра выполняют функции из папки cv.
+перечисленные в нём модели и их рамки объединяются; иначе берётся models/detector.onnx. Порог уверенности
+задаётся для каждой модели полем conf_check и уточняется для отдельных классов полем thresholds
+({класс: порог}); без них действует общий порог 0,25. Чтение шильдика и манометра выполняют функции из
+папки cv.
 """
 import io
 import json
@@ -101,15 +103,44 @@ def _load_model(path: Path):
     return LibreYOLO(str(path))
 
 
-def _model_boxes(model, frame: np.ndarray) -> list[dict]:
-    """Запускает одну модель на кадре и возвращает её рамки в пикселях кадра."""
-    result = model(frame, conf=WEAK_CONFIDENCE)
+def _threshold(value, default: float) -> float:
+    """Проверяет порог уверенности из описания моделей: число строго от 0 до 1, иначе берётся default."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and 0.0 < float(value) < 1.0:
+        return float(value)
+    return default
+
+
+def model_thresholds(entry) -> tuple[float, dict[str, float]]:
+    """Возвращает порог модели и пороги отдельных классов из записи models.json.
+
+    Порог модели - поле conf_check, пороги классов - поле thresholds; негодные значения заменяются общим
+    порогом 0,25 или порогом модели.
+    """
+    if not isinstance(entry, dict):
+        return WEAK_CONFIDENCE, {}
+    default = _threshold(entry.get("conf_check"), WEAK_CONFIDENCE)
+    listed = entry.get("thresholds")
+    classes = {str(cls): _threshold(value, default) for cls, value in listed.items()} if isinstance(listed, dict) else {}
+    return default, classes
+
+
+def _model_boxes(model, frame: np.ndarray, default: float = WEAK_CONFIDENCE,
+                 classes: dict[str, float] | None = None) -> list[dict]:
+    """Запускает одну модель на кадре и возвращает её рамки в пикселях кадра.
+
+    Модель запускается с наименьшим из её порогов, затем каждая рамка сверяется с порогом своего класса.
+    """
+    classes = classes or {}
+    result = model(frame, conf=min([default, *classes.values()]))
     result = result[0] if isinstance(result, (list, tuple)) else result
     names = getattr(result, "names", None) or getattr(model, "names", {})
     boxes = []
     for corners, index, score in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf):
+        name, conf = str(names[int(index)]), float(score)
+        if conf < classes.get(name, default):
+            continue
         x1, y1, x2, y2 = (round(float(value), 1) for value in corners)
-        boxes.append({"cls": str(names[int(index)]), "conf": round(float(score), 3), "x1": x1, "y1": y1, "x2": x2, "y2": y2})
+        boxes.append({"cls": name, "conf": round(conf, 3), "x1": x1, "y1": y1, "x2": x2, "y2": y2})
     return boxes
 
 
@@ -132,10 +163,10 @@ class Detector:
     def _plan(self) -> dict:
         """Определяет, какие файлы моделей нужны: по models.json, а без него - detector.onnx.
 
-        Возвращает найденные файлы, отсутствующие файлы, дефектные классы из описания моделей и замечание
-        о нечитаемом описании.
+        Возвращает найденные файлы, отсутствующие файлы, дефектные классы и пороги моделей из описания
+        и замечание о нечитаемом описании.
         """
-        names, defects, note = [DEFAULT_MODEL], set(), None
+        names, defects, note, thresholds = [DEFAULT_MODEL], set(), None, {}
         manifest = self._dir / MANIFEST
         if manifest.is_file():
             try:
@@ -147,15 +178,18 @@ class Detector:
                     name = entry.get("file") if isinstance(entry, dict) else entry
                     if isinstance(name, str) and name.endswith(".onnx") and Path(name).name == name:
                         listed.append(name)
+                        thresholds.setdefault(name, model_thresholds(entry))
                         if isinstance(entry, dict):
                             defects.update(str(cls) for cls in entry.get("defect_classes") or [])
                 if not listed:
                     raise ValueError("в описании нет ни одной модели")
                 names = list(dict.fromkeys(listed))
-            except (OSError, ValueError):
-                defects, note = set(), f"{MANIFEST} не читается - используется {DEFAULT_MODEL}"
+            except (OSError, ValueError, AttributeError, TypeError):
+                defects, note, thresholds = set(), f"{MANIFEST} не читается - используется {DEFAULT_MODEL}", {}
+                names = [DEFAULT_MODEL]
         found = [name for name in names if (self._dir / name).is_file()]
-        return {"files": found, "missing": [name for name in names if name not in found], "defects": defects, "note": note}
+        return {"files": found, "missing": [name for name in names if name not in found], "defects": defects, "note": note,
+                "thresholds": {name: thresholds.get(name, (WEAK_CONFIDENCE, {})) for name in found}}
 
     @property
     def available(self) -> bool:
@@ -171,6 +205,12 @@ class Detector:
     def defect_classes(self) -> set[str]:
         """Дефектные классы, объявленные в описании моделей, в дополнение к перечню правил диагностики."""
         return self._plan()["defects"]
+
+    @property
+    def min_confidence(self) -> float:
+        """Наименьший порог уверенности среди моделей на диске; ниже него рамки не возвращаются."""
+        values = [value for default, classes in self._plan()["thresholds"].values() for value in (default, *classes.values())]
+        return min(values) if values else WEAK_CONFIDENCE
 
     def info(self) -> dict:
         """Описывает состояние детектора для проверки готовности сервера."""
@@ -194,7 +234,7 @@ class Detector:
             models, failed = [], []
             for name in plan["files"]:
                 try:
-                    models.append(self._loader(self._dir / name))
+                    models.append((self._loader(self._dir / name), *plan["thresholds"][name]))
                 except Exception as error:
                     logger.warning("Модель %s не загрузилась: %s", name, type(error).__name__)
                     failed.append(name)
@@ -205,12 +245,12 @@ class Detector:
             return models
 
     def detect(self, frame: np.ndarray) -> list[dict]:
-        """Находит узлы и дефекты на кадре всеми загруженными моделями и объединяет их рамки."""
+        """Находит узлы и дефекты на кадре всеми загруженными моделями с их порогами и объединяет рамки."""
         models = self.load()
         boxes = []
         with self._run_lock:
-            for model in models:
-                boxes.extend(_model_boxes(model, frame))
+            for model, default, classes in models:
+                boxes.extend(_model_boxes(model, frame, default, classes))
         return merge_boxes(boxes)
 
     def _warm(self) -> None:
@@ -234,12 +274,14 @@ def defect_classes(detector) -> set[str]:
 def detect_frame(detector, data: bytes) -> dict:
     """Читает кадр камеры и находит на нём узлы и дефекты: размер кадра, время работы детектора и рамки.
 
-    Рамки с уверенностью ниже 0,25 отбрасываются. Негодный кадр даёт FrameError, отсутствие модели -
-    DetectorUnavailable.
+    Рамки с уверенностью ниже наименьшего порога моделей (min_confidence детектора, по умолчанию 0,25)
+    отбрасываются. Негодный кадр даёт FrameError, отсутствие модели - DetectorUnavailable.
     """
     frame = decode_frame(data)
+    floor = getattr(detector, "min_confidence", WEAK_CONFIDENCE)
+    floor = floor if isinstance(floor, (int, float)) else WEAK_CONFIDENCE
     started = time.perf_counter()
-    boxes = [dict(box) for box in detector.detect(frame) if box["conf"] >= WEAK_CONFIDENCE]
+    boxes = [dict(box) for box in detector.detect(frame) if box["conf"] >= floor]
     boxes.sort(key=lambda box: -box["conf"])
     return {"w": int(frame.shape[1]), "h": int(frame.shape[0]), "ms": round((time.perf_counter() - started) * 1000, 1),
             "boxes": boxes}

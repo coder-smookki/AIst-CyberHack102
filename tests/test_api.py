@@ -447,6 +447,49 @@ def test_detector_falls_back_to_default_model(tmp_path):
     assert broken.info()["ready"] is False and "не загрузилась" in broken.info()["note"]
 
 
+def test_detector_applies_thresholds_from_manifest(tmp_path):
+    """Порог модели и пороги классов из models.json: модель запускается с наименьшим порогом, рамки ниже своего отсекаются."""
+    folder = tmp_path / "models"
+    write_manifest(folder, [{"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.6, "gauge": "high"}},
+                            {"file": "defects.onnx", "conf_check": 0.15, "thresholds": {"damage": 0.3, "leak": 1.5}}])
+    for name in ("stand.onnx", "defects.onnx"):
+        (folder / name).write_bytes(b"x")
+    names = {0: "leak", 1: "motor", 2: "gauge", 3: "damage", 4: "corrosion"}
+    outputs = {
+        "stand.onnx": FakeResult([(0, 0, 50, 50, 0, 0.55), (60, 60, 160, 160, 1, 0.3), (200, 0, 260, 60, 2, 0.24)], names),
+        "defects.onnx": FakeResult([(300, 0, 360, 60, 0, 0.16), (0, 300, 60, 360, 3, 0.29), (400, 400, 450, 450, 4, 0.15)], names),
+    }
+    asked = {}
+
+    def loader(path):
+        """Подменная загрузка: запоминает порог, с которым запущена модель."""
+        def model(frame, conf):
+            """Возвращает заготовленный ответ модели."""
+            asked[path.name] = conf
+            return [outputs[path.name]]
+        return model
+
+    detector = recognition.Detector(folder, loader)
+    assert detector.min_confidence == 0.15
+    found = recognition.detect_frame(detector, jpeg())
+    assert asked == {"stand.onnx": 0.25, "defects.onnx": 0.15}
+    assert [(item["cls"], item["conf"]) for item in found["boxes"]] == [("motor", 0.3), ("leak", 0.16), ("corrosion", 0.15)]
+    assert recognition.model_thresholds({"conf_check": True, "thresholds": []}) == (0.25, {})
+    assert recognition.model_thresholds("defects.onnx") == (0.25, {})
+
+
+def test_detect_frame_keeps_default_floor_for_other_detectors():
+    """Детектор без порогов из описания получает прежний общий порог 0,25."""
+    class Plain:
+        """Подменный детектор с готовыми рамками."""
+
+        def detect(self, frame):
+            """Возвращает рамку выше и рамку ниже общего порога."""
+            return [box("leak", 0.3), box("motor", 0.2)]
+
+    assert [item["cls"] for item in recognition.detect_frame(Plain(), jpeg())["boxes"]] == ["leak"]
+
+
 def test_box_status_thresholds():
     """Статус рамки: дефект от 0,5 - defect, ниже - check; обычный узел от 0,5 - ok, ниже - unsure."""
     defects = {"leak"}

@@ -27,10 +27,10 @@
   "input": "images",
   "size_mb": 8.4,
   "family": "LibreYOLO9t",
-  "weights_licence": "MIT (huggingface.co/LibreYOLO/LibreYOLO9t)",
-  "code_licence": "MIT (libreyolo 1.7.4)",
+  "weights_licence": "MIT (страница https://huggingface.co/LibreYOLO/LibreYOLO9t, поле license карточки модели: mit, проверено 2026-11-14)",
+  "code_licence": "MIT (libreyolo 1.7.4, https://pypi.org/project/libreyolo/1.7.4/, проверено 2026-11-14), MIT (onnxruntime 1.32)",
   "trained_from": "LibreYOLO9t.pt, 120 эпох, вход 640 px, GPU Kaggle (2 x Tesla T4); эпоха выбрана по проверочной выборке",
-  "weights_pt": "runs/kaggle/parts-a (запуск p9t_r4)",
+  "weights_pt": "runs/kaggle/parts-c/runs/p9t_r4/weights/best.pt (запуск p9t_r4 ноутбука kstv-parts-c)",
   "data": "data/blender/ds (рендеры макета насосного агрегата) и data/open/parts_real train: 136 реальных снимков узлов (Roboflow electric-motor-housing CC BY 4.0, Wikimedia Commons, снимки заказчика), реальные снимки повторены 4 раза; проверка на 70 рендерах и 42 реальных снимках, в обучение не входивших",
   "measured": {
    "blender_test_70_conf_0.25": {
@@ -49,11 +49,33 @@
    },
    "latency_640_ms": {
     "cpu": 40.0,
-    "coreml": 19.8
+    "coreml": 19.8,
+    "note": "замер при коммите 887052b, файла отчёта нет; повторный замер под нагрузкой других задач (runs/reports/latency_parts_p9t_r4.json): процессор 75.2, CoreML 17.7"
+   },
+   "served_pair_blender_test_70": {
+    "note": "обе модели с порогами из этого файла и объединением рамок, как на сервере (cv/delivered.py, runs/reports/delivered_served_parts.json)",
+    "box_precision": 0.888,
+    "box_recall": 0.992,
+    "map50": 0.978,
+    "false_alarm_rate_clean_15": 0.267
    }
   },
   "limits": "на реальных снимках уверенно находятся двигатели и манометры; клеммные коробки, шильдики и муфты на реальных фото почти не размечены, по ним качество не подтверждено; разметка реальных снимков неполная по классам",
-  "previous": "только рендеры макета: на 42 реальных снимках узлов при 0.25 точность 0.185, полнота 0.114, mAP50 0.104"
+  "previous": "только рендеры макета: на 42 реальных снимках узлов при 0.25 точность 0.185, полнота 0.114, mAP50 0.104",
+  "thresholds": {
+   "motor": 0.25,
+   "pump_casing": 0.25,
+   "flange": 0.25,
+   "coupling_guard": 0.25,
+   "coupling_no_guard": 0.25,
+   "terminal_box": 0.25,
+   "terminal_box_burnt": 0.25,
+   "nameplate": 0.25,
+   "gauge": 0.25,
+   "leak": 0.25,
+   "corrosion": 0.25
+  },
+  "threshold_choice": "общий порог 0.25 как у прежней поставки; на проверочной части defects_ds_v3 дефектные классы этой модели на реальных снимках почти не срабатывают (дефект найден на 0.011 снимков), поэтому отдельные пороги классов не нужны"
  },
  {
   "file": "defects.onnx",
@@ -71,48 +93,122 @@
    "terminal_box_burnt",
    "damage"
   ],
-  "conf_check": 0.25,
+  "conf_check": 0.15,
   "conf_defect": 0.5,
   "input": "input",
   "size_mb": 33.6,
   "family": "RF-DETR nano (LibreRFDETRn)",
-  "weights_licence": "Apache-2.0 (huggingface.co/LibreYOLO/LibreRFDETRn)",
-  "code_licence": "MIT (libreyolo 1.7.4), Apache-2.0 (rfdetr)",
+  "weights_licence": "Apache-2.0 (страница https://huggingface.co/LibreYOLO/LibreRFDETRn, поле license карточки модели: apache-2.0, проверено 2026-11-14)",
+  "code_licence": "MIT (libreyolo 1.7.4, https://pypi.org/project/libreyolo/1.7.4/), MIT (onnxruntime 1.32); исходная архитектура RF-DETR - Apache-2.0 (https://pypi.org/project/rfdetr/), пакет rfdetr на сервере не нужен",
   "trained_from": "LibreRFDETRn.pt, 33 эпохи из 40 (остановлено лимитом сессии Kaggle), вход 384 px, пакет 16, 2 ч 45 мин на GPU Kaggle",
   "weights_pt": "runs/kaggle/train-b/runs/rfn384s/weights/best.pt",
   "compression": "ONNX 384 px, веса MatMul и Gemm в int8 (cv/quantize.py), 33.6 МБ; float32 версия runs/onnx/defects_rfn384s_fp32.onnx 107.6 МБ; int8 стоит 0.008 mAP50 на проверочной выборке",
-  "data": "data/open/defects_ds_v3 (cv/build_defects_v3.py): обучение 4908 кадров (снимки заказчика 28 и 324 их копии с имитацией монитора, кадры макета 60, открытые наборы коррозии, утечек, подгоревших контактов и повреждений изоляции, чистые снимки шильдиков, манометров и двигателей), проверка 519 кадров, 4 класса; источники, лицензии и проверка повторов с тестовыми снимками в data/DATASETS.txt",
+  "data": "data/open/defects_ds_v3 (cv/build_defects_v3.py): обучение 4908 кадров части train (снимки заказчика 28 и 324 их копии с имитацией монитора, кадры макета 60, открытые наборы коррозии, утечек, подгоревших контактов и повреждений изоляции, чистые снимки шильдиков, манометров и двигателей) и 1800 экранных копий открытых кадров части train_screen, всего 6708; проверка 519 кадров, 4 класса; источники, лицензии и проверка повторов с тестовыми снимками в data/DATASETS.txt",
   "measured": {
-   "customer_holdout_8_conf_0.25": {
-    "box_precision": 0.667,
-    "box_recall": 0.444,
-    "image_defect_found": 0.75
-   },
-   "customer_holdout_8_conf_0.15": {
+   "note": "числа ниже - поставка целиком, как её запускает сервер: detector.onnx при 0.25 и defects.onnx при 0.15, рамки объединяются (cv/delivered.py, runs/reports/delivered_served.json); рамка верна при совпадении класса и пересечении от 0.5",
+   "customer_holdout_8": {
     "box_precision": 0.625,
     "box_recall": 0.556,
-    "image_defect_found": 0.75
+    "image_defect_found": 0.75,
+    "image_right_class_found": 0.625,
+    "map50_served": 0.417,
+    "classes_tp_fp_fn": {
+     "corrosion": [
+      2,
+      1,
+      2
+     ],
+     "leak": [
+      2,
+      2,
+      0
+     ],
+     "terminal_box_burnt": [
+      0,
+      0,
+      1
+     ],
+     "damage": [
+      1,
+      0,
+      1
+     ]
+    }
    },
-   "customer_holdout_screen_40_conf_0.25": {
-    "box_precision": 0.354,
-    "box_recall": 0.378,
-    "image_defect_found": 0.825
+   "customer_holdout_screen_40": {
+    "box_precision": 0.279,
+    "box_recall": 0.422,
+    "image_defect_found": 0.9,
+    "image_right_class_found": 0.65,
+    "map50_served": 0.273,
+    "classes_tp_fp_fn": {
+     "corrosion": [
+      10,
+      21,
+      10
+     ],
+     "leak": [
+      4,
+      27,
+      6
+     ],
+     "terminal_box_burnt": [
+      0,
+      0,
+      5
+     ],
+     "damage": [
+      5,
+      1,
+      5
+     ]
+    },
+    "note": "имитация съёмки с монитора, настоящая съёмка экрана телефоном не замерялась"
    },
-   "web_testset_conf_0.25": {
-    "image_recall_any_defect": 0.826,
-    "false_alarm_rate": 0.069
-   },
-   "web_testset_conf_0.15": {
+   "web_testset_90": {
     "image_recall_any_defect": 0.891,
-    "false_alarm_rate": 0.138
+    "image_recall_right_class": 0.674,
+    "defective_images": 46,
+    "false_alarm_rate": 0.138,
+    "clean_images": 29,
+    "note": "15 снимков групп bolt_defect (14) и guard_missing (1) не входят ни в дефектные, ни в чистые: таких классов у модели нет"
    },
-   "val_519_map50": 0.693,
+   "val_519": {
+    "box_precision": 0.426,
+    "box_recall": 0.691,
+    "image_defect_found": 0.996,
+    "false_alarm_rate": 0.08,
+    "map50_served": 0.675
+   },
+   "model_alone_val_519_map50": 0.693,
    "latency_384_ms": {
     "cpu": 80.0,
-    "coreml": 271.2
+    "coreml": 271.2,
+    "note": "одна модель, ONNX Runtime на процессоре M4 под нагрузкой других задач; CoreML медленнее процессора"
+   },
+   "served_roundtrip_ws_detect_ms": {
+    "customer_holdout_8_x3": {
+     "median": 171.3,
+     "p90": 188.1,
+     "server_detect_median": 162.0
+    },
+    "blender_test_40": {
+     "median": 166.3,
+     "p90": 185.2,
+     "server_detect_median": 159.3
+    },
+    "note": "обе модели, python -m server на M4 (процессор), клиент на той же машине, кадры 1280 px JPEG 80, по одному кадру с ожиданием ответа, машина загружена другими задачами; около 6 кадров/с; runs/reports/roundtrip_ws_detect.json"
    }
   },
-  "limits": "подгорание клеммной коробки на снимках заказчика не находится: открытых снимков клеммных коробок двигателей нет, в обучении бытовые розетки; на 8 отложенных снимках дефект найден на 6 (прежняя модель находила на всех, но давала ложные рамки на большинстве чистых снимков); выборка заказчика мала, цифры приблизительные; часть открытых наборов (SAFE-Net под GPL, снимки Roboflow и Kaggle из сети) пригодна только для прототипа; задержка измерена на загруженном процессоре; сервер запускает ONNX на процессоре",
-  "previous": "defects_ds_v2, 5 эпох на mps: отложенные 8 снимков при 0.25 точность рамок 0.235, mAP50 0.105; тестовый набор из сети при 0.25 ложные тревоги на чистых снимках 0.517, дефект найден 0.87"
+  "limits": "подгорание клеммной коробки на снимках заказчика не находится: открытых снимков клеммных коробок двигателей нет, в обучении бытовые розетки; на 8 отложенных снимках дефект найден на 6, как и у исходной поставки при 0.25 (исходная модель дефектов при 0.15 находила дефект на всех 8, но точность рамок была 0.10, а ложные тревоги - на 0.83 чистых снимков из сети, runs/reports/baseline_defects_onnx.json); выборка заказчика мала, цифры приблизительные; часть открытых наборов (SAFE-Net под GPL, снимки Roboflow и Kaggle из сети) пригодна только для прототипа; задержка измерена на загруженном процессоре; сервер запускает ONNX на процессоре",
+  "previous": "до этой поставки сервер применял ко всем моделям порог 0.25, а модель узлов была обучена только на рендерах; так (прежняя модель узлов и эта модель дефектов, обе при 0.25) на 8 отложенных снимках: точность рамок 0.667, полнота 0.444, дефект найден 0.75; на 40 копиях: дефект найден 0.825; на наборе из сети: дефект найден 0.826, ложные тревоги 0.31. Исходная поставка (defects_ds_v2, 5 эпох на mps, обе модели при 0.25): отложенные 8 снимков - точность рамок 0.286, полнота 0.444, дефект найден 0.75, mAP50 0.104; набор из сети - дефект найден 0.891, ложные тревоги 0.621 (runs/reports/sel_interim.json, sel_orig.json)",
+  "thresholds": {
+   "corrosion": 0.15,
+   "leak": 0.15,
+   "terminal_box_burnt": 0.15,
+   "damage": 0.15
+  },
+  "threshold_choice": "общий порог 0.15 выбран только по проверочной части defects_ds_v3 (519 кадров): полнота важнее точности; пороги по классам, подобранные по той же части (corrosion 0.15, leak 0.175, terminal_box_burnt 0.625, damage 0.125), ложных тревог не уменьшают, а высокий порог terminal_box_burnt объясняется лёгкими снимками розеток в проверочной части, поэтому оставлен единый порог; рамки от 0.15 до 0.5 сервер отдаёт со статусом check, от 0.5 - defect",
+  "not_used": "отражение кадра при выводе (те же веса .pt, runs/reports/rfn384s_plain.json и rfn384s_flip.json: val mAP50 0.701 -> 0.707) удваивает время и на отложенных снимках снижает mAP50 (0.417 -> 0.394) и точность рамок при 0.15 (0.625 -> 0.417), не включено; второй этап проверки вырезок DINOv2 small (cv/verifier.py) на отложенных снимках, копиях и наборе из сети не изменил ни одного числа и добавил бы 30-380 мс на кадр, не включён"
  }
 ]
