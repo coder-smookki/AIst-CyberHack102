@@ -145,6 +145,7 @@ class KvArStage extends StatelessWidget {
     this.boxRadius = KvRadius.xs,
     this.glow = true,
     this.background,
+    this.labelMinTop = 4,
   });
 
   /// Вид кадра.
@@ -164,6 +165,9 @@ class KvArStage extends StatelessWidget {
 
   /// Живое видео камеры вместо демонстрационного кадра: рисуется на всю область, рамки - в процентах области.
   final Widget? background;
+
+  /// Верхняя граница подписей над рамкой: если рамка упирается в верх кадра, подпись остаётся видимой ниже этой границы.
+  final double labelMinTop;
 
   @override
   Widget build(BuildContext context) {
@@ -221,8 +225,8 @@ class KvArStage extends StatelessWidget {
       KvArLabelPosition.left => Positioned(right: s.width - px(r.left) + 6, top: py(r.top) + 6, child: label),
       KvArLabelPosition.right => Positioned(left: px(r.right) + 6, top: py(r.top), child: label),
       KvArLabelPosition.edge => Positioned(left: px(r.left) + 10, top: py(r.bottom) - 13, child: label),
-      KvArLabelPosition.aboveRight => Positioned(right: s.width - px(r.right), top: py(r.top) - 32, child: label),
-      KvArLabelPosition.above => Positioned(left: px(r.left), top: py(r.top) - 32, child: label),
+      KvArLabelPosition.aboveRight => Positioned(right: s.width - px(r.right), top: math.max(py(r.top) - 32, labelMinTop), child: label),
+      KvArLabelPosition.above => Positioned(left: px(r.left), top: math.max(py(r.top) - 32, labelMinTop), child: label),
     };
   }
 }

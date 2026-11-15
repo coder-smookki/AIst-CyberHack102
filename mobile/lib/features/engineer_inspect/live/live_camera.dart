@@ -176,6 +176,9 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
 
   int _sentSeq = 0;
 
+  /// Ответы с номером кадра не больше этого относятся к прежнему отладочному снимку и рамок не меняют.
+  int _staleSeq = 0;
+
   /// Связь потеряна и идёт повторное подключение (тихое состояние до третьей неудачи).
   bool reconnecting = false;
 
@@ -331,6 +334,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
         debugImage = src.current;
         boxes = const <LiveBox>[];
         tracks.clear();
+        _staleSeq = _sentSeq;
         _notify();
       }
     });
@@ -464,6 +468,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     );
     _socket = ch;
     _sentSeq = 0;
+    _staleSeq = 0;
     _sentFrames.clear();
     _sub = ch.stream.listen(
       (dynamic data) {
@@ -529,7 +534,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
       _replies.removeWhere((DateTime t) => now.difference(t) > const Duration(seconds: 2));
       fps = _replies.length / 2;
     }
-    if (type == 'frame') {
+    if (type == 'frame' && ((j['seq'] as num?)?.toInt() ?? _staleSeq + 1) > _staleSeq) {
       serverMs = (j['ms'] as num?)?.round() ?? 0;
       frameSize = Size((j['w'] as num?)?.toDouble() ?? 0, (j['h'] as num?)?.toDouble() ?? 0);
       boxes = [for (final dynamic b in (j['boxes'] as List<dynamic>? ?? const <dynamic>[])) LiveBox.fromJson(b as Map<String, dynamic>)];
@@ -843,7 +848,7 @@ class _LiveCameraStageState extends State<LiveCameraStage> with SingleTickerProv
                 onTap: widget.onBoxTap?.call(found[i].box),
               ),
           ];
-          return KvArStage(background: _preview(camera.controller), boxes: boxes);
+          return KvArStage(background: _preview(camera.controller), boxes: boxes, labelMinTop: MediaQuery.paddingOf(context).top + 68);
         },
       ),
     );
