@@ -24,7 +24,7 @@ cp -p "$ROOT/deploy/.dockerignore" "$STAGE/src/.dockerignore"
 rsync -a --exclude '__pycache__' --exclude '.DS_Store' "$ROOT/server" "$STAGE/src/"
 mkdir -p "$STAGE/src/cv"
 cp -p "$ROOT/cv/nameplate.py" "$ROOT/cv/gauge.py" "$STAGE/src/cv/"
-cp -p "$ROOT/models/detector.onnx" "$ROOT/models/defects.onnx" "$ROOT/models/models.json" "$STAGE/src/models/"
+cp -p "$ROOT"/models/*.onnx "$ROOT/models/models.json" "$STAGE/src/models/"
 OCR_DIR="$(ocr_source)"
 for name in "${OCR_FILES[@]}"; do
     cp -p "$OCR_DIR/$name" "$STAGE/src/models/ocr/"

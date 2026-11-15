@@ -18,7 +18,7 @@ cp -p "$ROOT/deploy/Dockerfile" "$STAGE/src/deploy/"
 cp -p "$ROOT/deploy/.dockerignore" "$STAGE/src/.dockerignore"
 rsync -a --exclude '__pycache__' --exclude '.DS_Store' "$ROOT/server" "$STAGE/src/"
 cp -p "$ROOT/cv/nameplate.py" "$ROOT/cv/gauge.py" "$STAGE/src/cv/"
-cp -p "$ROOT/models/detector.onnx" "$ROOT/models/defects.onnx" "$ROOT/models/models.json" "$STAGE/src/models/"
+cp -p "$ROOT"/models/*.onnx "$ROOT/models/models.json" "$STAGE/src/models/"
 for name in "${OCR_FILES[@]}"; do cp -p "$OCR_DIR/$name" "$STAGE/src/models/ocr/"; done
 cp -p "$ROOT/data/equipment.json" "$ROOT/data/rules.json" "$STAGE/src/data/"
 for folder in "Вибрация" "Температура"; do
