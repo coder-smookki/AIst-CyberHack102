@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - "v*"
+    # Фильтр по путям для тегов не применяется: релиз собирается всегда
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
   workflow_dispatch:
     inputs:
       with_llm:
@@ -131,6 +135,8 @@ jobs:
 
   ios:
     name: iOS IPA без подписи
+    # macOS-раннер дорогой: только релиз по тегу и ручной запуск
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     timeout-minutes: 90
     permissions:
