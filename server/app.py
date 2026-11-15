@@ -11,6 +11,7 @@
 """
 import asyncio
 import logging
+import time
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -211,6 +212,33 @@ def inspect_detect(detector, token: str | None, inspection_id: int, data: bytes)
     return _detect(detector, data)
 
 
+_frame_log_at: dict[int, float] = {}
+
+
+def log_frame(inspection_id: int, boxes: list[dict], ms, coverage: dict | None) -> None:
+    """Пишет в журнал сервера строку о распознанном кадре осмотра, не чаще раза в секунду на осмотр.
+
+    Строка короткая и без персональных данных: что найдено на кадре, время распознавания и полнота обхода.
+    """
+    moment = time.monotonic()
+    if moment - _frame_log_at.get(inspection_id, 0.0) < 1.0:
+        return
+    _frame_log_at[inspection_id] = moment
+    parts, defects, hints = [], [], []
+    for box in boxes:
+        name = box.get("cls")
+        if box.get("hint"):
+            hints.append(name)
+        elif box.get("status") in ("defect", "check"):
+            defects.append(f"{name} {box.get('conf', 0):.2f}")
+        else:
+            parts.append(name)
+    covered = f"{coverage.get('inspected', 0)}/{coverage.get('total', 0)}" if coverage else "-"
+    logger.info("осмотр %s: кадр %s мс; узлы: %s; дефекты: %s; тип: %s; обход %s", inspection_id, ms,
+                ", ".join(sorted(set(parts))) or "-", ", ".join(defects) or "-", ", ".join(sorted(set(hints))) or "-",
+                covered)
+
+
 def inspect_apply(detector, token: str | None, inspection_id: int, found: dict | None, previous: tuple | None) -> dict:
     """Учитывает распознанный кадр в полноте обхода и диагнозе; вызывается строго в порядке кадров.
 
@@ -229,6 +257,7 @@ def inspect_apply(detector, token: str | None, inspection_id: int, found: dict |
     if found:
         reply.update(w=found["w"], h=found["h"], ms=found["ms"],
                      boxes=_with_status(found["boxes"], recognition.defect_classes(detector), tracker.node_for))
+        log_frame(inspection_id, reply["boxes"], found["ms"], coverage)
     else:
         reply["boxes"] = []
     reply.update(coverage=coverage, diagnosis_changed=signature != previous, status=view["status"],
