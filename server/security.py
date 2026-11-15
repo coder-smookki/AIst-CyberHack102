@@ -5,6 +5,7 @@
 """
 import secrets
 import string
+from contextvars import ContextVar
 
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
@@ -38,7 +39,9 @@ EVENT_TITLES = {
     "role_updated": "Изменена роль",
     "role_deleted": "Удалена роль",
     "policy_changed": "Изменена политика безопасности",
+    "assistant_action": "Действие через ассистента",
 }
+VIA = ContextVar("security_via", default=None)
 
 
 def get_policy(session: Session) -> SecurityPolicy:
@@ -83,9 +86,14 @@ def temporary_password(policy: SecurityPolicy) -> str:
 def record(session: Session, event: str, *, actor: User | None = None, target_user: User | None = None,
            target_role: str | None = None, email: str | None = None, ip: str | None = None,
            details: dict | None = None) -> SecurityEvent:
-    """Добавляет запись в журнал безопасности; сохраняет её вызывающий вместе со своим изменением."""
+    """Добавляет запись в журнал безопасности; сохраняет её вызывающий вместе со своим изменением.
+
+    Если действие выполняется через ассистента (VIA задан), в details добавляется via с источником действия.
+    """
     if event not in EVENT_TITLES:
         raise ValueError(f"Неизвестное событие журнала: {event}")
+    if VIA.get():
+        details = {**(details or {}), "via": VIA.get()}
     entry = SecurityEvent(event=event, at=now(), actor_id=actor.id if actor else None,
                           target_user_id=target_user.id if target_user else None, target_role=target_role,
                           email=email, ip=ip or None, details=details or None)
