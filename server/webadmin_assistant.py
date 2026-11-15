@@ -11,18 +11,20 @@
 import hashlib
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Annotated, Callable
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import func, select, text as sql_text
+from sqlalchemy import func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.orm import Session
 
 from server import admin, equipment, fingerprint, health, security, site, telemetry_api, webadmin_api, workflow
 from server.assistant import commands as cmd
-from server.assistant.search import id_keys, similar, stem, distance, fold
+from server.assistant.search import distance, fold, id_keys, similar, stem
 from server.auth import current_user, granted
 from server.db import get_session
 from server.inspections import service
@@ -314,7 +316,7 @@ def plan_user_action(ctx: Ctx, action: str) -> Draft:
     phrase = PHRASES[action]
     user = one_user(ctx, phrase)
     details = [["Сотрудник", user.name], ["Почта", user.email], ["Роль", role_title(ctx.session, user.role)]]
-    params = {"user_id": user.id}
+    params: dict[str, Any] = {"user_id": user.id}
     if action == "block_user":
         if user.id == ctx.actor.id:
             raise Ask("Нельзя заблокировать собственную учётную запись.")
@@ -458,6 +460,7 @@ def plan_policy(ctx: Ctx) -> Draft:
     if name is None:
         raise Ask("Какое значение политики изменить? " + "; ".join(cmd.POLICY_FIELDS.values()) + ".",
                   ["Поставь минимальную длину пароля 12", "Запрети вход по биометрии"])
+    value: Any
     if name in ("require_letters_digits", "biometrics_allowed"):
         value = cmd.switch_value(ctx.tokens)
         if value is None:
@@ -842,7 +845,7 @@ def unknown_reply(ctx: Ctx) -> dict:
     """Команда не узнана: ассистент ничего не делает и подсказывает, что умеет."""
     examples = [example for code, items in EXAMPLES.items() if code in ctx.rights for example in items]
     return reply_of(Draft("Не понял команду, поэтому ничего не делаю. Скажите «что ты умеешь» - покажу список команд.",
-                          suggestions=["Что ты умеешь?"] + examples[:3]))
+                          suggestions=["Что ты умеешь?", *examples[:3]]))
 
 
 def handle(ctx: Ctx, confirm: bool, submitted: dict | None) -> dict:

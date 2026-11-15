@@ -42,7 +42,7 @@ EVENT_TITLES = {
     "policy_changed": "Изменена политика безопасности",
     "assistant_action": "Действие через ассистента",
 }
-VIA = ContextVar("security_via", default=None)
+VIA: ContextVar[str | None] = ContextVar("security_via", default=None)
 
 
 def get_policy(session: Session) -> SecurityPolicy:

@@ -310,7 +310,7 @@ def _known_names() -> dict[str, list[tuple[str, str, str]]]:
 
 KNOWN_NAMES = _known_names()
 
-SURNAME_RULES = {
+SURNAME_RULES: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
     "m": {
         "nom": (("ов", "ов"), ("ев", "ев"), ("ин", "ин"), ("ын", "ын"), ("ский", "ский"), ("цкий", "цкий"),
                 ("ой", "ой"), ("ый", "ый"), ("ий", "ий"), ("вич", "вич"), ("ич", "ич")),
@@ -430,7 +430,7 @@ def email_from_name(full_name: str, domain: str) -> str:
     """Почта из имени латиницей: имя.фамилия@домен, если имя узнано, иначе слова через точку."""
     parts = full_name.split()
     first = next((part for part in parts if part in MALE_NAMES or part in FEMALE_NAMES), None)
-    ordered = ([first] + [part for part in parts if part != first][:1]) if first and len(parts) > 1 else parts[:2]
+    ordered = [first, *[part for part in parts if part != first][:1]] if first and len(parts) > 1 else parts[:2]
     local = ".".join("".join(TRANSLIT.get(symbol, symbol) for symbol in fold(part) if symbol.isalpha() or symbol == "-")
                      for part in ordered)
     return f"{local}@{domain}"

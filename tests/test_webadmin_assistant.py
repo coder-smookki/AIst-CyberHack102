@@ -253,7 +253,7 @@ def test_create_user_full_flow_and_secret_not_logged(client, caplog):
 
 def test_create_user_with_role_and_email(client):
     who = headers(client, SECURITY)
-    first, second = run(client, who, "заведи Петрову Анну мастером, почта anna@kst.demo")
+    first, _second = run(client, who, "заведи Петрову Анну мастером, почта anna@kst.demo")
     assert ["Роль", "Мастер"] in first["plan"]["details"] and ["Почта", "anna@kst.demo"] in first["plan"]["details"]
     assert user_by_email("anna@kst.demo").role == "master" and user_by_email("anna@kst.demo").name == "Петрова Анна"
 
@@ -322,7 +322,7 @@ def test_change_role_and_close_sessions(client):
 
 def test_last_admin_guard_via_assistant(client):
     who = headers(client, SECURITY)
-    first, second = run(client, who, "смени роль Захарову на инженера")
+    _first, second = run(client, who, "смени роль Захарову на инженера")
     assert second["done"] is False and second["result"] is None
     assert "ни одной активной учётной записи" in second["reply"]
     assert user_by_email(SECURITY).role == "security_admin"
@@ -421,7 +421,7 @@ def test_admin_queries_and_backup(client, tmp_path):
     assert units["done"] and "Н-101" in units["reply"]
     unit = say(client, who, "открой Н-101")
     assert unit["done"] and unit["links"][0]["route"] == "equipment"
-    first, second = run(client, who, "сделай резервную копию базы")
+    _first, second = run(client, who, "сделай резервную копию базы")
     assert second["done"] and (tmp_path / "backups" / second["result"]["rows"][0][1]).is_file()
     audit = events("assistant_action")[-1]
     assert audit[1]["action"] == "backup" and audit[1]["via"] == "assistant"
