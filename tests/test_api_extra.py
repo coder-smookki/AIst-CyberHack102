@@ -652,3 +652,17 @@ def test_note_finding_does_not_mark_node(client):
     nodes = view["coverage"]["nodes"]
     seal = nodes["seal"] if isinstance(nodes, dict) else next(node for node in nodes if node["code"] == "seal")
     assert not seal["inspected"]
+
+
+def test_new_inspection_does_not_inherit_walk_of_reused_number(client):
+    """Новый осмотр с тем же номером, что у удалённого, начинает обход с нуля, а не с чужого состояния."""
+    auth_headers = headers(client, "engineer")
+    first = start(client, auth_headers)
+    stale = service._live_key(first)
+    service._live[stale] = {"tracker": None, "gauge": None, "marker": "stale"}
+    service._live.pop(stale, None)
+    service._live[service._live_key(first + 1)] = {"tracker": None, "gauge": None, "marker": "stale"}
+    second = start(client, auth_headers, "AMS-1")
+    assert service._live.get(service._live_key(second), {}).get("marker") != "stale"
+    view = client.get(f"/inspections/{second}", headers=auth_headers).json()
+    assert view["coverage"]["inspected"] == 0

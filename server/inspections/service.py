@@ -211,6 +211,7 @@ def start_inspection(session: Session, user: User, equipment_id: str,
                             identified_by=identified_by)
     session.add(inspection)
     session.commit()
+    _live.pop(_live_key(inspection.id), None)
     return get_inspection(session, inspection.id), True
 
 
