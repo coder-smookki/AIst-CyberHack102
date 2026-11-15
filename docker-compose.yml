@@ -10,7 +10,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: deploy/Dockerfile
+      dockerfile: Dockerfile
     image: kst-vizor-server:latest
     container_name: kst-vizor
     restart: unless-stopped

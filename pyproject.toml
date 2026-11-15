@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 target-version = "py311"
 line-length = 130
 src = [".", "server", "cv", "tests"]
-extend-exclude = ["mobile", "web", "data", "models", "runs", "assets", "deploy/.local-build"]
+extend-exclude = ["mobile", "web", "data", "models", "runs", "assets", "deploy"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
@@ -43,7 +43,7 @@ known-first-party = ["server", "cv"]
 [tool.black]
 line-length = 130
 target-version = ["py311"]
-extend-exclude = "/(mobile|web|data|models|runs|assets|deploy/\\.local-build)/"
+extend-exclude = "/(mobile|web|data|models|runs|assets|deploy)/"
 
 [tool.mypy]
 python_version = "3.11"

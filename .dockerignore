@@ -14,13 +14,13 @@ tests
 blender
 assets
 docs
-deploy/docker-compose.yml
-deploy/Caddyfile
-deploy/deploy.sh
+deploy
 data/equipment_ds_v*
 data/demo
 cv/runs
 mobile/build
 mobile/.dart_tool
-deploy/.local-build
 .github
+web/node_modules
+web/.next
+web/out
