@@ -429,3 +429,56 @@ kstv-v4-a: RF-DETR nano 384 от весов поставленной модел�
   дообучения с фоновыми кадрами (runs/equipment_9t_neg, эпоха 5 по val). Пороги - только по val и чётным
   кадрам negtest (cv/eval_equipment.py), проверка - test, нечётные кадры negtest, clean-indoor, data/web_testset
   и тест рендеров. Класс valve в поставку не включён (см. models/models.json, поле not_shipped).
+
+ВТОРАЯ СБОРКА НАБОРА ТИПА ОБОРУДОВАНИЯ (data/equipment_ds_v2, cv/build_equipment_v2.py, 2026-11-15)
+Основа: вся data/equipment_ds_v1 жёсткими ссылками без изменений; части val, test (271) и negtest (326) первой сборки
+  перенесены кадр в кадр, новые кадры добавлены только в train и val (каждый 8-й), части valid/test новых источников -
+  в отдельную часть newtest (в выборе эпохи и порогов не участвует).
+Новые источники (скачаны 2026-11-15 через Roboflow API, у каждой папки SOURCE.txt и contact_sheet.jpg):
+  Roboflow valve-robotics-computer-vision/valve-detection-xcwdr v1 (CC BY 4.0): 8 классов задвижек, кранов и затворов
+    -> valve; train 236 / val 34 / newtest 54. В основном каталожные снимки на белом фоне. data/open/rf-valve-robotics.
+  Roboflow edensharvey/valveandpump v1 (CC BY 4.0): pump (циркуляционные насосы Grundfos) -> pump_unit; кадры с классом
+    valve (электроприводы Belimo) не берутся (245 кадров); train 168 / val 28 (аугментированные копии 168 снимков,
+    повторы до 8 бит отсечены). data/open/rf-valve-pump-eh.
+  Roboflow alec-tinker/pumps-byij8 v1 (CC BY 4.0, снимки Adobe Stock с водяным знаком): pump -> pump_unit;
+    train 23 / val 4 / newtest 11. data/open/rf-pumps-at.
+  Трудные отрицательные кадры для valve: ещё 115 неиспользованных снимков data/open/indoor-negatives (Wikimedia Commons,
+    клавиатуры, разъёмы, ручки, краны, столы; лицензия каждого в manifest.csv); снимки, отведённые первой сборкой в
+    negtest (каждый 4-й), не брались.
+Проверка повторов: каждый новый кадр сравнён по pHash и dHash (cv/build_defects_v3.Guard, до 10 бит) с отложенными
+  снимками заказчика, их 40 копиями, data/web_testset, тестом parts_real и ещё 684 защищёнными кадрами (17 clean-indoor,
+  test 271 и negtest 326 первой сборки, 70 рендеров теста). Выброшено 6 кадров valve-robotics: это те же снимки, что
+  в test первой сборки из набора kmd-0u5yp/valve-mo95u (форки Roboflow; расстояния 0-10 бит). Повторы внутри набора
+  (до 8 бит против всех кадров первой сборки и уже взятых): 78. Журнал - dedup_v2.json, опись - manifest.csv.
+Объём v2: train 2984 кадра (рамки pump_unit 404, control_cabinet 688, transformer 53, motor 359, valve 678,
+  compressor 121), val 255, test 271, negtest 326, newtest 65 (pump_unit 13, valve 58).
+Скачаны, просмотрены и НЕ используются (причины в SOURCE.txt папок): javier-flores-ay5ki/valve-hz3cg (блокираторы
+  lockout на учебном стенде), pipe-92at4/valve-detection-nsfed (подводная съёмка ROV), loris/e-tam_annotations_pumps
+  (дозаторы косметических флаконов), video-analytics-hov3d/compressor-acope (кучи лома герметичных компрессоров,
+  шумная разметка, кадр водопада с рамкой), power-transformer/power_transformer (тепловизионные снимки, классы - степень
+  нагрева). Не скачаны: demo1-5eydl/transformer-umwss, winsheild/switch-gear-vqhoc, ppe-labeling/switchgear-plvzd (у
+  проектов нет опубликованной версии, выгрузка через API невозможна); duowork/valve-detection-0bed6 и -2-prhdo уже
+  отклонены раньше (схемы P&ID). Новых пригодных снимков трансформаторов и промышленных (винтовых, поршневых)
+  компрессоров в списке не нашлось.
+Обучение: части train и val загружены в ЗАКРЫТЫЙ набор Kaggle shveps/kstv-equipment-v2 (вместе с весами
+  runs/equipment_9t_neg/weights/best.pt); test, negtest, newtest, clean-indoor, web_testset и снимки заказчика из
+  отложенной части не загружались. Закрытый ноутбук kstv-eq2 (cv/kaggle_equipment.py, опыты runs/kaggle/eq2_exp.json).
+
+НАБОРЫ ДЛЯ МОДЕЛИ ДЕФЕКТОВ ИЗ НОВОГО СПИСКА (просмотрены 2026-11-15, модель дефектов в этом круге не переобучалась)
+  Roboflow tryout/oil-leak v3 (MIT): 44 кадра, масло на полу и корпусах оборудования в цеху - пригоден для leak в
+    следующей сборке (data/open/rf-oil-leak-tryout).
+  Скачаны и НЕ используются (причины в SOURCE.txt): digitele/oil-leakage (лопасти ветрогенераторов с дрона),
+    scanx-datasets/pipe-leakage-cpcbx (тепловизор), project-skl39/pipe-bgokz (подводный трубопровод),
+    aiadc/electrical-panel-ylezn (тепловизор, Shutterstock), max-kellerman-cz98k/dbis2022_p4 (Burned_Transformer -
+    трансформатор целиком, Frayed_Cable - провода ЛЭП на фоне неба).
+  Не скачан: physical-electrical-hazard/physical-electrical-hazard v5 (CC BY 4.0, 4261 кадр, классы burned socket,
+    damage wire, overloaded socket) - те же бытовые розетки и тройники, что уже взяты из electrical-hazards и
+    damagewire/electrical-hazard; настоящих клеммных коробок двигателей там нет.
+Веса четвёртой сборки kstv-v4-b (закрытый ноутбук Kaggle, 33 эпохи из 35/60, остановлено пределом сессии):
+  v4ft35 (от весов поставленной модели, lr 1e-4) и v4n60 (с LibreRFDETRn.pt) скачаны в runs/kaggle/v4-b и проверены
+  на этом компьютере (runs/reports/v4b_*.json), см. docs/CHANGES.md 2026-11-15; в поставку не предлагаются.
+Итог второй сборки (2026-11-15): опыт eq2_9t (LibreYOLO9t с начала, 29 эпох, эпоха и пороги по val второй сборки и
+  чётным кадрам negtest) на тех же test 271, negtest и clean-indoor: полнота pump_unit 0.744 -> 1.0, transformer 0.556 ->
+  0.722 при точности не ниже прежней; control_cabinet 0.838 -> 0.798. Класс valve по-прежнему не предлагается (ложные
+  рамки на разъёме клавиатуры, болте и кабеле). Кандидат runs/candidates/equipment_eq2_9t, отчёты runs/reports/eq2_*.json;
+  в models/ ничего не ставилось.
