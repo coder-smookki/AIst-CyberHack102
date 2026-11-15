@@ -88,6 +88,7 @@ def verdict(rows: list[dict]) -> str:
 def clean_alarms(entries: list[dict], models_dir: str, folder: str) -> tuple[int, int]:
     """Считает чистые снимки, на которых набор моделей по правилам сервера выдал рамку дефекта."""
     from libreyolo import LibreYOLO
+
     from delivered import served
     from protocol import DEFECT_CLASSES, predict, read_frame
     models = [LibreYOLO(os.path.join(models_dir, entry["file"])) for entry in entries]

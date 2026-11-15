@@ -66,7 +66,7 @@ def test_defect_takes_precedence_over_incomplete(client):
     summary = _finish(client, engineer, inspection_id)["summary"]
     assert summary["status"] == "defect" and summary["status_title"] == "Обнаружены признаки возможного дефекта"
     assert summary["uninspected"] and "casing" not in [node["code"] for node in summary["uninspected"]]
-    data, pdf_text, _ = _report(inspection_id)
+    data, _, _ = _report(inspection_id)
     assert data["overall"]["status"] == "defect" and data["uninspected"] == summary["uninspected"]
 
 

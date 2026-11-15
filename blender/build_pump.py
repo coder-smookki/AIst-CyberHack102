@@ -10,6 +10,7 @@
 достаточная доля лучей от камеры действительно попадает в узел. Узлы, скрытые за двигателем или видимые
 с обратной стороны, в разметку не попадают. Проверено в Blender 5.2, движок EEVEE, фоновый режим.
 """
+import contextlib
 import json
 import math
 import os
@@ -246,16 +247,12 @@ bg = next(n for n in world.node_tree.nodes if n.bl_idname == "ShaderNodeBackgrou
 
 scene.render.engine = "BLENDER_EEVEE"
 scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage = W, H, 100
-try:
+with contextlib.suppress(Exception):
     scene.render.image_settings.media_type = "IMAGE"
-except Exception:
-    pass
 scene.render.image_settings.file_format = "JPEG"
 scene.render.image_settings.quality = 92
-try:
+with contextlib.suppress(Exception):
     scene.eevee.taa_render_samples = 16
-except Exception:
-    pass
 
 def set_hidden(o, flag):
     """Скрывает объект и для рендера, и для лучей проверки видимости."""
@@ -368,7 +365,7 @@ for i in range(N):
     for (cls, inst), objs in entities.items():
         if all(o.hide_render for o in objs) and cls != "terminal_box_burnt":
             continue
-        if cls == "terminal_box" and burnt or cls == "terminal_box_burnt" and not burnt:
+        if (cls == "terminal_box" and burnt) or (cls == "terminal_box_burnt" and not burnt):
             continue
         if cls == "coupling_no_guard" and guard_on:
             continue

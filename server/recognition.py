@@ -16,6 +16,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from importlib import import_module
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
@@ -170,7 +171,7 @@ def model_options(entry) -> dict:
     """
     if not isinstance(entry, dict):
         return {}
-    options = {}
+    options: dict[str, Any] = {}
     if entry.get("hint") is True:
         options["hint"] = True
     if isinstance(entry.get("only"), list):
@@ -247,9 +248,9 @@ class Detector:
         self._loader = loader or _load_model
         self._load_lock = threading.Lock()
         self._model_locks: list[threading.Lock] = []
-        self._pool = None
-        self._models = None
-        self._failure = None
+        self._pool: ThreadPoolExecutor | None = None
+        self._models: list[tuple] | None = None
+        self._failure: str | None = None
 
     def _plan(self) -> dict:
         """Определяет, какие файлы моделей нужны: по models.json, а без него - detector.onnx.

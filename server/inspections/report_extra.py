@@ -5,6 +5,7 @@
 Правила, сработавшие по датчикам, пересчитываются на тот же момент только по датчикам и ресурсу.
 """
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -66,7 +67,7 @@ def sensors_section(inspection: Inspection, telemetry_at: str | None) -> dict:
         current.append({"code": code, "name": meta["name"], "unit": meta["unit"], "value": value,
                         "warn": meta.get("warn"), "alarm": meta.get("alarm"), "level": _level(value, meta),
                         "source": meta.get("source")})
-    series = {}
+    series: dict[str, Any] = {}
     for key, title, hours, step in WINDOWS:
         series[key] = {"title": title, "hours": hours, "codes": {}}
         for code in CHART_CODES:

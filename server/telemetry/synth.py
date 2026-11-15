@@ -3,6 +3,7 @@
 Значения заказчика здесь не меняются. Всё рассчитанное в этом модуле считается модельным и
 получает источник "model". Шум детерминирован: у каждого ряда свой генератор с постоянным зерном.
 """
+import itertools
 import math
 import random
 from dataclasses import dataclass
@@ -221,7 +222,7 @@ def interpolate(progress: float, points: tuple[tuple[float, float], ...]) -> flo
     """Кусочно-линейный профиль: значение в точке progress по опорным парам (доля, значение)."""
     if progress <= points[0][0]:
         return points[0][1]
-    for (left, low), (right, high) in zip(points, points[1:]):
+    for (left, low), (right, high) in itertools.pairwise(points):
         if progress <= right:
             return low + (high - low) * (progress - left) / (right - left)
     return points[-1][1]

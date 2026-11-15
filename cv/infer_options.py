@@ -28,7 +28,10 @@ def nms(boxes: np.ndarray, scores: np.ndarray, threshold: float) -> list[int]:
         x2 = np.minimum(boxes[first, 2], boxes[rest, 2])
         y2 = np.minimum(boxes[first, 3], boxes[rest, 3])
         inter = np.clip(x2 - x1, 0, None) * np.clip(y2 - y1, 0, None)
-        area = lambda b: (b[..., 2] - b[..., 0]) * (b[..., 3] - b[..., 1])
+        def area(b):
+            """Площадь рамок xyxy."""
+            return (b[..., 2] - b[..., 0]) * (b[..., 3] - b[..., 1])
+
         union = area(boxes[first]) + area(boxes[rest]) - inter
         order = rest[inter / np.maximum(union, 1e-9) < threshold]
     return keep
@@ -63,7 +66,10 @@ class Options:
         """Прогоняет модель на одном кадре и возвращает рамки, классы и уверенности как массивы numpy."""
         result = self.model(frame, conf=conf)
         result = result[0] if isinstance(result, (list, tuple)) else result
-        as_array = lambda value: value.cpu().numpy() if hasattr(value, "cpu") else np.asarray(value)
+        def as_array(value):
+            """Переводит тензор или массив в numpy."""
+            return value.cpu().numpy() if hasattr(value, "cpu") else np.asarray(value)
+
         boxes = as_array(result.boxes.xyxy).reshape(-1, 4).astype(np.float32)
         return boxes, as_array(result.boxes.cls).astype(int), as_array(result.boxes.conf).astype(np.float32)
 

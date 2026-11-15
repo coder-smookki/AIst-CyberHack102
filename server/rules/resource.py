@@ -5,6 +5,7 @@
 """
 from datetime import date, datetime, timedelta
 from operator import itemgetter
+from typing import Any
 
 from .thresholds import as_number
 
@@ -182,7 +183,7 @@ def _calculated_text(result: dict) -> str:
 
 def _calculated(equipment: dict, node: dict, run_hours: float | None, today: date) -> dict:
     """Собирает блок расчётного остатка: по каждому измерителю отдельно, итог - по самому израсходованному."""
-    result = {
+    result: dict[str, Any] = {
         "state": "insufficient_data",
         "used_percent": None,
         "remaining_hours": None,

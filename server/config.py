@@ -67,7 +67,7 @@ def _file_secret(path: str) -> str:
         with open(path, encoding="ascii") as file:
             value = file.read().strip()
         if len(value) < SECRET_MIN_LENGTH:
-            raise RuntimeError(f"Файл секрета {path} пуст или повреждён - удалите его, сервер создаст новый")
+            raise RuntimeError(f"Файл секрета {path} пуст или повреждён - удалите его, сервер создаст новый") from None
         return value
     value = secrets.token_hex(32)
     with os.fdopen(descriptor, "w", encoding="ascii") as file:

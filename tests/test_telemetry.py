@@ -1,7 +1,8 @@
 """Проверки телеметрии: сохранность баз заказчика, полнота и физическая согласованность модельных рядов."""
+import itertools
 import math
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import openpyxl
 import pytest
@@ -288,7 +289,7 @@ def test_player_validates_arguments(sketch):
         sketch.customer_label("noise")
     with pytest.raises(KeyError):
         sketch.select_scenario("нет-такого")
-    sketch.set_cursor(datetime(2026, 11, 12, 10, 30, tzinfo=timezone.utc))
+    sketch.set_cursor(datetime(2026, 11, 12, 10, 30, tzinfo=UTC))
     assert sketch.cursor == datetime(2026, 11, 12, 10, 30)
     assert sketch.snapshot() == sketch.snapshot(datetime(2026, 11, 12, 10))
 
@@ -566,7 +567,7 @@ def test_run_hours_cross_service_interval_on_tenth_hour(player):
     run_hours = [player.snapshot(at)["run_hours"] for at in hours]
     assert run_hours[0] == 19190.0
     assert run_hours[9] == 19199.0 and run_hours[10] == 19200.0
-    assert all(later - earlier == 1.0 for earlier, later in zip(run_hours, run_hours[1:]))
+    assert all(later - earlier == 1.0 for earlier, later in itertools.pairwise(run_hours))
     assert all(player.snapshot(at)["mode"] == 1.0 and player.snapshot(at)["rpm"] > 0 for at in hours)
     assert scenario(player, "maintenance_due")["peak"] == hours[10]
     assert scenario(player, "normal")["peak"] == hours[9]

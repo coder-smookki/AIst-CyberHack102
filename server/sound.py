@@ -11,6 +11,7 @@
 кандидаты с пояснением по-русски; замечаниями они становятся только после подтверждения инженером.
 """
 import io
+import itertools
 import math
 import wave
 
@@ -180,7 +181,7 @@ def _spectrum_points(freqs: np.ndarray, power: np.ndarray, rate: int) -> list[di
     level = 10.0 * np.log10(power + 1e-20)
     edges = np.geomspace(20.0, rate / 2.0, SPECTRUM_POINTS + 1)
     points = []
-    for low, high in zip(edges[:-1], edges[1:]):
+    for low, high in itertools.pairwise(edges):
         mask = (freqs >= low) & (freqs < high)
         if mask.any():
             points.append({"f": round(float(np.sqrt(low * high)), 1), "db": round(float(level[mask].max()), 1)})

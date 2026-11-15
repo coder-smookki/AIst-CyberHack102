@@ -127,7 +127,9 @@ def main() -> None:
     else:
         from libreyolo import LibreYOLO
         models = [LibreYOLO(path) for path in weights.split(",")]
-        find = lambda frame: detections(models, frame)
+        def find(frame):
+            """Находит рамки всеми переданными моделями."""
+            return detections(models, frame)
     os.makedirs(out, exist_ok=True)
     for index, path in enumerate(files):
         target, _, source = path.rpartition("=")

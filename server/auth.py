@@ -17,7 +17,7 @@ import secrets
 import time
 import unicodedata
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from threading import Lock
 from typing import Annotated
@@ -123,11 +123,11 @@ def _encode(user_id: int, family: str, kind: str, auth_time: int, lifetime: time
 
     auth_time - момент входа по паролю; токен обновления не переживает срок сеанса, отсчитанный от него.
     """
-    issued = datetime.now(timezone.utc)
+    issued = datetime.now(UTC)
     if kind == "access":
         expires = issued + config.ACCESS_TTL
     else:
-        expires = datetime.fromtimestamp(auth_time, timezone.utc) + lifetime
+        expires = datetime.fromtimestamp(auth_time, UTC) + lifetime
     claims = {"sub": str(user_id), "sid": family, "typ": kind, "jti": secrets.token_urlsafe(16),
               "iat": issued, "exp": expires, "auth_time": auth_time}
     return jwt.encode(claims, config.secret_key(), algorithm=ALGORITHM)

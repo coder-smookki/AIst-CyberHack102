@@ -2,6 +2,7 @@
 import os
 import sys
 from types import SimpleNamespace
+from typing import ClassVar
 
 import numpy as np
 
@@ -17,7 +18,7 @@ from tune_defects import constrained_thresholds
 class FakeModel:
     """Модель-заглушка: возвращает одну рамку в левой половине любого переданного кадра."""
 
-    names = {0: "corrosion"}
+    names: ClassVar[dict[int, str]] = {0: "corrosion"}
 
     def __call__(self, frame, conf=0.25):
         """Возвращает рамку в левой четверти кадра с уверенностью 0.6."""
@@ -73,6 +74,7 @@ def test_open_frame_filter():
 def test_kaggle_kernel_is_private(tmp_path, monkeypatch):
     """Папка ноутбука получает закрытое описание с видеокартой и список опытов как литерал Python."""
     import json
+
     import kaggle_push
     monkeypatch.setattr(kaggle_push, "ROOT", str(tmp_path))
     os.makedirs(tmp_path / "cv")

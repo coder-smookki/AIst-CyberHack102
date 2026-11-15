@@ -218,7 +218,7 @@ def test_inspection_end_to_end(server, monkeypatch):
         again = socket.receive_json()
         assert again["type"] == "state" and again["diagnosis_changed"] is False
 
-    other, other_token = login(client, "second@kst.demo")
+    _, other_token = login(client, "second@kst.demo")
     with client.websocket_connect(f"/ws/inspect/{inspection_id}?token={other_token}") as socket:
         message, code = closed_with(socket)
         assert code == 4403 and message["type"] == "closed"

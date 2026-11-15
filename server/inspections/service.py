@@ -12,14 +12,14 @@ from datetime import date, datetime
 from importlib import import_module
 from pathlib import Path
 from threading import Lock
+from typing import Any, cast
 
 from fastapi import HTTPException
 from PIL import Image, ImageOps, UnidentifiedImageError
-from sqlalchemy import select, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from server import config, fingerprint
-from server import workflow
+from server import config, fingerprint, workflow
 from server.auth import has_permission, role_title
 from server.equipment import equipment_card, get_equipment
 from server.inspections.coverage import CoverageTracker, static_priority
@@ -732,9 +732,9 @@ def finish_inspection(session: Session, inspection: Inspection, user: User) -> I
         return inspection
     finished = now()
     try:
-        claimed = session.execute(
+        claimed = cast(CursorResult, session.execute(
             update(Inspection).where(Inspection.id == inspection.id, Inspection.status == "active")
-            .values(status="finished", finished_at=finished).execution_options(synchronize_session=False))
+            .values(status="finished", finished_at=finished).execution_options(synchronize_session=False)))
         if claimed.rowcount == 0:
             session.rollback()
             return get_inspection(session, inspection.id)
@@ -880,16 +880,16 @@ def set_finding_state(session: Session, finding: Finding, state: str, user: User
             status_code=409,
             detail=f"Переход из состояния «{STATE_TITLES[finding.state]}» в «{STATE_TITLES[state]}» невозможен: "
                    "порядок - открыто, в работе, устранено")
-    values = {"state": state}
+    values: dict[str, Any] = {"state": state}
     if note:
         line = _comment_line(STATE_TITLES[state], user, note)
         values["comment"] = f"{finding.comment}\n{line}" if finding.comment else line
         values["notes"] = [*(finding.notes or []), _note(user, note, REJECTED if state == REJECTED else "state")]
     if state == REJECTED:
         values["rejected_at"], values["rejected_by_id"] = now(), user.id
-    moved = session.execute(
+    moved = cast(CursorResult, session.execute(
         update(Finding).where(Finding.id == finding.id, Finding.state == finding.state).values(**values)
-        .execution_options(synchronize_session=False))
+        .execution_options(synchronize_session=False)))
     if moved.rowcount and state == REJECTED:
         _summary_after_reject(session, finding)
     session.commit()

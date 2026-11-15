@@ -15,7 +15,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import cv2
 import numpy as np
@@ -167,6 +167,7 @@ def events(request: Request, session: Annotated[Session, Depends(get_session)],
                      "text": f"База {os.path.basename(config.db_path())}"})
     inspections = session.scalars(select(Inspection).options(joinedload(Inspection.user))
                                   .order_by(Inspection.started_at.desc()).limit(limit))
+    item: Any
     for item in inspections:
         who = item.user.name if item.user else "сотрудник"
         rows.append({"at": item.started_at, "level": "info", "kind": "inspection",

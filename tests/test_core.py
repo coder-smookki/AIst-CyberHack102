@@ -4,7 +4,7 @@ import json
 import shutil
 import stat
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
@@ -15,8 +15,19 @@ from sqlalchemy.exc import IntegrityError
 
 from server import auth, config, db, equipment
 from server import seed as seeding
-from server.models import (FINDING_SOURCES, FINDING_STATUSES, INSPECTION_STATUSES, Equipment, Finding, Inspection,
-                           MaintenanceRecord, Node, RefreshToken, Role, User)
+from server.models import (
+    FINDING_SOURCES,
+    FINDING_STATUSES,
+    INSPECTION_STATUSES,
+    Equipment,
+    Finding,
+    Inspection,
+    MaintenanceRecord,
+    Node,
+    RefreshToken,
+    Role,
+    User,
+)
 from server.seed import DEMO_HISTORY, DEMO_PASSWORD, DEMO_USERS, seed
 
 SECRET = "k" * 48
@@ -185,7 +196,7 @@ def test_access_token_checks(client):
     assert client.get("/equipment").status_code == 401
     still_valid = reissued(tokens["access_token"], jti="другой")
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {still_valid}"}).status_code == 200
-    past = int((datetime.now(timezone.utc) - timedelta(minutes=1)).timestamp())
+    past = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
     rejected = [
         "not-a-token",
         tokens["refresh_token"],
@@ -243,7 +254,7 @@ def test_refresh_token_is_spent_once_under_race(client):
 def test_refresh_rejects_wrong_tokens(client):
     """Обновление не принимает мусор, токен доступа, просроченный токен и токен с чужой подписью."""
     tokens = sign_in(client)
-    past = int((datetime.now(timezone.utc) - timedelta(minutes=1)).timestamp())
+    past = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
     for token in ("мусор", tokens["access_token"], reissued(tokens["refresh_token"], exp=past),
                   reissued(tokens["refresh_token"], secret="z" * 48)):
         response = client.post("/auth/refresh", json={"refresh_token": token})

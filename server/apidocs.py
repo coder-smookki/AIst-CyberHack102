@@ -9,6 +9,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
@@ -455,7 +456,7 @@ class ServerEvent(Doc):
     text: str | None = None
 
 
-RESPONSES = {
+RESPONSES: dict[tuple[str, str], Any] = {
     ("post", "/auth/login"): Tokens,
     ("post", "/auth/refresh"): Tokens,
     ("get", "/auth/me"): UserView,

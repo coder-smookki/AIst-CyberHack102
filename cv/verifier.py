@@ -201,8 +201,8 @@ def features(sets: list[str], top_train: int = 20, batch: int = 64) -> None:
             for (cls, box, score), label, source, box_index in items:
                 left, top_, right, bottom = crop_window(box, width, height)
                 crops.append(frame[top_:bottom, left:right])
-                rows.append([image_index, box_index, protocol.DEFECT_NAMES.index(cls), score, int(label), source]
-                            + geometry(box, width, height))
+                rows.append([image_index, box_index, protocol.DEFECT_NAMES.index(cls), score, int(label), source,
+                             *geometry(box, width, height)])
                 if len(crops) >= batch:
                     vectors.append(backbone(crops))
                     crops = []
@@ -470,7 +470,7 @@ def fit(base_level: float = 0.15) -> dict:
              "rule": best["rule"], "threshold": best["val"]["threshold"],
              "verdict_level": best.get("verdict_level") or 0.0, "base_level": base_level}
     save_model(model)
-    summary = {"base_val": base, "train_crops": int(len(y)), "train_on_defect": int(y.sum()),
+    summary = {"base_val": base, "train_crops": len(y), "train_on_defect": int(y.sum()),
                "train_ambiguous_dropped": int((~use).sum()),
                "variants": [{k: v for k, v in item.items() if k != "params"} for item in variants],
                "chosen": {"kind": best["kind"], "decay": best["decay"], "rule": best["rule"],

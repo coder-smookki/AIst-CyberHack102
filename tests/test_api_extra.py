@@ -8,10 +8,9 @@ import zipfile
 from datetime import datetime, timedelta
 
 import numpy as np
-from openpyxl import load_workbook
-
 import pytest
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
 
 from server import auth, db, migrate, site, sound, telemetry_api
 from server import seed as seeding

@@ -127,7 +127,7 @@ class CoverageTracker:
             self._frames += 1
             for cls, conf in peaks.items():
                 self._note_class(cls, conf)
-            for code, node in self._nodes.items():
+            for node in self._nodes.values():
                 own = [sightings[cls] for cls in node["classes"] if cls in sightings]
                 if own:
                     self._note_node(node, own, max(peaks[cls] for cls in node["classes"] if cls in peaks))

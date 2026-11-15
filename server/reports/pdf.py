@@ -5,11 +5,10 @@
 """
 import io
 import math
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from xml.sax.saxutils import escape
-
-from datetime import datetime
 
 from reportlab import rl_config
 from reportlab.graphics.charts.lineplots import LinePlot
@@ -25,8 +24,8 @@ from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate
 
 from server.reports.xlsx import (
     BRAND,
-    LEVEL_TITLES,
     ESTIMATES_NOTE,
+    LEVEL_TITLES,
     RESOURCE_STATES,
     STATUS_COLORS,
     SYSTEM_NOTE,
@@ -381,7 +380,7 @@ def _line_chart(lines: list[tuple[str, list[tuple[float, float]], str]], limits:
                          strokeDashArray=[3, 2]))
         drawing.add(String(plot.x + plot.width + 2, y - 2, label, fontName=regular, fontSize=6, fillColor=HexColor(color)))
     legend_x, legend_y = plot.x, plot.y + plot.height + 5 * mm
-    for name, points, color in lines:
+    for name, _points, color in lines:
         drawing.add(Line(legend_x, legend_y + 1, legend_x + 6 * mm, legend_y + 1, strokeColor=HexColor(color), strokeWidth=1.5))
         drawing.add(String(legend_x + 7 * mm, legend_y - 1, name, fontName=regular, fontSize=6.5))
         legend_x += 56 * mm
@@ -394,7 +393,7 @@ def _sensors(data: dict, styles: dict) -> list:
     sensors = data.get("sensors") or {}
     story = [Paragraph("Датчики", styles["section"])]
     if not sensors.get("available"):
-        return story + [_paragraph(sensors.get("reason") or "Телеметрии по агрегату нет", styles["base"])]
+        return [*story, _paragraph(sensors.get("reason") or "Телеметрии по агрегату нет", styles["base"])]
     regular, _ = fonts()
     rows = [[entry["name"], f"{number_text(entry['value'], 2)} {entry['unit']}" if entry["value"] is not None else "нет данных",
              number_text(entry["warn"], 1) if entry["warn"] is not None else "-",
@@ -427,11 +426,11 @@ def _sensors(data: dict, styles: dict) -> list:
     if sensors["rules"]:
         story += [Spacer(1, 4), _paragraph("Правила, сработавшие по датчикам:", styles["label"])]
         for rule in sensors["rules"]:
-            lines = "; ".join(f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})"
+            evidence = "; ".join(f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})"
                               for line in rule["evidence"] if line["met"])
             story.append(Paragraph(f"<b>{_markup(rule['rule_id'])} {_markup(rule['title'])}</b> - "
-                                   f"{_coloured(rule['status'] == 'defect' and 'дефект' or 'проверка', rule['status'])}. "
-                                   f"{_markup(lines)}", styles["base"]))
+                                   f"{_coloured((rule['status'] == 'defect' and 'дефект') or 'проверка', rule['status'])}. "
+                                   f"{_markup(evidence)}", styles["base"]))
     else:
         story.append(_paragraph("Правил, сработавших по датчикам, нет.", styles["base"]))
     return story

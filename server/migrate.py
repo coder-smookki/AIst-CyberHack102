@@ -70,7 +70,7 @@ def _upgrade_findings(connection: sqlite3.Connection) -> None:
     connection.execute(f"INSERT INTO findings_upgrade ({listed}) SELECT {listed} FROM findings")
     connection.execute("DROP TABLE findings")
     connection.execute("ALTER TABLE findings_upgrade RENAME TO findings")
-    for index in Finding.__table__.indexes:
+    for index in Finding.metadata.tables[Finding.__tablename__].indexes:
         connection.execute(str(CreateIndex(index, if_not_exists=True).compile(dialect=sqlite.dialect())))
 
 

@@ -7,8 +7,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "cv"))
 
-from build_defects_v4 import (Index, class_names, is_mosaic, map_boxes, parse_rows, rank_items, safenet_original,
-                              union_share)
+from build_defects_v4 import Index, class_names, is_mosaic, map_boxes, parse_rows, rank_items, safenet_original, union_share
 
 
 def test_class_names_inline_and_block(tmp_path):

@@ -288,6 +288,7 @@ def test_quantize_keeps_metadata_and_output(tmp_path):
     import onnx
     import onnxruntime
     from onnx import TensorProto, helper, numpy_helper
+
     from quantize import quantize
     weights = np.random.default_rng(3).normal(size=(64, 32)).astype(np.float32)
     graph = helper.make_graph([helper.make_node("MatMul", ["x", "w"], ["y"])], "probe",

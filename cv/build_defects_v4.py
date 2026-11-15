@@ -43,7 +43,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_defects import ROOT, Writer
-from build_defects_v3 import Guard, build_guard, count_split, dhash, phash, read_any, signature
+from build_defects_v3 import Guard, build_guard, count_split, dhash, phash, read_any
 from gen_synth import make_frame
 from protocol import DEFECT_CLASSES
 

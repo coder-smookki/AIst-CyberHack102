@@ -15,20 +15,38 @@ import time
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
+import numpy as np
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-import numpy as np
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from server import (admin, apidocs, assistant, auth, config, db, equipment, fingerprint, health as channels, inspections,
-                    qr, recognition, rules_api, site, telemetry_api, webadmin_api, webadmin_assistant, webcache,
-                    workflow)
+from server import (
+    admin,
+    apidocs,
+    assistant,
+    auth,
+    config,
+    db,
+    equipment,
+    fingerprint,
+    inspections,
+    qr,
+    recognition,
+    rules_api,
+    site,
+    telemetry_api,
+    webadmin_api,
+    webadmin_assistant,
+    webcache,
+    workflow,
+)
+from server import health as channels
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -254,7 +272,7 @@ def inspect_apply(detector, token: str | None, inspection_id: int, found: dict |
             view, signature = _live_view(session, inspection, coverage)
         except HTTPException as error:
             raise SocketClosed(CLOSE_FINISHED if error.status_code == 409 else CLOSE_NOT_FOUND, str(error.detail)) from None
-    reply = {"type": "frame" if found else "state", "inspection_id": inspection_id}
+    reply: dict[str, Any] = {"type": "frame" if found else "state", "inspection_id": inspection_id}
     if found:
         reply.update(w=found["w"], h=found["h"], ms=found["ms"],
                      boxes=_with_status(found["boxes"], recognition.defect_classes(detector), tracker.node_for))

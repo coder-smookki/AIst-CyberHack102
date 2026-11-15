@@ -5,11 +5,12 @@
 """
 import math
 from numbers import Real
+from typing import Any
 
 NORMAL_LABEL = "Норма"
 NO_DATA_LABEL = "Недостаточно данных"
 
-CUSTOMER_THRESHOLDS = (
+CUSTOMER_THRESHOLDS: tuple[dict[str, Any], ...] = (
     {
         "code": "vib_1x",
         "kind": "vibration",

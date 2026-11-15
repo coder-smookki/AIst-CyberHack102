@@ -37,7 +37,7 @@ from evaluate import iou, load_names, read_truth
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DEFECT_CLASSES = ("corrosion", "leak", "terminal_box_burnt", "damage")
-DEFECT_NAMES = DEFECT_CLASSES + ("coupling_no_guard",)
+DEFECT_NAMES = (*DEFECT_CLASSES, "coupling_no_guard")
 PART_CLASSES = ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box",
                 "terminal_box_burnt", "nameplate", "gauge", "leak", "corrosion")
 LEVELS = (0.15, 0.25, 0.35, 0.5)

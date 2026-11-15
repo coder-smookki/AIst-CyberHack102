@@ -26,8 +26,19 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from infer_options import Options, remap_records
-from protocol import (DEFECT_CLASSES, DEFECT_NAMES, FLOOR, LEVELS, ROOT, SET_NOTES, SET_PATHS, labelled_records,
-                      match, summarize, web_records)
+from protocol import (
+    DEFECT_CLASSES,
+    DEFECT_NAMES,
+    FLOOR,
+    LEVELS,
+    ROOT,
+    SET_NOTES,
+    SET_PATHS,
+    labelled_records,
+    match,
+    summarize,
+    web_records,
+)
 
 GRID = tuple(round(0.05 + 0.025 * step, 3) for step in range(27))
 

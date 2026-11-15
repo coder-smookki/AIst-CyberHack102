@@ -10,6 +10,7 @@ import glob
 import json
 import sys
 import time
+from pathlib import Path
 from urllib.parse import urlencode
 
 import websockets
@@ -17,7 +18,7 @@ import websockets
 
 async def main(url: str, folder: str, token: str) -> None:
     """Отправляет кадры по одному и печатает медиану и 95-й процентиль времени ответа."""
-    frames = [open(path, "rb").read() for path in sorted(glob.glob(folder + "/*.jpg"))[:60]]
+    frames = [Path(path).read_bytes() for path in sorted(glob.glob(folder + "/*.jpg"))[:60]]
     if not frames:
         raise SystemExit(f"В папке {folder} нет кадров JPEG")
     address = url + ("&" if "?" in url else "?") + urlencode({"token": token})

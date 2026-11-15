@@ -176,8 +176,8 @@ class ConditionalGet:
                 await send({"type": "http.response.start", "status": 304, "headers": [*gone, (b"etag", tag)]})
                 await send({"type": "http.response.body", "body": b""})
                 return
-            headers = [*kept, (b"content-length", str(len(body)).encode()), (b"etag", tag)]
-            await send({"type": "http.response.start", "status": 200, "headers": headers})
+            sent = [*kept, (b"content-length", str(len(body)).encode()), (b"etag", tag)]
+            await send({"type": "http.response.start", "status": 200, "headers": sent})
             await send({"type": "http.response.body", "body": body})
 
         await self.app(scope, receive, relay)

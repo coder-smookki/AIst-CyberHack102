@@ -22,8 +22,20 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from protocol import (DEFECT_CLASSES, DEFECT_NAMES, FLOOR, LEVELS, PART_CLASSES, ROOT, SET_NOTES, SET_PATHS,
-                      labelled_records, parts_labelled, summarize, web_records)
+from protocol import (
+    DEFECT_CLASSES,
+    DEFECT_NAMES,
+    FLOOR,
+    LEVELS,
+    PART_CLASSES,
+    ROOT,
+    SET_NOTES,
+    SET_PATHS,
+    labelled_records,
+    parts_labelled,
+    summarize,
+    web_records,
+)
 from server.recognition import merge_boxes, model_options, model_thresholds
 
 CACHE = os.path.join(ROOT, "runs", "reports", "cache")

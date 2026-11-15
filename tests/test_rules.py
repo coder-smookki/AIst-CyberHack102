@@ -34,7 +34,7 @@ from server.rules import (
 ROOT = Path(__file__).resolve().parents[1]
 VIBRATION_FILE = ROOT / "data" / "customer" / "Вибрация" / "БД значений (вибрация).xlsx"
 TEMPERATURE_FILE = ROOT / "data" / "customer" / "Температура" / "БД значений (температура).xlsx"
-OWN_FILES = sorted((ROOT / "server" / "rules").glob("*.py")) + [Path(__file__)]
+OWN_FILES = [*sorted((ROOT / "server" / "rules").glob("*.py")), Path(__file__)]
 TODAY = date(2026, 11, 10)
 
 VIBRATION_SAMPLES = (

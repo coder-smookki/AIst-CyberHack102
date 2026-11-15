@@ -58,7 +58,7 @@ def test_schema_is_published_in_russian(client):
     assert schema["components"]["securitySchemes"]["appKey"]["name"] == "X-KST-App"
     operations = [(path, method, operation) for path, item in schema["paths"].items() for method, operation in item.items()]
     assert len(operations) > 70
-    for path, method, operation in operations:
+    for path, _method, operation in operations:
         assert operation["tags"][0] in tags, path
         assert re.search("[А-Яа-яЁё]", operation["summary"]), (path, operation["summary"])
         assert len(operation["summary"]) <= apidocs.SUMMARY_LIMIT + 1, path

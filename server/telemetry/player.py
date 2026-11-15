@@ -5,10 +5,15 @@ import threading
 from bisect import bisect_right
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from server.telemetry import synth
 from server.telemetry.loader import (
-    CUSTOMER_CODES, CUSTOMER_THRESHOLDS, LABEL_KINDS, TelemetryDataError, load_customer,
+    CUSTOMER_CODES,
+    CUSTOMER_THRESHOLDS,
+    LABEL_KINDS,
+    TelemetryDataError,
+    load_customer,
 )
 from server.telemetry.synth import CODES, PumpModel, Timeline, build_timeline
 
@@ -73,7 +78,7 @@ def parameter_catalogue(model: PumpModel) -> list[dict]:
         ("mode", "Режим работы (1 - в работе, 0 - остановлен)", "", None, None, None, None, None),
     )
     keys = ("code", "name", "unit", "warn", "alarm", "direction", "baseline", "basis")
-    catalogue = [dict(zip(keys, entry)) for entry in entries]
+    catalogue: list[dict[str, Any]] = [dict(zip(keys, entry)) for entry in entries]
     for item in catalogue:
         if item["baseline"] is not None:
             item["baseline"] = round(item["baseline"], 2)

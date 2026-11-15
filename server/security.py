@@ -6,9 +6,10 @@
 import secrets
 import string
 from contextvars import ContextVar
+from typing import cast
 
 from fastapi import HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.orm import Session
 
 from server.models import RefreshToken, Role, SecurityEvent, SecurityPolicy, User, now
@@ -108,12 +109,12 @@ def revoke_sessions(session: Session, user_id: int, family: str | None = None, k
         query = query.where(RefreshToken.family == family)
     if keep is not None:
         query = query.where(RefreshToken.family != keep)
-    return session.execute(query.values(revoked=True).execution_options(synchronize_session=False)).rowcount
+    return cast(CursorResult, session.execute(query.values(revoked=True).execution_options(synchronize_session=False))).rowcount
 
 
 def guardian_roles(session: Session) -> list[str]:
     """Коды ролей, у которых есть и управление учётными записями, и управление ролями."""
-    return [role.code for role in session.scalars(select(Role)) if GUARDIAN_PERMISSIONS <= set(role.permissions or ())]
+    return [role.code for role in session.scalars(select(Role)) if set(role.permissions or ()) >= GUARDIAN_PERMISSIONS]
 
 
 def ensure_guardians(session: Session) -> None:

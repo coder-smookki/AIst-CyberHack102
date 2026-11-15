@@ -78,7 +78,7 @@ def evaluate(weights: str, images: str, labels: str, names: list[str], conf: flo
             if index not in used:
                 stats[names[t_cls]]["fn"] += 1
     total = {"tp": 0, "fp": 0, "fn": 0}
-    for name, row in stats.items():
+    for row in stats.values():
         for key in total:
             total[key] += row[key]
         row["precision"] = round(row["tp"] / (row["tp"] + row["fp"]), 3) if row["tp"] + row["fp"] else None

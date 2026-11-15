@@ -9,6 +9,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from functools import cached_property
+from typing import Any
 from urllib.parse import quote
 
 from sqlalchemy import func, select
@@ -476,7 +477,7 @@ def _reasons(session: Session, unit: Unit) -> list[tuple[int, str, tuple]]:
     затем наступивший и приближающийся срок обслуживания или ресурса узла.
     """
     names = unit.node_names
-    reasons = []
+    reasons: list[tuple[int, str, tuple]] = []
     for finding in _unresolved(session, unit.id):
         reasons.append((0 if finding.status == "defect" else 1,
                         f"Незакрытое замечание: {_finding_line(finding, names)}.",
@@ -595,7 +596,7 @@ def _history(session: Session, units: list[Unit]) -> Reply:
         reply.say(f"{unit.label}: в истории {len(inspections)} "
                   f"{_plural(len(inspections), 'осмотр', 'осмотра', 'осмотров')} и {len(works)} "
                   f"{_plural(len(works), 'запись', 'записи', 'записей')} о работах.")
-        events = [(entry.started_at, 1, entry.id, entry) for entry in inspections]
+        events: list[tuple[datetime, int, int, Any]] = [(entry.started_at, 1, entry.id, entry) for entry in inspections]
         events += [(entry.at, 0, entry.id, entry) for entry in works]
         events.sort(key=lambda event: event[:3], reverse=True)
         for _, is_inspection, _, entry in events[:per_unit]:
@@ -641,10 +642,8 @@ def _last_inspection(session: Session, units: list[Unit]) -> Reply:
 
 def _wants_resolved(query: search.Query) -> bool:
     """Проверяет, что спрашивают об устранённых замечаниях: «устранённые», «закрытые», но не «не устранены»."""
-    for index, token in enumerate(query.tokens):
-        if token.startswith(RESOLVED_WORDS) and (index == 0 or query.tokens[index - 1] != "не"):
-            return True
-    return False
+    return any(token.startswith(RESOLVED_WORDS) and (index == 0 or query.tokens[index - 1] != "не")
+               for index, token in enumerate(query.tokens))
 
 
 def _resolved_findings(session: Session, units: list[Unit]) -> Reply:
@@ -861,8 +860,8 @@ def _parameters(units: list[Unit], named: bool, codes: list[str]) -> Reply:
             origin = SOURCE_TITLES.get(meta.get("source"), meta.get("source"))
             reply.say(f"- {_reading(meta, readings[code])}" + (f" ({limits})" if limits else "") + f". Источник: {origin}.")
             reply.link("chart", f"График: {meta['name']}", "equipment", unit.id, "chart", code)
-        labels = [(title, unit.live["player"].customer_label(kind, unit.live["moment"])) for kind, title in LABEL_TITLES]
-        labels = [f"{title} - «{label}»" for title, label in labels if label]
+        pairs = [(title, unit.live["player"].customer_label(kind, unit.live["moment"])) for kind, title in LABEL_TITLES]
+        labels = [f"{title} - «{label}»" for title, label in pairs if label]
         if labels:
             reply.say(f"Диагноз заказчика в его базе на этот час: {'; '.join(labels)}.")
     _note_cut(reply, chosen)

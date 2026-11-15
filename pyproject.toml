@@ -1,0 +1,77 @@
+[project]
+name = "kst-vizor"
+version = "0.1.1"
+description = "КСТ Визор: сервер распознавания оборудования, правила диагностики и осмотры"
+requires-python = ">=3.11"
+
+# Зависимости остаются в requirements.txt, здесь только настройки инструментов качества кода
+
+[tool.ruff]
+target-version = "py311"
+line-length = 130
+src = [".", "server", "cv", "tests"]
+extend-exclude = ["mobile", "web", "data", "models", "runs", "assets", "deploy/.local-build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    # Русский текст в строках, docstring и комментариях: кириллические «о», «с», «р» не путаница
+    "RUF001", "RUF002", "RUF003",
+    # zip без strict: длины совпадают по построению, strict=True поменял бы поведение
+    "B905",
+    # Вложенные тернарные выражения читаются хуже явного if/else
+    "SIM108",
+    # int(round(x)) и int(math.ceil(x)) оставлены явно: аргументы бывают скалярами numpy
+    "RUF046",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Тесты: правка sys.path до импорта и фикстуры pytest, импортированные из соседних модулей
+"tests/**" = ["E402", "SIM115"]
+"tests/test_{fingerprint_health,qr,verdict}.py" = ["F401", "F811"]
+# Разовые скрипты подготовки данных и Blender
+"cv/**" = ["SIM115"]
+"blender/**" = ["SIM115"]
+
+[tool.ruff.lint.pycodestyle]
+# Форматтер держит код в 130 символах, строки с русским текстом допускаются до 160
+max-line-length = 160
+
+[tool.ruff.lint.isort]
+known-first-party = ["server", "cv"]
+
+[tool.black]
+line-length = 130
+target-version = ["py311"]
+extend-exclude = "/(mobile|web|data|models|runs|assets|deploy/\\.local-build)/"
+
+[tool.mypy]
+python_version = "3.11"
+# Сервер работает в Linux (Docker, CI); os.sched_getaffinity есть только там
+platform = "linux"
+files = ["server"]
+ignore_missing_imports = true
+check_untyped_defs = true
+no_implicit_optional = true
+# Первый этап: значения None из словарей и колонок пока не сужаются явно (75 замечаний),
+# включить после разметки Optional в rules, inspections и assistant
+strict_optional = false
+# Пустые списки и словари без аннотации: тип выводится как list[Any]
+disable_error_code = ["var-annotated"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+show_error_codes = true
+pretty = false
+
+[[tool.mypy.overrides]]
+# Literal[FAULT_STATUSES]: FastAPI раскрывает кортеж в перечисление, mypy так не умеет
+module = "server.workflow"
+disable_error_code = ["valid-type"]
+
+[[tool.mypy.overrides]]
+# app.openapi = ... - штатный способ FastAPI подменить схему
+module = "server.apidocs"
+disable_error_code = ["method-assign"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

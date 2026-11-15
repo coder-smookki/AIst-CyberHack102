@@ -9,6 +9,7 @@
 import json
 from datetime import date, datetime
 from functools import lru_cache
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -30,7 +31,7 @@ DEMO_USERS = (
 EQUIPMENT_COLUMNS = ("id", "name", "type", "model", "serial", "location", "mode", "run_hours")
 NODE_COLUMNS = ("id", "name", "hours", "installed", "replaced")
 NO_REMARKS = "Проверено, замечаний нет"
-DEMO_HISTORY = {
+DEMO_HISTORY: dict[str, dict[str, Any]] = {
     "SHU-3": {
         "maintenance": [
             {"at": "2025-05-20T10:00", "kind": "maintenance", "node": None, "user": "master@kst.demo", "hours_at": 35000,
