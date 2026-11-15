@@ -1,4 +1,13 @@
 
+FROM node:24.22.3-bookworm-slim AS web
+
+ENV NEXT_TELEMETRY_DISABLED=1
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
 FROM python:3.11-slim-bookworm AS build
 
 ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -37,6 +46,7 @@ ENV PATH=/opt/venv/bin:$PATH \
 WORKDIR /app
 
 COPY server ./server
+COPY --from=web /web/out ./web/out
 COPY cv ./cv
 COPY models ./models
 COPY data ./data

@@ -27,7 +27,8 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from server import (admin, apidocs, assistant, auth, config, db, equipment, fingerprint, health as channels, inspections,
-                    qr, recognition, rules_api, site, telemetry_api, webadmin_api, webcache, workflow)
+                    qr, recognition, rules_api, site, telemetry_api, webadmin_api, webadmin_assistant, webcache,
+                    workflow)
 from server.auth import require_permission
 from server.db import get_session
 from server.equipment import equipment_card, get_equipment
@@ -368,6 +369,7 @@ def create_app(detector=None) -> FastAPI:
     app.include_router(admin.router)
     app.include_router(admin.system_router)
     app.include_router(webadmin_api.router)
+    app.include_router(webadmin_assistant.router)
 
     @app.get("/health")
     def health(session: Annotated[Session, Depends(get_session)]) -> dict:
@@ -566,9 +568,17 @@ def create_app(detector=None) -> FastAPI:
         """Добавляет косую черту к адресу веб-панели администратора."""
         return RedirectResponse("/web/")
 
+    export = webcache.export_dir()
+    if export:
+        webcache.mount_export(app, export)
+    else:
+        if PANEL_DIR.is_dir():
+            app.mount("/panel", StaticFiles(directory=PANEL_DIR, html=True), name="panel")
+        if WEBADMIN_DIR.is_dir():
+            webcache.mount_panel(app, "/web", WEBADMIN_DIR)
     if PANEL_DIR.is_dir():
-        app.mount("/panel", StaticFiles(directory=PANEL_DIR, html=True), name="panel")
+        app.mount("/panel-classic", StaticFiles(directory=PANEL_DIR, html=True), name="panel-classic")
     if WEBADMIN_DIR.is_dir():
-        webcache.mount_panel(app, "/web", WEBADMIN_DIR)
+        webcache.mount_panel(app, "/web-classic", WEBADMIN_DIR, name="webadmin-classic")
     apidocs.install(app)
     return app

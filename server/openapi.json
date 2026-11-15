@@ -29,6 +29,189 @@
     "title": "AskBody",
     "type": "object"
    },
+   "AssistantBody": {
+    "description": "Команда ассистенту; confirm=true с планом из прошлого ответа - выполнить действие.",
+    "properties": {
+     "confirm": {
+      "default": false,
+      "title": "Confirm",
+      "type": "boolean"
+     },
+     "plan": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan"
+     },
+     "text": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "AssistantBody",
+    "type": "object"
+   },
+   "AssistantLink": {
+    "description": "Переход в раздел панели по ключу маршрута.",
+    "properties": {
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "route": {
+      "title": "Route",
+      "type": "string"
+     }
+    },
+    "required": [
+     "label",
+     "route"
+    ],
+    "title": "AssistantLink",
+    "type": "object"
+   },
+   "AssistantPlan": {
+    "description": "План действия: что будет сделано и с какими значениями; danger - действие меняет доступ или стенд.",
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "danger": {
+      "title": "Danger",
+      "type": "boolean"
+     },
+     "details": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Details",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "action",
+     "title",
+     "details",
+     "danger"
+    ],
+    "title": "AssistantPlan",
+    "type": "object"
+   },
+   "AssistantReply": {
+    "description": "Ответ ассистента: текст, план (если нужно подтверждение), признак выполнения, итог, ссылки, подсказки.",
+    "properties": {
+     "done": {
+      "default": false,
+      "title": "Done",
+      "type": "boolean"
+     },
+     "links": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/AssistantLink"
+      },
+      "title": "Links",
+      "type": "array"
+     },
+     "plan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AssistantPlan"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "result": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AssistantResult"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "suggestions": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Suggestions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "reply"
+    ],
+    "title": "AssistantReply",
+    "type": "object"
+   },
+   "AssistantResult": {
+    "description": "Итог: заголовок, строки «название - значение» и одноразовый секрет (временный пароль), если он есть.",
+    "properties": {
+     "rows": {
+      "items": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "secret": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Secret"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "rows"
+    ],
+    "title": "AssistantResult",
+    "type": "object"
+   },
    "BlockBody": {
     "description": "Блокировка учётной записи: причина обязательна, комментарий - по желанию.",
     "properties": {
@@ -7470,6 +7653,53 @@
     "summary": "Отменяет открытое задание",
     "tags": [
      "Задания и уведомления"
+    ]
+   }
+  },
+  "/webadmin/assistant": {
+   "post": {
+    "description": "Ассистент панели: команда по-русски - план или ответ; confirm=true с планом - выполнение с правами сотрудника.\n\nБез confirm ничего не меняется. При подтверждении текст разбирается заново и план сверяется с присланным;\nрасхождение - ничего не выполняется, возвращается новый план. Временный пароль - только в result.secret.",
+    "operationId": "assistant_webadmin_assistant_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AssistantBody"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AssistantReply"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "bearerAuth": []
+     }
+    ],
+    "summary": "Ассистент панели",
+    "tags": [
+     "Веб-панель"
     ]
    }
   },

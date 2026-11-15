@@ -57,7 +57,7 @@
 | Презентация и видео | В том же релизе: презентация `AIst-Presentation-Product` (PPTX и PDF), видео демонстрации `AIst-Demo-Video.mp4`, видео прогона моделей `AIst-Benchmark-ModelCV-Video.mp4` |
 | Материалы для проверки | `Materials_for_testing.zip` в релизе: шильдики агрегатов и фото дефектов из открытых источников с авторами и лицензиями |
 | Исходный код приложения | [mobile/](mobile): Flutter, Android и iOS из одного кода |
-| Сервер и веб-панель | [server/](server): FastAPI, веб-панель администраторов в [server/webadmin/](server/webadmin), адрес `/web/` |
+| Сервер и веб-панель | [server/](server): FastAPI; веб-панель и пульт на Next.js в [web/](web), адреса `/web/` и `/panel/`; прежняя версия без сборки - [server/webadmin/](server/webadmin), `/web-classic/` |
 | Модели | [models/](models): `detector.onnx`, `defects.onnx`, описание, пороги и замеры в [models/models.json](models/models.json) |
 | Данные | [data/DATASETS.txt](data/DATASETS.txt): источники, лицензии, объёмы, проверка повторов |
 | Запуск и развёртывание | `docker compose up -d --build` в корне ([Запуск в Docker](#запуск-в-docker)), [deploy/](deploy): Caddy и `deploy.sh` для стенда |
@@ -156,8 +156,8 @@ APK подписан отладочным ключом сборки. Новая 
   +--> SQLite: пользователи, оборудование, осмотры, журналы
   |
   v
-Веб-панель /web/ (HTML, CSS, JS без сборки и без CDN)
-  Админ ИБ, Админ, сводка Мастера; обновляется сама за 1-2 секунды
+Веб-панель /web/ и пульт /panel/ (Next.js, статическая сборка внутри того же контейнера, без CDN)
+  Админ ИБ, Админ, сводка Мастера, помощник с подтверждением действий; обновляется сама за 1-2 секунды
 ```
 
 | Компонент | Что делает |

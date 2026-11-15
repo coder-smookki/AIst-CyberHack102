@@ -17,3 +17,8 @@ data/equipment_ds_v*/
 data/runtime/
 .idea/
 deploy/.local-build/
+web/node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+web/*.tsbuildinfo

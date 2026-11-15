@@ -99,11 +99,12 @@ def test_static_files_and_style():
 
 
 def test_panel_is_served(client):
-    """Панель открывается по /web/, старый пульт /panel/ продолжает работать."""
-    page = client.get("/web/")
+    """Панель открывается по /web/, пульт по /panel/; прежние файлы панели доступны по /web-classic/."""
+    assert client.get("/web/").status_code == 200
+    page = client.get("/web-classic/")
     assert page.status_code == 200 and "КСТ Визор" in page.text and "js/app.js" in page.text
     assert client.get("/web", follow_redirects=False).status_code in (307, 302)
-    assert client.get("/web/css/web.css").status_code == 200
+    assert client.get("/web-classic/css/web.css").status_code == 200
     assert client.get("/panel/").status_code == 200
 
 
@@ -177,7 +178,10 @@ def local_links(text):
 
 
 def test_served_pages_work_offline(client):
-    """Отдаваемые страницы /web/, /panel/ и /docs и все их файлы не ссылаются на внешние адреса."""
+    """Отдаваемые страницы /web/, /panel/ и /docs и все их файлы не ссылаются на внешние адреса.
+
+    Сборка Next.js (/_next/) содержит адреса только в текстах ошибок; их проверяет tests/test_web_next.py.
+    """
     for page_url in ("/web/", "/panel/", "/docs"):
         page = client.get(page_url)
         assert page.status_code == 200, page_url
@@ -193,23 +197,23 @@ def test_served_pages_work_offline(client):
             assert response.status_code == 200, (page_url, target)
             if target.split("?")[0].endswith((".css", ".js", ".html")) and not target.startswith("/docs-assets/"):
                 text = response.text.replace("http://www.w3.org/2000/svg", "")
-                assert not EXTERNAL.search(text), target
+                assert target.startswith("/_next/") or not EXTERNAL.search(text), target
                 for url in re.findall(r"url\(\"?([^\")]+)\"?\)", text):
                     assert url.startswith(("data:", "../", "#")) or not re.match(r"[a-z]+:", url), (target, url)
 
 
 def test_panel_cache_rules(client):
-    """Стили и сценарии с меткой версии хранятся год, страница перепроверяется, шрифты WOFF2 хранятся месяц."""
-    page = client.get("/web/")
+    """Прежняя панель: стили и сценарии с меткой версии хранятся год, страница перепроверяется, шрифты - месяц."""
+    page = client.get("/web-classic/")
     assert page.headers["cache-control"] == "no-cache"
     versioned = re.findall(r'(?:href|src)="((?:css|js)/[^"]+\?v=[0-9a-f]+)"', page.text)
     assert len(versioned) >= 10 and all("defer" in tag for tag in re.findall(r"<script[^>]*>", page.text))
     for link in versioned:
-        response = client.get("/web/" + link)
+        response = client.get("/web-classic/" + link)
         assert response.status_code == 200 and "immutable" in response.headers["cache-control"], link
-    font = client.get("/web/assets/fonts/Geologica-Regular.woff2")
+    font = client.get("/web-classic/assets/fonts/Geologica-Regular.woff2")
     assert font.status_code == 200 and font.headers["cache-control"] == "public, max-age=2592000"
-    assert "Geologica-Regular.woff2" in client.get("/web/" + next(v for v in versioned if "app.css" in v)).text
+    assert "Geologica-Regular.woff2" in client.get("/web-classic/" + next(v for v in versioned if "app.css" in v)).text
 
 
 def test_polling_gets_not_modified(client):

@@ -6,8 +6,12 @@
 месяц. Запросы GET с заголовком If-None-Match получают метку содержимого ответа JSON и короткий ответ 304,
 если данные не изменились: панель опрашивает сервер раз в полторы секунды и не скачивает одно и то же.
 Клиенты без этого заголовка (приложение на телефоне) получают ответы как раньше.
+
+Собранная на Next.js панель (web/out) отдаётся по /web/, /panel/ и /_next/: файлы с хешем в имени хранятся год,
+страницы перепроверяются; прежняя панель без сборки остаётся по /web-classic/ и /panel-classic/.
 """
 import hashlib
+import os
 import re
 from pathlib import Path
 
@@ -22,7 +26,9 @@ REVALIDATE = "no-cache"
 VERSIONED = re.compile(r'(href|src)="((?:css|js)/[^"?#]+)"')
 INDEX_PATHS = ("", ".", "index.html")
 MAX_BODY = 4 * 1024 * 1024
-STATIC_PREFIXES = ("/web/", "/panel/", "/docs-assets/")
+STATIC_PREFIXES = ("/web/", "/panel/", "/docs-assets/", "/_next/", "/web-classic/", "/panel-classic/")
+EXPORT_DIR = Path(__file__).resolve().parent.parent / "web" / "out"
+UI_DEFAULT = "next"
 
 
 def version_of(folder: Path) -> str:
@@ -65,9 +71,49 @@ class PanelFiles(StaticFiles):
         return response
 
 
-def mount_panel(app: FastAPI, prefix: str, folder: Path) -> None:
+def mount_panel(app: FastAPI, prefix: str, folder: Path, name: str = "webadmin") -> None:
     """Подключает веб-панель по адресу prefix."""
-    app.mount(prefix, PanelFiles(directory=folder), name="webadmin")
+    app.mount(prefix, PanelFiles(directory=folder), name=name)
+
+
+class ExportFiles(StaticFiles):
+    """Файлы сборки Next.js: /_next/static/ с хешем в имени хранятся год, картинки - месяц, страницы перепроверяются."""
+
+    def __init__(self, *, directory: Path, html: bool = False) -> None:
+        """Запоминает папку сборки; для страниц index.html отдаётся по адресу папки."""
+        super().__init__(directory=directory, html=html)
+
+    async def get_response(self, path: str, scope: Scope):
+        """Отдаёт файл сборки с заголовком Cache-Control по его виду."""
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            if path.startswith("static/"):
+                response.headers["Cache-Control"] = YEAR
+            elif path.startswith("assets"):
+                response.headers["Cache-Control"] = MONTH
+            else:
+                response.headers["Cache-Control"] = REVALIDATE
+        return response
+
+
+def export_dir() -> Path | None:
+    """Папка сборки Next.js, если веб-панель и пульт нужно отдавать из неё.
+
+    KST_WEB_UI=next или classic выбирает интерфейс (по умолчанию UI_DEFAULT), KST_WEB_EXPORT задаёт другую папку
+    сборки. Без собранных файлов (тесты без Node) остаётся прежний интерфейс.
+    """
+    if os.environ.get("KST_WEB_UI", UI_DEFAULT).strip().lower() != "next":
+        return None
+    folder = Path(os.environ.get("KST_WEB_EXPORT") or EXPORT_DIR)
+    needed = (folder / "web" / "index.html", folder / "panel" / "index.html", folder / "_next" / "static")
+    return folder if all(path.exists() for path in needed) else None
+
+
+def mount_export(app: FastAPI, folder: Path) -> None:
+    """Подключает сборку Next.js: /_next/ (стили, сценарии, шрифты), /web/ и /panel/."""
+    app.mount("/_next", ExportFiles(directory=folder / "_next"), name="next")
+    app.mount("/web", ExportFiles(directory=folder / "web", html=True), name="webadmin")
+    app.mount("/panel", ExportFiles(directory=folder / "panel", html=True), name="panel")
 
 
 class ConditionalGet:

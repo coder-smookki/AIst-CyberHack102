@@ -17,6 +17,7 @@ cp -p "$ROOT/requirements.txt" "$STAGE/src/"
 cp -p "$ROOT/deploy/Dockerfile" "$STAGE/src/deploy/"
 cp -p "$ROOT/deploy/.dockerignore" "$STAGE/src/.dockerignore"
 rsync -a --exclude '__pycache__' --exclude '.DS_Store' "$ROOT/server" "$STAGE/src/"
+rsync -a --exclude 'node_modules' --exclude '.next' --exclude 'out' --exclude '.DS_Store' --exclude '*.tsbuildinfo' --exclude 'next-env.d.ts' "$ROOT/web" "$STAGE/src/"
 cp -p "$ROOT/cv/nameplate.py" "$ROOT/cv/gauge.py" "$STAGE/src/cv/"
 cp -p "$ROOT"/models/*.onnx "$ROOT/models/models.json" "$STAGE/src/models/"
 for name in "${OCR_FILES[@]}"; do cp -p "$OCR_DIR/$name" "$STAGE/src/models/ocr/"; done

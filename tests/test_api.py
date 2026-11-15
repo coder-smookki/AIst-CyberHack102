@@ -123,7 +123,7 @@ def test_docs_are_local_and_panel_is_served(server):
     assert moved.status_code in (302, 307) and moved.headers["location"] == "/panel/"
     page = client.get("/panel/")
     assert page.status_code == 200 and "text/html" in page.headers["content-type"]
-    assert client.get("/panel/panel.js").status_code == 200
+    assert client.get("/panel-classic/panel.js").status_code == 200
     assert client.get("/", follow_redirects=False).headers["location"] == "/panel/"
 
 

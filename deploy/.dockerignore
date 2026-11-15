@@ -17,3 +17,6 @@ docs
 deploy/docker-compose.yml
 deploy/Caddyfile
 deploy/deploy.sh
+web/node_modules
+web/.next
+web/out
