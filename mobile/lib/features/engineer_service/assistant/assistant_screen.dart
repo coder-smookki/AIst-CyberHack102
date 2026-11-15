@@ -82,6 +82,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     final DateTime now = ref.watch(clockProvider).now();
     final double tabTop = KvTabBarScope.bottomOf(context) + KvLayout.tabBarHeight;
     final bool hasTab = KvTabBarScope.maybeOf(context)?.visible ?? false;
+    final double side = KvLayout.sideInset(MediaQuery.sizeOf(context).width);
     final List<AssistantMessage> dialog = s.messages.isEmpty ? const <AssistantMessage>[_hello] : s.messages;
     final List<Widget> items = chatItems(dialog, days: true, now: now);
     final List<_Suggestion> suggestions = [
@@ -119,7 +120,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       ),
       body: ListView.separated(
         reverse: true,
-        padding: EdgeInsets.fromLTRB(KvSpace.gutter, KvSpace.s3, KvSpace.gutter, (hasTab ? tabTop : 0) + 152),
+        padding: EdgeInsets.fromLTRB(KvSpace.gutter + side, KvSpace.s3, KvSpace.gutter + side, (hasTab ? tabTop : 0) + 152),
         itemCount: items.length,
         separatorBuilder: (BuildContext context, int i) => const SizedBox(height: 10),
         itemBuilder: (BuildContext context, int i) => items[items.length - 1 - i],

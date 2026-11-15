@@ -58,23 +58,23 @@ class ShotResult {
   final String path;
 }
 
-/// Снимает экран [c] в теме [theme] шириной [width]: открывает маршрут на демонстрационных данных
+/// Снимает экран [c] в теме [theme] шириной [width] (высота [height] или из таблиц размеров): открывает маршрут на демонстрационных данных
 /// с остановленными часами, выполняет шаги, рисует строку состояния и индикатор «домой» как в прототипе
 /// и записывает PNG в `build/design_shots/<тема>-<ширина>/<id>.png`.
 ///
 /// Переполнение строк и колонок, исключения и отсутствие цели касания проваливают тест.
-Future<ShotResult> shootCase(WidgetTester tester, DesignCase c, {required int width, required String theme}) async {
+Future<ShotResult> shootCase(WidgetTester tester, DesignCase c, {required int width, double? height, required String theme}) async {
   debugDisableShadows = false;
   try {
-    return await _shoot(tester, c, width: width, theme: theme);
+    return await _shoot(tester, c, width: width, fixedHeight: height, theme: theme);
   } finally {
     debugDisableShadows = true;
   }
 }
 
-Future<ShotResult> _shoot(WidgetTester tester, DesignCase c, {required int width, required String theme}) async {
+Future<ShotResult> _shoot(WidgetTester tester, DesignCase c, {required int width, double? fixedHeight, required String theme}) async {
   await loadKvFonts();
-  final double height = kPhoneHeights[width] ?? kTabletHeights[width]!;
+  final double height = fixedHeight ?? kPhoneHeights[width] ?? kTabletHeights[width]!;
   tester.view.devicePixelRatio = kShotDpr;
   tester.view.physicalSize = Size(width * kShotDpr, height * kShotDpr);
   tester.view.padding = const FakeViewPadding(top: kStatusInset * kShotDpr, bottom: kHomeInset * kShotDpr);
@@ -134,7 +134,7 @@ Future<ShotResult> _shoot(WidgetTester tester, DesignCase c, {required int width
   chrome.value = _systemChrome(tester, width, height);
   await tester.pump();
 
-  final String dir = 'build/design_shots/$theme-$width';
+  final String dir = fixedHeight == null ? 'build/design_shots/$theme-$width' : 'build/design_shots/$theme-${width}x${fixedHeight.round()}';
   final String path = '$dir/${c.id}.png';
   await tester.runAsync(() async {
     final RenderRepaintBoundary boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(shotKey));

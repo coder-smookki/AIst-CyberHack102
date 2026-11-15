@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/admins_routes.dart';
+import '../../../app/routes/entry_routes.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
 import '../role_scope_screen.dart';
@@ -23,6 +24,12 @@ class SecProfileScreen extends ConsumerWidget {
         if (me == null) const KvSkeleton.card() else AdmProfileCard(person: me, roleLabel: 'Админ ИБ'),
         KvList(
           children: [
+            KvRow(
+              icon: KvIcons.info,
+              title: 'Как пользоваться',
+              subtitle: 'Кнопки, экраны и порядок работы',
+              onTap: () => context.kvPush(EntryPaths.guide),
+            ),
             KvRow(
               icon: KvIcons.phone,
               title: 'Активные сеансы',

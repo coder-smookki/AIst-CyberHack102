@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../../../core/kv.dart';
@@ -234,6 +234,7 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     if (_starting || _disposed || controller != null) {
       return;
     }
+    _holdPortraitOnTablet(true);
     _starting = true;
     state = LiveCameraState.starting;
     _notify();
@@ -629,8 +630,23 @@ class LiveCamera extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _closeSocket();
     _stopCamera();
+    _holdPortraitOnTablet(false);
     super.dispose();
   }
+}
+
+/// На планшете живой осмотр держит портретную ориентацию: кадр сервера, превью и рамки посчитаны для портрета.
+/// После осмотра планшету снова доступны все ориентации, как при запуске; телефон всегда в портрете и не меняется.
+void _holdPortraitOnTablet(bool hold) {
+  final views = WidgetsBinding.instance.platformDispatcher.views;
+  if (views.isEmpty) {
+    return;
+  }
+  final view = views.first;
+  if (view.physicalSize.shortestSide / view.devicePixelRatio < KvLayout.tablet) {
+    return;
+  }
+  unawaited(SystemChrome.setPreferredOrientations(hold ? const <DeviceOrientation>[DeviceOrientation.portraitUp] : const <DeviceOrientation>[]));
 }
 
 /// Поворот сырого кадра камеры до портретного кадра для сервера. Android отдаёт кадр датчика в альбомной ориентации

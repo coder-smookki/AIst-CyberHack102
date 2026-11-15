@@ -219,36 +219,33 @@ class ApiEquipmentRepository implements EquipmentRepository {
   Future<Equipment> _merge(Map<String, dynamic> row) async {
     final String id = Json.str(row, 'id');
     final Equipment? base = await _base(id);
+    final List<Map<String, dynamic>?> parts = await Future.wait<Map<String, dynamic>?>([
+      if (Json.flag(row, 'telemetry', true)) _optional('/equipment/$id/telemetry') else Future<Map<String, dynamic>?>.value(),
+      _optional('/equipment/$id/diagnosis'),
+      _optional('/equipment/$id/resource'),
+    ]);
+    final Map<String, dynamic>? t = parts[0];
+    final Map<String, dynamic>? d = parts[1];
+    final Map<String, dynamic>? r = parts[2];
     Map<String, Reading>? readings;
     String? level;
-    String? diagnosis;
-    if (Json.flag(row, 'telemetry', true)) {
-      try {
-        final Map<String, dynamic> t = await api.getJson('/equipment/$id/telemetry') as Map<String, dynamic>;
-        if (Json.flag(t, 'available')) {
-          readings = ApiMap.readings(t, base?.readings ?? const {});
-          level = Json.strOrNull(t, 'level');
-        }
-      } on KvApiException {
-        readings = null;
-      }
+    if (t != null && Json.flag(t, 'available')) {
+      readings = ApiMap.readings(t, base?.readings ?? const {});
+      level = Json.strOrNull(t, 'level');
     }
-    try {
-      final Map<String, dynamic> d = await api.getJson('/equipment/$id/diagnosis') as Map<String, dynamic>;
-      diagnosis = Json.strOrNull(d, 'status');
-    } on KvApiException {
-      diagnosis = null;
-    }
-    Resource? resource;
-    NextMaintenance? nextTo;
-    try {
-      final Map<String, dynamic> r = await api.getJson('/equipment/$id/resource') as Map<String, dynamic>;
-      resource = ApiMap.resource(r);
-      nextTo = ApiMap.nextMaintenance(r);
-    } on KvApiException {
-      resource = null;
-    }
+    final String? diagnosis = d == null ? null : Json.strOrNull(d, 'status');
+    final Resource? resource = r == null ? null : ApiMap.resource(r);
+    final NextMaintenance? nextTo = r == null ? null : ApiMap.nextMaintenance(r);
     return ApiMap.equipment(row, base: base, readings: readings ?? const <String, Reading>{}, diagnosis: diagnosis, level: level, resource: resource, nextTo: nextTo);
+  }
+
+  /// Ответ [path] или null, если сервер ответил ошибкой: три запроса агрегата идут параллельно, а не друг за другом.
+  Future<Map<String, dynamic>?> _optional(String path) async {
+    try {
+      return await api.getJson(path) as Map<String, dynamic>;
+    } on KvApiException {
+      return null;
+    }
   }
 
   @override

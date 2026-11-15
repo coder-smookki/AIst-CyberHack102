@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kst_vizor/core/llm/local_answer.dart';
@@ -171,5 +172,16 @@ void main() {
       final ParsedAnswer a = fallbackAnswer(search.search('АМС-1 вибрирует'));
       expect(unsafeVerdicts(a.text), isEmpty);
     });
+  });
+
+  test('настоящий пакет справки: «как пользоваться» ведёт на инструкцию', () {
+    final LocalPack pack = LocalPack.parse(File('assets/llm/knowledge_pack.json').readAsStringSync());
+    final LocalSearch real = LocalSearch(pack, minScore: 0.5);
+    for (final String q in <String>['Как пользоваться приложением?', 'какие кнопки за что отвечают']) {
+      final SearchResult r = real.search(q);
+      expect(r.found, isTrue, reason: q);
+      expect(<String>['howto.app_guide', 'screen.guide'], contains(r.hits.first.chunk.id), reason: q);
+      expect(fallbackAnswer(r).links.map((AnswerLink l) => l.path), contains('/guide'), reason: q);
+    }
   });
 }

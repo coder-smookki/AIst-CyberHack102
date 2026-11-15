@@ -426,8 +426,8 @@ class ScanPoorScreen extends StatelessWidget {
       top: ArTopBar(pill: 'Распознавание на паузе', waiting: true, onBack: () => context.kvBack(EngineerInspectPaths.objects)),
       layers: [
         Positioned(
-          left: KvSpace.gutter,
-          right: KvSpace.gutter,
+          left: KvSpace.gutter + KvLayout.sideInset(MediaQuery.sizeOf(context).width),
+          right: KvSpace.gutter + KvLayout.sideInset(MediaQuery.sizeOf(context).width),
           top: top + 78,
           child: KvGlass(
             blur: 14,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/kv_nav.dart';
 import '../../../app/routes/engineer_service_routes.dart';
+import '../../../app/routes/entry_routes.dart';
 import '../../../app/state/app_state.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
@@ -46,6 +47,12 @@ class SeniorProfileScreen extends ConsumerWidget {
         ),
         KvList(
           children: [
+            KvRow(
+              icon: KvIcons.info,
+              title: 'Как пользоваться',
+              subtitle: 'Кнопки, экраны и порядок работы',
+              onTap: () => context.kvPush(EntryPaths.guide),
+            ),
             KvRow(
               icon: KvIcons.history,
               title: 'История осмотров',

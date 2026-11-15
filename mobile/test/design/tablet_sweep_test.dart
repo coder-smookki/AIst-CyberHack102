@@ -13,6 +13,7 @@ import 'master_operator_cases.dart';
 /// и в альбомной 1180 × 820 в обеих темах. Переполнение раскладки проваливает тест. Отбор: --dart-define=WIDTH=768.
 const Set<String> kTabletIds = {
   'login',
+  'guide',
   'objects',
   'card',
   'card-charts',

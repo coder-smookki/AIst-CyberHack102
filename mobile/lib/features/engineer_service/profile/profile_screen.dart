@@ -33,6 +33,12 @@ class ProfileScreen extends ConsumerWidget {
         KvList(
           children: [
             KvRow(
+              icon: KvIcons.info,
+              title: 'Как пользоваться',
+              subtitle: 'Кнопки, экраны и порядок работы',
+              onTap: () => context.kvPush(EntryPaths.guide),
+            ),
+            KvRow(
               icon: KvIcons.server,
               iconStatus: KvStatus.ok,
               title: 'Сервер цеха',

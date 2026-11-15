@@ -6,6 +6,7 @@ import '../../features/entry/new_password_screen.dart';
 import '../../features/entry/offline_screen.dart';
 import '../../features/entry/onboarding_screen.dart';
 import '../../features/entry/password_saved_screen.dart';
+import '../../features/shared/guide_screen.dart';
 import '../navigation/kv_page.dart';
 
 /// Пути экранов раздела «Вход и первый запуск». Идентификаторы прототипа - имена маршрутов go_router.
@@ -60,6 +61,9 @@ abstract final class EntryPaths {
 
   /// Вход · Админ ИБ.
   static const String aLoginSec = '/a-login-sec';
+
+  /// Инструкция «Как пользоваться»: открывается со входа и из профиля любой роли.
+  static const String guide = '/guide';
 
   /// «Учётная запись заблокирована» для почты [email], которой отказано во входе.
   static String blocked(String? email) =>
@@ -127,4 +131,9 @@ final List<RouteBase> entryRootRoutes = <RouteBase>[
   _login(EntryPaths.aLoginOperator, 'a-login-operator', scenario: 'a-login-operator'),
   _login(EntryPaths.aLoginAdmin, 'a-login-admin', scenario: 'a-login-admin'),
   _login(EntryPaths.aLoginSec, 'a-login-sec', scenario: 'a-login-sec'),
+  GoRoute(
+    path: EntryPaths.guide,
+    name: 'guide',
+    pageBuilder: (_, GoRouterState s) => KvPage<void>.of(s, const GuideScreen()),
+  ),
 ];

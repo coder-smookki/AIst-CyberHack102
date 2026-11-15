@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/navigation/kv_nav.dart';
+import '../../app/routes/entry_routes.dart';
 import '../../app/state/app_state.dart';
 import '../../core/kv.dart';
 import '../../data/providers.dart';
@@ -274,8 +276,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
 
+    final double side = 20 + KvLayout.sideInset(MediaQuery.sizeOf(context).width);
     final Widget sheet = Container(
-      padding: EdgeInsets.fromLTRB(20, 26, 20, bottomPad),
+      padding: EdgeInsets.fromLTRB(side, 26, side, bottomPad),
       decoration: BoxDecoration(
         color: c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(KvRadius.sheet)),
@@ -305,7 +308,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (_busy)
             _LoginWait(icon: KvIcons.server, text: 'Проверяем учётную запись на $server')
           else
-            Center(child: KvLink('Забыли пароль?', onPressed: _forgot)),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: KvSpace.s4,
+              children: [
+                KvLink('Забыли пароль?', onPressed: _forgot),
+                KvLink('Как пользоваться', onPressed: () => context.kvPush(EntryPaths.guide)),
+              ],
+            ),
         ],
       ),
     );

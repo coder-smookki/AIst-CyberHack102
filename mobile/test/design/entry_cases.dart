@@ -48,6 +48,7 @@ Future<void> _unfocus(WidgetTester tester, ProviderContainer container) async {
 final List<DesignCase> entryCases = <DesignCase>[
   for (int n = 1; n <= 3; n++) DesignCase('a-onb-$n', route: '/a-onb-$n'),
   const DesignCase('login', route: '/login'),
+  const DesignCase('guide', route: '/guide'),
   const DesignCase('a-login-loading', route: '/a-login-loading'),
   const DesignCase(
     'a-login-error',

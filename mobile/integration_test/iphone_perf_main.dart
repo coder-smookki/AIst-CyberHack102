@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kst_vizor/app/router.dart';
 import 'package:kst_vizor/app/state/app_state.dart';
 import 'package:kst_vizor/core/widgets/kv_button.dart';
+import 'package:kst_vizor/core/widgets/kv_pressable.dart';
 import 'package:kst_vizor/main.dart' as app;
 
 /// Замер плавности на телефоне: обычный запуск приложения (настоящие кадры по vsync), вход инженера, прокрутка и
@@ -109,7 +110,39 @@ Future<void> _go(String path, {bool push = false}) async {
   await Future<void>.delayed(const Duration(milliseconds: 2500));
 }
 
-/// Запуск замера.
+/// Вход учётной записью [email] роли с путями [prefix].
+Future<void> _login(String email, String prefix) async {
+  final ProviderContainer c = ProviderScope.containerOf(kvRootNavigatorKey.currentContext!, listen: false);
+  if (c.read(sessionProvider) != null) {
+    await c.read(sessionProvider.notifier).logout();
+  }
+  GoRouter.of(kvRootNavigatorKey.currentContext!).go('/login');
+  await _until(() => _path() == '/login');
+  await Future<void>.delayed(const Duration(milliseconds: 800));
+  final List<EditableText> fields = _elements().map((Element e) => e.widget).whereType<EditableText>().toList();
+  fields[0].controller.text = email;
+  fields[1].controller.text = 'demo12345';
+  _elements().map((Element e) => e.widget).whereType<KvButton>().firstWhere((KvButton b) => b.label == 'Войти').onPressed!();
+  await _until(() {
+    final Iterable<KvButton> later = _elements().map((Element e) => e.widget).whereType<KvButton>().where((KvButton b) => b.label == 'Не сейчас');
+    if (later.isNotEmpty) {
+      later.first.onPressed?.call();
+    }
+    return _path().startsWith(prefix);
+  });
+  _log('KV_STEP вход $email -> ${_path()}');
+}
+
+/// Тяжёлый экран [path]: открытие, прокрутка и покой [idle] секунд (опрос сервера).
+Future<void> _screen(String name, String path, {bool push = false, int idle = 0}) async {
+  await _measure('$name: открытие', () => _go(path, push: push));
+  await _measure('$name: прокрутка', _scroll);
+  if (idle > 0) {
+    await _measure('$name: покой $idle с', () => Future<void>.delayed(Duration(seconds: idle)));
+  }
+}
+
+/// Запуск замера: тяжёлые экраны инженера, мастера и оператора на цеховом сервере, в конце выход.
 Future<void> main() async {
   await app.main();
   SchedulerBinding.instance.addTimingsCallback(_frames.addAll);
@@ -118,42 +151,32 @@ Future<void> main() async {
   }
   _log('KV_STEP старт, ${ui.PlatformDispatcher.instance.views.first.display.refreshRate.toStringAsFixed(0)} Гц');
   try {
-    await _until(() => _path() == '/login' || _path().startsWith('/engineer') || _path().startsWith('/master') || _path().startsWith('/operator'));
-    if (_path().startsWith('/master') || _path().startsWith('/operator')) {
-      await ProviderScope.containerOf(kvRootNavigatorKey.currentContext!, listen: false).read(sessionProvider.notifier).logout();
-      kvRootNavigatorKey.currentContext!.go('/login');
-      await _until(() => _path() == '/login');
-      await Future<void>.delayed(const Duration(seconds: 1));
-    }
-    if (_path() == '/login') {
-      final List<EditableText> fields = _elements().map((Element e) => e.widget).whereType<EditableText>().toList();
-      fields[0].controller.text = 'engineer@kst.demo';
-      fields[1].controller.text = 'demo12345';
-      final KvButton login = _elements().map((Element e) => e.widget).whereType<KvButton>().firstWhere((KvButton b) => b.label == 'Войти');
-      await _measure('вход инженера', () async {
-        login.onPressed!();
-        await _until(() => _path().startsWith('/engineer'));
-        await Future<void>.delayed(const Duration(milliseconds: 1500));
-      });
-    }
-    _log('KV_STEP путь ${_path()}');
-    await _measure('объекты: покой 6 с (опрос сервера)', () => Future<void>.delayed(const Duration(seconds: 6)));
-    await _measure('объекты: прокрутка', _scroll);
-    await _measure('открытие карточки Н-101', () => _go('/engineer/objects/card/N-101', push: true));
-    await _measure('карточка: прокрутка', _scroll);
-    await _measure('карточка: покой 6 с', () => Future<void>.delayed(const Duration(seconds: 6)));
-    await _measure('вкладка история', () => _go('/engineer/history'));
-    await _measure('история: прокрутка', _scroll);
-    await _measure('вкладка ассистент', () => _go('/engineer/assistant'));
-    await _measure('вкладка профиль', () => _go('/engineer/profile'));
-    await _measure('вкладка объекты', () => _go('/engineer/objects'));
-    await _measure('живой сканер Н-101: 10 с', () async {
-      await _go('/engineer/scanner?unit=N-101', push: true);
-      await Future<void>.delayed(const Duration(milliseconds: 7500));
+    await _until(() => _path().isNotEmpty);
+    await _login('engineer@kst.demo', '/engineer');
+    await _screen('объекты инженера', '/engineer/objects', idle: 6);
+    await _screen('карточка Н-101', '/engineer/objects/card/N-101', push: true, idle: 6);
+    await _screen('графики Н-101', '/engineer/objects/card/N-101/charts', push: true, idle: 4);
+    await _screen('история Н-101', '/engineer/history/c-history/N-101');
+    await _measure('ассистент: ответ на подсказку', () async {
+      await _go('/engineer/assistant');
+      _elements().map((Element e) => e.widget).whereType<KvPressable>().firstWhere((KvPressable p) => p.semanticLabel == 'Ближайшие ТО').onTap!();
+      await Future<void>.delayed(const Duration(seconds: 3));
     });
-    await _measure('возврат к объектам', () => _go('/engineer/objects'));
-    await ProviderScope.containerOf(kvRootNavigatorKey.currentContext!, listen: false).read(sessionProvider.notifier).logout();
-    kvRootNavigatorKey.currentContext!.go('/login');
+    await _measure('живой сканер Н-101', () async {
+      await _go('/engineer/scanner?unit=N-101', push: true);
+      await Future<void>.delayed(const Duration(seconds: 6));
+    });
+    await _go('/engineer/objects');
+    await _login('master@kst.demo', '/master');
+    await _screen('смена мастера', '/master/shift', idle: 4);
+    await _screen('находки мастера', '/master/findings', idle: 4);
+    await _screen('план ТО', '/master/plan');
+    await _login('operator@kst.demo', '/operator');
+    await _screen('агрегаты оператора (опрос 5 с)', '/operator/objects', idle: 12);
+    await _screen('агрегат оператора Н-101', '/operator/objects/unit/N-101', push: true, idle: 6);
+    final ProviderContainer c = ProviderScope.containerOf(kvRootNavigatorKey.currentContext!, listen: false);
+    await c.read(sessionProvider.notifier).logout();
+    GoRouter.of(kvRootNavigatorKey.currentContext!).go('/login');
     await _until(() => _path() == '/login');
     _log('KV_STEP выход, путь ${_path()}');
     _log('KV_DONE');

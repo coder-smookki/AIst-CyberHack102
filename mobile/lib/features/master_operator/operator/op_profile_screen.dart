@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/kv_nav.dart';
+import '../../../app/routes/entry_routes.dart';
 import '../../../app/routes/master_operator_routes.dart';
 import '../../../core/kv.dart';
 import '../../../data/providers.dart';
@@ -28,6 +29,12 @@ class OpProfileScreen extends ConsumerWidget {
           MoProfileCard(name: me.name, title: me.title, email: me.email, role: me.roleLabel, shift: me.shift),
         KvList(
           children: [
+            KvRow(
+              icon: KvIcons.info,
+              title: 'Как пользоваться',
+              subtitle: 'Кнопки, экраны и порядок работы',
+              onTap: () => context.kvPush(EntryPaths.guide),
+            ),
             KvRow(
               icon: KvIcons.bell,
               title: 'Уведомления',
