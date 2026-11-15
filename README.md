@@ -5,8 +5,9 @@
 <h1 align="center">КСТ Визор</h1>
 
 <p align="center">
-  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest"><img alt="Релиз v0.1.1" src="https://img.shields.io/badge/%D1%80%D0%B5%D0%BB%D0%B8%D0%B7-v0.1.1-245DCC?style=for-the-badge"></a>
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest"><img alt="Последний релиз" src="https://img.shields.io/github/v/release/coder-smookki/AIst-CyberHack102?style=for-the-badge&label=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&color=245DCC"></a>
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/KST-Vizor.apk"><img alt="Скачать APK" src="https://img.shields.io/badge/%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
+  <a href="https://kct.lumnex.ru"><img alt="Демо-стенд открыт" src="https://img.shields.io/badge/%D0%B4%D0%B5%D0%BC%D0%BE--%D1%81%D1%82%D0%B5%D0%BD%D0%B4-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D1%82-00B8D9?style=for-the-badge"></a>
   <img alt="Работает в сети цеха" src="https://img.shields.io/badge/%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82-%D0%B2%20%D1%81%D0%B5%D1%82%D0%B8%20%D1%86%D0%B5%D1%85%D0%B0-121316?style=for-the-badge">
   <br>
   <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.44.7-02569B?style=flat-square&logo=flutter&logoColor=white">
@@ -15,27 +16,46 @@
   <img alt="iOS" src="https://img.shields.io/badge/iOS-16.4%2B-000000?style=flat-square&logo=apple&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.162-009688?style=flat-square&logo=fastapi&logoColor=white">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-16.4-000000?style=flat-square&logo=nextdotjs&logoColor=white">
   <img alt="ONNX Runtime" src="https://img.shields.io/badge/ONNX%20Runtime-1.32-005CED?style=flat-square&logo=onnx&logoColor=white">
   <a href="#запуск-в-docker"><img alt="Docker" src="https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
-  <img alt="Лицензии моделей" src="https://img.shields.io/badge/модели-MIT%20%7C%20Apache--2.0-92B6FF?style=flat-square">
+  <br>
+  <a href="#проверка-качества"><img alt="Тесты сервера" src="https://img.shields.io/badge/%D1%82%D0%B5%D1%81%D1%82%D1%8B%20%D1%81%D0%B5%D1%80%D0%B2%D0%B5%D1%80%D0%B0-552-2EA043?style=flat-square"></a>
+  <a href="#проверка-качества"><img alt="Тесты приложения" src="https://img.shields.io/badge/%D1%82%D0%B5%D1%81%D1%82%D1%8B%20%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F-3271-2EA043?style=flat-square"></a>
+  <a href="#проверка-качества"><img alt="ruff, black, mypy" src="https://img.shields.io/badge/ruff%20%C2%B7%20black%20%C2%B7%20mypy-%D0%B1%D0%B5%D0%B7%20%D0%B7%D0%B0%D0%BC%D0%B5%D1%87%D0%B0%D0%BD%D0%B8%D0%B9-2EA043?style=flat-square"></a>
+  <img alt="Лицензии моделей" src="https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D0%B5%D0%BB%D0%B8-MIT%20%7C%20Apache--2.0-92B6FF?style=flat-square">
 </p>
 
 <p align="center">
-  AR-помощник обходчика насосной станции: узнаёт агрегат по шильдику, показывает его карточку и параметры, в реальном времени находит узлы и внешние дефекты и записывает осмотр
+  AR-помощник обходчика оборудования: узнаёт агрегат по шильдику, показывает его карточку и параметры, в реальном времени находит узлы, внешние дефекты и тип оборудования, читает манометр и записывает осмотр. Решение принимает инженер. Всё работает в сети цеха без интернета
+</p>
+
+<p align="center">
+  <a href="https://kct.lumnex.ru"><b>Демо-стенд</b></a> ·
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/KST-Vizor.apk"><b>APK</b></a> ·
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Demo-Video.mp4"><b>Видео</b></a> ·
+  <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Presentation-Product.pdf"><b>Презентация</b></a> ·
+  <a href="https://kct.lumnex.ru/docs"><b>API</b></a>
 </p>
 
 Кейс компании КСТ ЭНЕРГО ИНЖИНИРИНГ, хакатон «Кибер 102», команда AIst.
 
 <p align="center">
-  <img src="assets/readme/02-objects.jpg" alt="Объекты смены" width="200">
-  <img src="assets/readme/03-card.jpg" alt="Карточка агрегата с параметрами" width="200">
-  <img src="assets/readme/04-scan.jpg" alt="Живое сканирование: коррозия на агрегате" width="200">
-  <img src="assets/readme/05-summary.jpg" alt="Итог осмотра и отчёт" width="200">
+  <img src="assets/readme/02-objects.jpg" alt="Объекты смены" width="190">
+  <img src="assets/readme/03-card.jpg" alt="Карточка агрегата с параметрами" width="190">
+  <img src="assets/readme/04-scan.jpg" alt="Живое сканирование: коррозия на агрегате" width="190">
+  <img src="assets/readme/07-type.jpg" alt="Тип оборудования: трансформатор" width="190">
 </p>
 
 <p align="center">
-  <img src="assets/readme/01-login.jpg" alt="Вход" width="160">
-  <img src="assets/readme/06-history.jpg" alt="История агрегата" width="160">
+  <img src="assets/readme/05-summary.jpg" alt="Итог осмотра и отчёт" width="190">
+  <img src="assets/readme/06-history.jpg" alt="История агрегата" width="190">
+  <img src="assets/readme/08-guide.jpg" alt="Раздел «Как пользоваться»" width="190">
+  <img src="assets/readme/01-login.jpg" alt="Вход" width="190">
+</p>
+
+<p align="center">
+  <img src="assets/readme/web-assistant.jpg" alt="Веб-панель: помощник показывает план и ждёт подтверждения" width="820">
 </p>
 
 ## Видео
