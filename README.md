@@ -7,7 +7,6 @@
 <p align="center">
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest"><img alt="Последний релиз" src="https://img.shields.io/github/v/release/coder-smookki/AIst-CyberHack102?style=for-the-badge&label=%D1%80%D0%B5%D0%BB%D0%B8%D0%B7&color=245DCC"></a>
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/KST-Vizor.apk"><img alt="Скачать APK" src="https://img.shields.io/badge/%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
-  <a href="https://kct.lumnex.ru"><img alt="Демо-стенд открыт" src="https://img.shields.io/badge/%D0%B4%D0%B5%D0%BC%D0%BE--%D1%81%D1%82%D0%B5%D0%BD%D0%B4-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D1%82-00B8D9?style=for-the-badge"></a>
   <img alt="Работает в сети цеха" src="https://img.shields.io/badge/%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B0%D0%B5%D1%82-%D0%B2%20%D1%81%D0%B5%D1%82%D0%B8%20%D1%86%D0%B5%D1%85%D0%B0-121316?style=for-the-badge">
   <br>
   <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.44.7-02569B?style=flat-square&logo=flutter&logoColor=white">
@@ -31,11 +30,10 @@
 </p>
 
 <p align="center">
-  <a href="https://kct.lumnex.ru"><b>Демо-стенд</b></a> ·
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/KST-Vizor.apk"><b>APK</b></a> ·
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Demo-Video.mp4"><b>Видео</b></a> ·
   <a href="https://github.com/coder-smookki/AIst-CyberHack102/releases/latest/download/AIst-Presentation-Product.pdf"><b>Презентация</b></a> ·
-  <a href="https://kct.lumnex.ru/docs"><b>API</b></a>
+  <a href="#запуск-в-docker"><b>Запуск в Docker</b></a>
 </p>
 
 Кейс компании КСТ ЭНЕРГО ИНЖИНИРИНГ, хакатон «Кибер 102», команда AIst.
@@ -82,7 +80,6 @@
 | Данные | [data/DATASETS.txt](data/DATASETS.txt): источники, лицензии, объёмы, проверка повторов |
 | Запуск | `docker compose up -d --build` в корне: [Запуск в Docker](#запуск-в-docker) |
 | Сборка приложения | [.github/workflows/mobile.yml](.github/workflows/mobile.yml) |
-| Демо-стенд | https://kct.lumnex.ru, открыт для всех: веб-панель `/web/`, пульт `/panel/`, описание API `/docs`; вход под демо-учётными записями ниже |
 
 ## Команда AIst
 
@@ -101,12 +98,12 @@
   <img src="assets/readme/bashsquad-winner.png" alt="Решение команды BashSquad на защите: первое место" width="300">
 </p>
 
-Сравнить решения можно самим: демо-стенд, видео, замеры точности на проверочных данных и весь код «КСТ Визор» открыты в этом репозитории.
+Сравнить решения можно самим: видео, замеры точности на проверочных данных и весь код «КСТ Визор» открыты в этом репозитории, сервер запускается одной командой в Docker.
 
 ## Быстрый старт
 
 1. Скачайте `KST-Vizor.apk` из [последнего релиза](https://github.com/coder-smookki/AIst-CyberHack102/releases/latest) и установите на Android 7.0 и новее (`arm64`)
-2. Приложение уже подключено к демо-стенду https://kct.lumnex.ru. Кнопка «Сервер» на экране входа задаёт адрес своего сервера цеха, без сервера приложение работает в «Демо-режиме» на встроенных данных
+2. Запустите сервер в Docker (раздел ниже) и на экране входа нажмите «Сервер»: адрес `http://<IP компьютера>:8765`. Без сервера приложение работает в «Демо-режиме» на встроенных данных
 3. Войдите под одной из демо-учётных записей
 4. iOS 16.4 и новее: приложение собирается из того же кода, см. [Сборка приложения](#сборка-приложения)
 
@@ -307,14 +304,6 @@ docker compose ps        # статус healthy - сервер готов
 
 Без Docker: `python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m server --port 8765`.
 
-## Демо-стенд
-
-Стенд работает на том же образе, что собирает `docker compose up -d --build`.
-
-- Перед сервером стоит Caddy: сжатие ответов, ограничение размера запроса, заголовки безопасности. Стенд открыт, вход - под демо-учётными записями
-- TLS завершается на входном nginx
-- Контейнер приложения работает не от root, с лимитами CPU и памяти, проверкой здоровья и ротацией журналов
-
 ## Сборка приложения
 
 Нужны Flutter 3.44.7, JDK 21, Android SDK 36 с NDK 28.2.13676358, для iOS - Xcode и macOS.
@@ -331,7 +320,7 @@ flutter build ios --release --no-codesign --dart-define=KST_APP_KEY=<ключ>
 - Веса языковой модели большие и в git не входят. Без них помощник отвечает поиском по справке. `python3 tool/fetch_llm.py list` показывает, какие уровни модели лежат в сборке
 - Телефоны и планшеты Android и iOS собираются из одного кода. На планшете содержимое держится в центральной колонке, во время съёмки осмотра экран остаётся в книжной ориентации
 - В приложении есть раздел «Как пользоваться»: что значит каждая рамка и кнопка, порядок осмотра, отдельная часть для каждой роли. Он открывается с экрана входа и из профиля
-- `KST_APP_KEY` нужен только если сервер закрыт паролем сайта. Для демо-стенда, локального сервера и «Демо-режима» его можно не задавать
+- `KST_APP_KEY` нужен только если сервер закрыт паролем сайта. Для локального сервера и «Демо-режима» его можно не задавать
 
 **CI.** [mobile.yml](.github/workflows/mobile.yml) собирает APK `arm64-v8a` на Ubuntu и IPA без подписи на macOS:
 
