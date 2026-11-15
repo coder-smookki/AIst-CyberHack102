@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/state/settings_store.dart';
 
 /// Адрес цехового сервера по умолчанию.
-const String kDefaultServerUrl = 'https://kct-vizor.lumnex.ru:4433';
+const String kDefaultServerUrl = 'https://kct.lumnex.ru';
 
 /// Подключение приложения: демонстрационный режим на данных в памяти или настоящий цеховой сервер.
 @immutable
@@ -15,7 +15,7 @@ class ApiConfig {
   /// Демонстрационный режим: все данные из встроенного демонстрационного сервера.
   final bool demo;
 
-  /// Адрес цехового сервера: «https://kct-vizor.lumnex.ru:4433».
+  /// Адрес цехового сервера: «https://kct.lumnex.ru».
   final String baseUrl;
 
   /// Копия с изменениями.
