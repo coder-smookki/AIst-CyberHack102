@@ -27,6 +27,7 @@ https://huggingface.co/facebook/dinov2-small) превращает вырезк�
 
 Тестовые наборы (holdout, holdout_screen, web) используются только в шаге report.
 """
+
 import argparse
 import json
 import os
@@ -67,6 +68,7 @@ def image_path(name: str, file: str) -> str:
 def detect(sets: list[str], weights: str = DETECTOR) -> None:
     """Прогоняет детектор по наборам и сохраняет записи снимков с рамками в формате cv/protocol.py."""
     from libreyolo import LibreYOLO
+
     model = LibreYOLO(weights)
     os.makedirs(OUT, exist_ok=True)
     for name in sets:
@@ -78,10 +80,16 @@ def detect(sets: list[str], weights: str = DETECTOR) -> None:
             records = protocol.labelled_records([model], os.path.join(ROOT, folder), split, protocol.DEFECT_NAMES)
         for record in records:
             record["labelled"] = None if record["labelled"] is None else sorted(record["labelled"])
-        json.dump({"weights": os.path.relpath(weights, ROOT), "floor": protocol.FLOOR, "records": records},
-                  open(cache_path(name, "boxes"), "w", encoding="utf-8"), ensure_ascii=False)
-        print(f"{name}: {len(records)} снимков, {sum(len(r['predicted']) for r in records)} рамок, "
-              f"{time.time() - started:.0f} с", flush=True)
+        json.dump(
+            {"weights": os.path.relpath(weights, ROOT), "floor": protocol.FLOOR, "records": records},
+            open(cache_path(name, "boxes"), "w", encoding="utf-8"),
+            ensure_ascii=False,
+        )
+        print(
+            f"{name}: {len(records)} снимков, {sum(len(r['predicted']) for r in records)} рамок, "
+            f"{time.time() - started:.0f} с",
+            flush=True,
+        )
 
 
 def load_records(name: str) -> list[dict]:
@@ -89,10 +97,15 @@ def load_records(name: str) -> list[dict]:
     data = json.load(open(cache_path(name, "boxes"), encoding="utf-8"))
     records = []
     for row in data["records"]:
-        records.append({"file": row["file"], "group": row["group"],
-                        "labelled": None if row["labelled"] is None else set(row["labelled"]),
-                        "truth": [(n, tuple(b)) for n, b in row["truth"]],
-                        "predicted": [(n, tuple(b), float(s)) for n, b, s in row["predicted"]]})
+        records.append(
+            {
+                "file": row["file"],
+                "group": row["group"],
+                "labelled": None if row["labelled"] is None else set(row["labelled"]),
+                "truth": [(n, tuple(b)) for n, b in row["truth"]],
+                "predicted": [(n, tuple(b), float(s)) for n, b, s in row["predicted"]],
+            }
+        )
     return records
 
 
@@ -137,8 +150,12 @@ def geometry(box: tuple, width: int, height: int) -> list[float]:
     """Возвращает признаки формы рамки: логарифм доли площади кадра, логарифм отношения сторон, центр."""
     x1, y1, x2, y2 = box
     w, h = max(x2 - x1, 1.0), max(y2 - y1, 1.0)
-    return [float(np.log(w * h / (width * height))), float(np.log(w / h)),
-            float((x1 + x2) / 2 / width), float((y1 + y2) / 2 / height)]
+    return [
+        float(np.log(w * h / (width * height))),
+        float(np.log(w / h)),
+        float((x1 + x2) / 2 / width),
+        float((y1 + y2) / 2 / height),
+    ]
 
 
 class Backbone:
@@ -148,6 +165,7 @@ class Backbone:
         """Загружает веса из кэша Hugging Face и переводит сеть в режим вывода."""
         import torch
         from transformers import AutoModel
+
         self.torch = torch
         self.device = device or ("mps" if torch.backends.mps.is_available() else "cpu")
         self.model = AutoModel.from_pretrained(BACKBONE).eval().to(self.device)
@@ -157,6 +175,7 @@ class Backbone:
     def prepare(self, crop: np.ndarray) -> np.ndarray:
         """Переводит вырезку BGR в нормированный массив 3 x CROP_SIZE x CROP_SIZE."""
         import cv2
+
         rgb = cv2.cvtColor(cv2.resize(crop, (CROP_SIZE, CROP_SIZE), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2RGB)
         return ((rgb.astype(np.float32) / 255.0 - self.mean) / self.std).transpose(2, 0, 1)
 
@@ -201,14 +220,26 @@ def features(sets: list[str], top_train: int = 20, batch: int = 64) -> None:
             for (cls, box, score), label, source, box_index in items:
                 left, top_, right, bottom = crop_window(box, width, height)
                 crops.append(frame[top_:bottom, left:right])
-                rows.append([image_index, box_index, protocol.DEFECT_NAMES.index(cls), score, int(label), source,
-                             *geometry(box, width, height)])
+                rows.append(
+                    [
+                        image_index,
+                        box_index,
+                        protocol.DEFECT_NAMES.index(cls),
+                        score,
+                        int(label),
+                        source,
+                        *geometry(box, width, height),
+                    ]
+                )
                 if len(crops) >= batch:
                     vectors.append(backbone(crops))
                     crops = []
         vectors.append(backbone(crops))
-        np.savez_compressed(cache_path(name, "features"), meta=np.array(rows, np.float32).reshape(-1, 10),
-                            features=np.concatenate(vectors).astype(np.float16))
+        np.savez_compressed(
+            cache_path(name, "features"),
+            meta=np.array(rows, np.float32).reshape(-1, 10),
+            features=np.concatenate(vectors).astype(np.float16),
+        )
         print(f"{name}: {len(rows)} вырезок, {time.time() - started:.0f} с", flush=True)
 
 
@@ -242,13 +273,15 @@ def train_classifier(x: np.ndarray, y: np.ndarray, kind: str, decay: float, epoc
     весом верных рамок; decay - L2 штраф весов (AdamW).
     """
     import torch
+
     torch.manual_seed(seed)
     tx, ty = torch.from_numpy(x), torch.from_numpy(y.astype(np.float32))
     if kind == "lr":
         net = torch.nn.Linear(x.shape[1], 1)
     else:
-        net = torch.nn.Sequential(torch.nn.Linear(x.shape[1], 256), torch.nn.ReLU(), torch.nn.Dropout(0.2),
-                                  torch.nn.Linear(256, 1))
+        net = torch.nn.Sequential(
+            torch.nn.Linear(x.shape[1], 256), torch.nn.ReLU(), torch.nn.Dropout(0.2), torch.nn.Linear(256, 1)
+        )
     weight = torch.tensor(float((1 - y).sum() / max(y.sum(), 1)))
     loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=weight)
     optimizer = torch.optim.AdamW(net.parameters(), lr=1e-3, weight_decay=decay)
@@ -277,6 +310,7 @@ def classifier_logit(params: dict, x: np.ndarray) -> np.ndarray:
 def fit_fusion(det: np.ndarray, verdict: np.ndarray, y: np.ndarray, steps: int = 500) -> np.ndarray:
     """Подбирает калибровку a * logit(уверенность детектора) + b * логит классификатора + c по меткам y."""
     import torch
+
     x = torch.from_numpy(np.stack([logit(det), verdict], 1).astype(np.float32))
     ty = torch.from_numpy(y.astype(np.float32))
     weights = torch.zeros(3, requires_grad=True)
@@ -370,8 +404,14 @@ def operating_point(records: list[dict], recall: float, found: float, grid: int 
     return best
 
 
-def veto_point(records: list[dict], meta: np.ndarray, prob: np.ndarray, base: dict,
-               det_levels: tuple = (0.08, 0.1, 0.12, 0.15), grid: int = 60) -> tuple | None:
+def veto_point(
+    records: list[dict],
+    meta: np.ndarray,
+    prob: np.ndarray,
+    base: dict,
+    det_levels: tuple = (0.08, 0.1, 0.12, 0.15),
+    grid: int = 60,
+) -> tuple | None:
     """Подбирает правило запрета: рамка остаётся, если уверенность детектора не ниже det_level и оценка
     классификатора не ниже verdict_level.
 
@@ -388,8 +428,11 @@ def veto_point(records: list[dict], meta: np.ndarray, prob: np.ndarray, base: di
         report = protocol.summarize(kept, protocol.DEFECT_CLASSES, det_levels)
         for det_level in det_levels:
             row = report[f"conf_{det_level}"]
-            if ((row["box_recall"] or 0) >= base["box_recall"] and (row["image_defect_found"] or 0) >= base["image_defect_found"]
-                    and (row["false_alarm_rate"] or 0) <= (base["false_alarm_rate"] or 0)):
+            if (
+                (row["box_recall"] or 0) >= base["box_recall"]
+                and (row["image_defect_found"] or 0) >= base["image_defect_found"]
+                and (row["false_alarm_rate"] or 0) <= (base["false_alarm_rate"] or 0)
+            ):
                 key = (row["box_precision"] or 0, -verdict_level)
                 if best is None or key > best[0]:
                     best = (key, det_level, verdict_level, short(report, det_level))
@@ -400,8 +443,12 @@ def short(report: dict, level: float) -> dict:
     """Выбирает главные показатели набора на пороге level."""
     row = report[f"conf_{level}"]
     keys = ("box_precision", "box_recall", "image_defect_found", "image_right_class_found", "false_alarm_rate")
-    return {"threshold": level, "map50": report["map50"], **{key: row[key] for key in keys},
-            "classes": {name: [v["tp"], v["fp"], v["fn"]] for name, v in row["classes"].items()}}
+    return {
+        "threshold": level,
+        "map50": report["map50"],
+        **{key: row[key] for key in keys},
+        "classes": {name: [v["tp"], v["fp"], v["fn"]] for name, v in row["classes"].items()},
+    }
 
 
 def pipeline_records(records: list[dict], meta: np.ndarray, verdict: np.ndarray, model: dict) -> tuple[list[dict], float]:
@@ -440,8 +487,10 @@ def fit(base_level: float = 0.15) -> dict:
     val_x = design(val_meta, val_vectors, mean, std)
     val_y = meta_presence(val_records, val_meta)
     base = short(protocol.summarize(gate_only(val_records), protocol.DEFECT_CLASSES, (base_level,)), base_level)
-    print(f"детектор один, проверочная, порог {base_level}: R {base['box_recall']}, найден {base['image_defect_found']}, "
-          f"ЛТ {base['false_alarm_rate']}, P {base['box_precision']}; обучение {len(y)} вырезок, на дефекте {int(y.sum())}")
+    print(
+        f"детектор один, проверочная, порог {base_level}: R {base['box_recall']}, найден {base['image_defect_found']}, "
+        f"ЛТ {base['false_alarm_rate']}, P {base['box_precision']}; обучение {len(y)} вырезок, на дефекте {int(y.sum())}"
+    )
     variants = []
     for kind, decay in (("lr", 1e-2), ("lr", 1e-1), ("mlp", 1e-2), ("mlp", 1e-1)):
         started = time.time()
@@ -453,28 +502,71 @@ def fit(base_level: float = 0.15) -> dict:
         fused = rescore(val_records, val_meta, fused_score(val_meta[:, 3], verdict, fusion))
         level = operating_point(fused, base["box_recall"], base["image_defect_found"])
         row = short(protocol.summarize(fused, protocol.DEFECT_CLASSES, (level,)), level) if level else None
-        variants.append({"kind": kind, "decay": decay, "rule": "fusion", "fusion": fusion.tolist(), "val": row,
-                         "val_auc_presence": auc, "params": params})
+        variants.append(
+            {
+                "kind": kind,
+                "decay": decay,
+                "rule": "fusion",
+                "fusion": fusion.tolist(),
+                "val": row,
+                "val_auc_presence": auc,
+                "params": params,
+            }
+        )
         veto = veto_point(val_records, val_meta, sigmoid(verdict), base)
-        variants.append({"kind": kind, "decay": decay, "rule": "veto", "fusion": fusion.tolist(),
-                         "verdict_level": None if veto is None else veto[1], "val": None if veto is None else veto[2],
-                         "val_auc_presence": auc, "params": params})
+        variants.append(
+            {
+                "kind": kind,
+                "decay": decay,
+                "rule": "veto",
+                "fusion": fusion.tolist(),
+                "verdict_level": None if veto is None else veto[1],
+                "val": None if veto is None else veto[2],
+                "val_auc_presence": auc,
+                "params": params,
+            }
+        )
         for item in variants[-2:]:
-            print(kind, decay, item["rule"], f"AUC {auc}", "проверочная:",
-                  {k: v for k, v in (item["val"] or {}).items() if k != "classes"},
-                  f"verdict_level {item.get('verdict_level')}", f"{time.time() - started:.0f} с", flush=True)
+            print(
+                kind,
+                decay,
+                item["rule"],
+                f"AUC {auc}",
+                "проверочная:",
+                {k: v for k, v in (item["val"] or {}).items() if k != "classes"},
+                f"verdict_level {item.get('verdict_level')}",
+                f"{time.time() - started:.0f} с",
+                flush=True,
+            )
     usable = [v for v in variants if v["val"] and (v["val"]["false_alarm_rate"] or 0) <= (base["false_alarm_rate"] or 0)]
-    best = max(usable or [v for v in variants if v["val"]],
-               key=lambda v: (v["val"]["box_precision"], -v["val"]["false_alarm_rate"]))
-    model = {"params": best["params"], "mean": mean, "std": std, "fusion": np.array(best["fusion"]),
-             "rule": best["rule"], "threshold": best["val"]["threshold"],
-             "verdict_level": best.get("verdict_level") or 0.0, "base_level": base_level}
+    best = max(
+        usable or [v for v in variants if v["val"]], key=lambda v: (v["val"]["box_precision"], -v["val"]["false_alarm_rate"])
+    )
+    model = {
+        "params": best["params"],
+        "mean": mean,
+        "std": std,
+        "fusion": np.array(best["fusion"]),
+        "rule": best["rule"],
+        "threshold": best["val"]["threshold"],
+        "verdict_level": best.get("verdict_level") or 0.0,
+        "base_level": base_level,
+    }
     save_model(model)
-    summary = {"base_val": base, "train_crops": len(y), "train_on_defect": int(y.sum()),
-               "train_ambiguous_dropped": int((~use).sum()),
-               "variants": [{k: v for k, v in item.items() if k != "params"} for item in variants],
-               "chosen": {"kind": best["kind"], "decay": best["decay"], "rule": best["rule"],
-                          "threshold": model["threshold"], "verdict_level": model["verdict_level"]}}
+    summary = {
+        "base_val": base,
+        "train_crops": len(y),
+        "train_on_defect": int(y.sum()),
+        "train_ambiguous_dropped": int((~use).sum()),
+        "variants": [{k: v for k, v in item.items() if k != "params"} for item in variants],
+        "chosen": {
+            "kind": best["kind"],
+            "decay": best["decay"],
+            "rule": best["rule"],
+            "threshold": model["threshold"],
+            "verdict_level": model["verdict_level"],
+        },
+    }
     json.dump(summary, open(os.path.join(OUT, "fit.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     return summary
 
@@ -485,6 +577,7 @@ def rank_auc(y: np.ndarray, score: np.ndarray) -> float | None:
     if not positive or not negative:
         return None
     from scipy.stats import rankdata
+
     ranks = rankdata(score)
     return round(float((ranks[y > 0].sum() - positive * (positive + 1) / 2) / (positive * negative)), 3)
 
@@ -492,9 +585,18 @@ def rank_auc(y: np.ndarray, score: np.ndarray) -> float | None:
 def save_model(model: dict) -> None:
     """Сохраняет классификатор, нормировку, правило, калибровку и пороги в runs/verifier/verifier.npz."""
     params = {f"p_{k}": v for k, v in model["params"].items() if k != "kind"}
-    np.savez(os.path.join(OUT, "verifier.npz"), kind=model["params"]["kind"], mean=model["mean"], std=model["std"],
-             fusion=model["fusion"], rule=model["rule"], threshold=model["threshold"],
-             verdict_level=model["verdict_level"], base_level=model["base_level"], **params)
+    np.savez(
+        os.path.join(OUT, "verifier.npz"),
+        kind=model["params"]["kind"],
+        mean=model["mean"],
+        std=model["std"],
+        fusion=model["fusion"],
+        rule=model["rule"],
+        threshold=model["threshold"],
+        verdict_level=model["verdict_level"],
+        base_level=model["base_level"],
+        **params,
+    )
 
 
 def load_model(path: str | None = None) -> dict:
@@ -502,43 +604,67 @@ def load_model(path: str | None = None) -> dict:
     data = np.load(path or os.path.join(OUT, "verifier.npz"))
     params = {"kind": str(data["kind"])}
     params.update({k[2:]: data[k] for k in data.files if k.startswith("p_")})
-    return {"params": params, "mean": data["mean"], "std": data["std"], "fusion": data["fusion"],
-            "rule": str(data["rule"]), "threshold": float(data["threshold"]),
-            "verdict_level": float(data["verdict_level"]), "base_level": float(data["base_level"])}
+    return {
+        "params": params,
+        "mean": data["mean"],
+        "std": data["std"],
+        "fusion": data["fusion"],
+        "rule": str(data["rule"]),
+        "threshold": float(data["threshold"]),
+        "verdict_level": float(data["verdict_level"]),
+        "base_level": float(data["base_level"]),
+    }
 
 
 def report(sets: list[str]) -> dict:
     """Считает по cv/protocol.py показатели детектора одного и связки на всех наборах и пишет отчёт."""
     model = load_model()
     base_level = model["base_level"]
-    out = {"name": "verifier", "detector": os.path.relpath(DETECTOR, ROOT), "backbone": BACKBONE,
-           "classifier": model["params"]["kind"], "rule": model["rule"], "gate": GATE, "iou": 0.5,
-           "date": time.strftime("%Y-%m-%d"),
-           "operating_point": {"detector_alone": base_level, "pipeline": model["threshold"],
-                               "verdict_level": model["verdict_level"] if model["rule"] == "veto" else None,
-                               "chosen_on": "val: наибольшая точность рамок при полноте рамок и доле найденных "
-                                            "дефектов не ниже и доле ложных тревог не выше, чем у детектора при 0.15"},
-           "sets": {}}
+    out = {
+        "name": "verifier",
+        "detector": os.path.relpath(DETECTOR, ROOT),
+        "backbone": BACKBONE,
+        "classifier": model["params"]["kind"],
+        "rule": model["rule"],
+        "gate": GATE,
+        "iou": 0.5,
+        "date": time.strftime("%Y-%m-%d"),
+        "operating_point": {
+            "detector_alone": base_level,
+            "pipeline": model["threshold"],
+            "verdict_level": model["verdict_level"] if model["rule"] == "veto" else None,
+            "chosen_on": "val: наибольшая точность рамок при полноте рамок и доле найденных "
+            "дефектов не ниже и доле ложных тревог не выше, чем у детектора при 0.15",
+        },
+        "sets": {},
+    }
     for name in sets:
         records, meta, verdict = score_set(name, model)
         alone = protocol.summarize(gate_only(records), protocol.DEFECT_CLASSES, (base_level, 0.25))
         rescored, level = pipeline_records(records, meta, verdict, model)
         both = protocol.summarize(rescored, protocol.DEFECT_CLASSES, (level,))
-        entry = {"note": protocol.SET_NOTES.get(name, ""), "detector": short(alone, base_level),
-                 "detector_0.25": short(alone, 0.25), "pipeline": short(both, level),
-                 "crops_per_image": round(float((meta[:, 5] == 0).sum()) / max(len(records), 1), 2)}
+        entry = {
+            "note": protocol.SET_NOTES.get(name, ""),
+            "detector": short(alone, base_level),
+            "detector_0.25": short(alone, 0.25),
+            "pipeline": short(both, level),
+            "crops_per_image": round(float((meta[:, 5] == 0).sum()) / max(len(records), 1), 2),
+        }
         detector_row, pipeline_row = entry["detector"], entry["pipeline"]
-        entry["recall_kept"] = all((pipeline_row[key] or 0) >= (detector_row[key] or 0)
-                                   for key in ("box_recall", "image_defect_found"))
+        entry["recall_kept"] = all(
+            (pipeline_row[key] or 0) >= (detector_row[key] or 0) for key in ("box_recall", "image_defect_found")
+        )
         if name == "web":
             entry["pipeline_groups"] = both[f"conf_{level}"]["groups"]
             entry["detector_groups"] = alone[f"conf_{base_level}"]["groups"]
         out["sets"][name] = entry
         for key in ("detector", "detector_0.25", "pipeline"):
             row = entry[key]
-            print(f"{name:15s} {key:14s} t={row['threshold']:.3f} mAP50 {row['map50']} P {row['box_precision']} "
-                  f"R {row['box_recall']} найден {row['image_defect_found']} класс {row['image_right_class_found']} "
-                  f"ЛТ {row['false_alarm_rate']}")
+            print(
+                f"{name:15s} {key:14s} t={row['threshold']:.3f} mAP50 {row['map50']} P {row['box_precision']} "
+                f"R {row['box_recall']} найден {row['image_defect_found']} класс {row['image_right_class_found']} "
+                f"ЛТ {row['false_alarm_rate']}"
+            )
     out["val_tradeoff"] = tradeoff(model)
     path = os.path.join(ROOT, "runs", "reports", "verifier.json")
     json.dump(out, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -546,8 +672,9 @@ def report(sets: list[str]) -> dict:
     return out
 
 
-def tradeoff(model: dict, det_levels: tuple = (0.08, 0.1, 0.12, 0.15),
-             shares: tuple = (0.0, 0.05, 0.1, 0.2, 0.3, 0.5)) -> list[dict]:
+def tradeoff(
+    model: dict, det_levels: tuple = (0.08, 0.1, 0.12, 0.15), shares: tuple = (0.0, 0.05, 0.1, 0.2, 0.3, 0.5)
+) -> list[dict]:
     """Сравнивает на проверочной части детектор один при разных порогах и запрет по классификатору.
 
     Для каждой доли shares убирается такая доля рамок-кандидатов с наименьшей оценкой классификатора
@@ -563,8 +690,14 @@ def tradeoff(model: dict, det_levels: tuple = (0.08, 0.1, 0.12, 0.15),
         report_ = protocol.summarize(rescore(records, meta, meta[:, 3], prob >= level), protocol.DEFECT_CLASSES, det_levels)
         for det_level in det_levels:
             row = report_[f"conf_{det_level}"]
-            rows.append({"removed_share": share, "verdict_level": round(level, 4), "det_level": det_level,
-                         **{key: row[key] for key in ("box_precision", "box_recall", "image_defect_found", "false_alarm_rate")}})
+            rows.append(
+                {
+                    "removed_share": share,
+                    "verdict_level": round(level, 4),
+                    "det_level": det_level,
+                    **{key: row[key] for key in ("box_precision", "box_recall", "image_defect_found", "false_alarm_rate")},
+                }
+            )
     return rows
 
 
@@ -572,6 +705,7 @@ def latency(runs: int = 50) -> dict:
     """Измеряет на процессоре задержку признаков одной вырезки: torch и ONNX Runtime (экспорт в runs/verifier)."""
     import onnxruntime
     import torch
+
     torch.set_num_threads(os.cpu_count() or 4)
     backbone = Backbone("cpu")
     crop = np.random.default_rng(0).integers(0, 255, (180, 240, 3), dtype=np.uint8)
@@ -587,9 +721,16 @@ def latency(runs: int = 50) -> dict:
         result[f"torch_cpu_batch{size}_ms"] = round(float(np.median(times)), 1)
     path = os.path.join(OUT, "dinov2s.onnx")
     if not os.path.exists(path):
-        torch.onnx.export(backbone.model, (torch.zeros(1, 3, CROP_SIZE, CROP_SIZE),), path,
-                          input_names=["pixel_values"], output_names=["tokens"],
-                          dynamic_axes={"pixel_values": {0: "n"}, "tokens": {0: "n"}}, opset_version=17, dynamo=False)
+        torch.onnx.export(
+            backbone.model,
+            (torch.zeros(1, 3, CROP_SIZE, CROP_SIZE),),
+            path,
+            input_names=["pixel_values"],
+            output_names=["tokens"],
+            dynamic_axes={"pixel_values": {0: "n"}, "tokens": {0: "n"}},
+            opset_version=17,
+            dynamo=False,
+        )
     session = onnxruntime.InferenceSession(path, providers=["CPUExecutionProvider"])
     for size in (1, 4):
         batch = np.stack([backbone.prepare(crop)] * size)

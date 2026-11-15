@@ -8,6 +8,7 @@
 сделанные через ассистента, помечены via = "assistant". Временный пароль возвращается один раз в result.secret
 и нигде не записывается. Каждое действие выполняется с правами самого сотрудника.
 """
+
 import hashlib
 import json
 import logging
@@ -34,36 +35,49 @@ from server.permissions import title as permission_title
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webadmin", tags=["webadmin"], dependencies=[Depends(current_user)])
 
-PAGE_PERMISSIONS = {"overview": ("system.manage",), "telemetry": ("system.manage",), "equipment": ("system.manage",),
-                    "models": ("system.manage",), "log": ("system.manage",), "users": ("users.manage",),
-                    "roles": ("users.manage", "roles.manage"), "seclog": ("security.log",),
-                    "policy": ("security.policy",), "summary": ("findings.view",), "profile": ()}
+PAGE_PERMISSIONS = {
+    "overview": ("system.manage",),
+    "telemetry": ("system.manage",),
+    "equipment": ("system.manage",),
+    "models": ("system.manage",),
+    "log": ("system.manage",),
+    "users": ("users.manage",),
+    "roles": ("users.manage", "roles.manage"),
+    "seclog": ("security.log",),
+    "policy": ("security.policy",),
+    "summary": ("findings.view",),
+    "profile": (),
+}
 PAGE_HELP = {
     "overview": "«Обзор системы» показывает состояние сервера: каналы /health, загрузку, базу, модели и отпечаток "
-                "набора моделей. Красный канал - сначала проверьте его.",
+    "набора моделей. Красный канал - сначала проверьте его.",
     "telemetry": "«Телеметрия и сценарии»: выберите агрегат, включите сценарий неисправности или верните нормальный "
-                 "режим, переставьте время стенда. Показания и диагноз пересчитываются сразу.",
+    "режим, переставьте время стенда. Показания и диагноз пересчитываются сразу.",
     "equipment": "«Оборудование»: список агрегатов с режимом, наработкой и незакрытыми замечаниями; карточка "
-                 "открывается по строке.",
+    "открывается по строке.",
     "models": "«Распознавание»: файлы моделей, лицензии, пороги, классы, отпечаток набора и замер времени на кадр.",
     "log": "«Журнал и резерв»: события сервера (осмотры, находки, звук) и резервные копии базы - кнопка создаёт копию "
-           "без остановки сервера.",
+    "без остановки сервера.",
     "users": "«Пользователи»: заведите учётную запись (временный пароль показывается один раз), смените роль, "
-             "заблокируйте с причиной, сбросьте пароль или закройте сеансы. Удалять учётные записи нельзя - только "
-             "блокировать.",
+    "заблокируйте с причиной, сбросьте пароль или закройте сеансы. Удалять учётные записи нельзя - только "
+    "блокировать.",
     "roles": "«Роли и права»: системные роли и свои роли с набором прав. Изменение прав действует сразу. Нельзя "
-             "оставить систему без активного сотрудника с управлением учётными записями и ролями.",
+    "оставить систему без активного сотрудника с управлением учётными записями и ролями.",
     "seclog": "«Журнал безопасности»: входы, неудачные попытки, действия с учётными записями, ролями и политикой. "
-              "Отбор по виду события, сотруднику и дате. Действия ассистента помечены «через ассистента».",
+    "Отбор по виду события, сотруднику и дате. Действия ассистента помечены «через ассистента».",
     "policy": "«Политика»: длина и состав пароля, число неудачных попыток до блокировки входа и её длительность, срок "
-              "сеанса, вход по биометрии. Новые значения действуют с ближайшего входа.",
+    "сеанса, вход по биометрии. Новые значения действуют с ближайшего входа.",
     "summary": "«Сводка смены»: текущий осмотр с полнотой обхода, замечания и решения по ним, записи звука, телеметрия "
-               "и уведомления о заданиях.",
+    "и уведомления о заданиях.",
     "profile": "«Профиль»: ваша учётная запись, роль и права, смена собственного пароля.",
 }
 EXAMPLES = {
-    "users.manage": ["Создай пользователя Ильина Кирилла", "Сбрось пароль Смирнову", "Кто заблокирован?",
-                     "У кого временные пароли?"],
+    "users.manage": [
+        "Создай пользователя Ильина Кирилла",
+        "Сбрось пароль Смирнову",
+        "Кто заблокирован?",
+        "У кого временные пароли?",
+    ],
     "security.log": ["Покажи неудачные входы за сегодня"],
     "security.policy": ["Какая политика паролей?", "Поставь минимальную длину пароля 12"],
     "system.manage": ["Как сервер?", "Сделай резервную копию базы", "Покажи модели"],
@@ -73,8 +87,13 @@ EXAMPLES = {
 }
 VIA = "assistant"
 MODES = {"running": "в работе", "stopped": "остановлен"}
-CHANNEL_TITLES = {"database": "База данных", "models": "Модель", "ocr": "Распознавание текста",
-                  "telemetry": "Телеметрия", "sound": "Анализ звука"}
+CHANNEL_TITLES = {
+    "database": "База данных",
+    "models": "Модель",
+    "ocr": "Распознавание текста",
+    "telemetry": "Телеметрия",
+    "sound": "Анализ звука",
+}
 MAX_ROWS = 15
 
 
@@ -172,8 +191,7 @@ def ip(request: Request) -> str:
 
 def audit(ctx: Ctx, action: str, details: dict) -> None:
     """Пишет в журнал безопасности действие ассистента, у которого нет собственной записи журнала."""
-    security.record(ctx.session, "assistant_action", actor=ctx.actor, ip=ip(ctx.request),
-                    details={"action": action, **details})
+    security.record(ctx.session, "assistant_action", actor=ctx.actor, ip=ip(ctx.request), details={"action": action, **details})
     ctx.session.commit()
 
 
@@ -212,8 +230,10 @@ def find_users(ctx: Ctx, only: Callable[[User], bool] | None = None) -> list[Use
         best = max((value for value, _ in scored), default=0)
         if best:
             return [user for value, user in scored if value == best]
-    raise Ask(f"Не нашёл сотрудника «{' '.join(cmd.name_words(ctx.text))}». Укажите фамилию, полное имя или почту.",
-              ["Покажи пользователей"])
+    raise Ask(
+        f"Не нашёл сотрудника «{' '.join(cmd.name_words(ctx.text))}». Укажите фамилию, полное имя или почту.",
+        ["Покажи пользователей"],
+    )
 
 
 def one_user(ctx: Ctx, phrase: str, only: Callable[[User], bool] | None = None) -> User:
@@ -224,8 +244,10 @@ def one_user(ctx: Ctx, phrase: str, only: Callable[[User], bool] | None = None) 
     if not found:
         raise Ask(f"Кого именно? Назовите сотрудника, например: «{phrase} Смирнову».", ["Покажи пользователей"])
     names = "; ".join(f"{user.name} ({user.email})" for user in found[:6])
-    raise Ask(f"Подходят несколько сотрудников: {names}. Кого именно?",
-              [f"{ctx.text.split(':')[0].strip()} {user.email}" for user in found[:4]])
+    raise Ask(
+        f"Подходят несколько сотрудников: {names}. Кого именно?",
+        [f"{ctx.text.split(':')[0].strip()} {user.email}" for user in found[:4]],
+    )
 
 
 def find_unit(ctx: Ctx, telemetry_only: bool = False) -> Equipment:
@@ -238,13 +260,14 @@ def find_unit(ctx: Ctx, telemetry_only: bool = False) -> Equipment:
     found = [item for item in items if id_keys(item.id) & keys or id_keys(item.name.split()[-1]) & keys]
     if found:
         if telemetry_only and not found[0].data.get("telemetry"):
-            raise Ask(f"У агрегата {found[0].name} нет телеметрии. Сценарии есть у: "
-                      f"{', '.join(item.name for item in pool)}.")
+            raise Ask(f"У агрегата {found[0].name} нет телеметрии. Сценарии есть у: " f"{', '.join(item.name for item in pool)}.")
         return found[0]
     if telemetry_only and len(pool) == 1:
         return pool[0]
-    raise Ask("Какой агрегат? Есть: " + ", ".join(f"{item.name}" for item in pool) + ".",
-              [f"{ctx.text} {pool[0].name.split()[-1]}"] if pool else [])
+    raise Ask(
+        "Какой агрегат? Есть: " + ", ".join(f"{item.name}" for item in pool) + ".",
+        [f"{ctx.text} {pool[0].name.split()[-1]}"] if pool else [],
+    )
 
 
 def player_of(item: Equipment):
@@ -263,7 +286,6 @@ def call(executor: Callable, *args):
         raise Ask(f"Не выполнено: {error.detail}") from None
 
 
-
 def plan_create_user(ctx: Ctx) -> Draft:
     """Новая учётная запись: имя в именительном падеже, роль (по умолчанию инженер), почта."""
     roles = roles_of(ctx.session)
@@ -275,27 +297,36 @@ def plan_create_user(ctx: Ctx) -> Draft:
     if len(variants) != 1:
         given = " ".join(words)
         if variants:
-            raise Ask(f"Как правильно записать имя: {' или '.join('«' + item + '»' for item in variants)}?",
-                      [f"Создай пользователя {item}" for item in variants])
-        raise Ask(f"Не уверен, как записать «{given}» в именительном падеже. Напишите так: «Создай пользователя "
-                  f"Фамилия Имя», например «Создай пользователя Ильин Кирилл».", [f"Создай пользователя {given}"])
+            raise Ask(
+                f"Как правильно записать имя: {' или '.join('«' + item + '»' for item in variants)}?",
+                [f"Создай пользователя {item}" for item in variants],
+            )
+        raise Ask(
+            f"Не уверен, как записать «{given}» в именительном падеже. Напишите так: «Создай пользователя "
+            f"Фамилия Имя», например «Создай пользователя Ильин Кирилл».",
+            [f"Создай пользователя {given}"],
+        )
     name = variants[0]
     domain = ctx.actor.email.split("@")[-1] or "kst.demo"
     given_mail = cmd.emails(ctx.text)
     email = given_mail[0] if given_mail else cmd.email_from_name(name, domain)
     if ctx.session.scalar(select(User.id).where(User.email == email)) is not None:
-        raise Ask(f"Учётная запись с почтой {email} уже есть. Укажите другую почту в команде.",
-                  [f"Создай пользователя {name} почта {email.split('@')[0]}2@{domain}"])
+        raise Ask(
+            f"Учётная запись с почтой {email} уже есть. Укажите другую почту в команде.",
+            [f"Создай пользователя {name} почта {email.split('@')[0]}2@{domain}"],
+        )
     title = role_title(ctx.session, role)
     note = "Пароль придумаю сам: временный, по политике безопасности; сотрудник сменит его при первом входе."
-    if cmd.has(ctx.tokens, "парол") and not cmd.has(ctx.tokens, "безопасн", "надежн", "сложн", "придума", "сгенер",
-                                                   "случайн", "временн"):
+    if cmd.has(ctx.tokens, "парол") and not cmd.has(
+        ctx.tokens, "безопасн", "надежн", "сложн", "придума", "сгенер", "случайн", "временн"
+    ):
         note = "Свой пароль через ассистента не задаётся - выдам временный по политике; при входе его нужно сменить."
-    return Draft(f"Создать учётную запись «{name}» с ролью «{title}»? Почта {email} - чтобы указать другую, "
-                 f"добавьте её в команду. {note}",
-                 params={"name": name, "email": email, "role": role},
-                 details=[["Сотрудник", name], ["Почта", email], ["Роль", title],
-                          ["Пароль", "временный, будет показан один раз"]])
+    return Draft(
+        f"Создать учётную запись «{name}» с ролью «{title}»? Почта {email} - чтобы указать другую, "
+        f"добавьте её в команду. {note}",
+        params={"name": name, "email": email, "role": role},
+        details=[["Сотрудник", name], ["Почта", email], ["Роль", title], ["Пароль", "временный, будет показан один раз"]],
+    )
 
 
 def run_create_user(ctx: Ctx, params: dict) -> Draft:
@@ -303,12 +334,21 @@ def run_create_user(ctx: Ctx, params: dict) -> Draft:
     body = admin.UserCreateBody(email=params["email"], name=params["name"], role=params["role"])
     created = call(admin.create_user, body, ctx.request, ctx.actor, ctx.session)
     user = created["user"]
-    return Draft(f"Учётная запись «{user['name']}» создана. Передайте сотруднику временный пароль - он показан один "
-                 f"раз; при первом входе пароль нужно сменить.",
-                 result={"title": "Учётная запись создана", "secret": created["temporary_password"],
-                         "rows": [["Сотрудник", user["name"]], ["Почта", user["email"]], ["Роль", user["role_title"]],
-                                  ["Пароль", "временный, сменить при первом входе"]]},
-                 links=[link("users")])
+    return Draft(
+        f"Учётная запись «{user['name']}» создана. Передайте сотруднику временный пароль - он показан один "
+        f"раз; при первом входе пароль нужно сменить.",
+        result={
+            "title": "Учётная запись создана",
+            "secret": created["temporary_password"],
+            "rows": [
+                ["Сотрудник", user["name"]],
+                ["Почта", user["email"]],
+                ["Роль", user["role_title"]],
+                ["Пароль", "временный, сменить при первом входе"],
+            ],
+        },
+        links=[link("users")],
+    )
 
 
 def plan_user_action(ctx: Ctx, action: str) -> Draft:
@@ -324,9 +364,10 @@ def plan_user_action(ctx: Ctx, action: str) -> Draft:
             raise Ask(f"{user.name} уже заблокирован(а).", [f"Разблокируй {user.email}"])
         reason = cmd.reason_of(ctx.text)
         if not reason:
-            raise Ask(f"Укажите причину блокировки {user.name}.",
-                      [f"Заблокируй {user.email}, причина: увольнение",
-                       f"Заблокируй {user.email}, причина: утеря телефона"])
+            raise Ask(
+                f"Укажите причину блокировки {user.name}.",
+                [f"Заблокируй {user.email}, причина: увольнение", f"Заблокируй {user.email}, причина: утеря телефона"],
+            )
         params["reason"] = reason
         details.append(["Причина", reason])
         reply = f"Заблокировать учётную запись {user.name}? Все сеансы сотрудника закроются сразу."
@@ -335,8 +376,9 @@ def plan_user_action(ctx: Ctx, action: str) -> Draft:
             raise Ask(f"{user.name} не заблокирован(а) - разблокировать нечего.")
         reply = f"Разблокировать учётную запись {user.name}?"
     elif action == "reset_password":
-        reply = (f"Выдать новый временный пароль сотруднику {user.name}? Все его сеансы закроются, при входе пароль "
-                 f"нужно сменить.")
+        reply = (
+            f"Выдать новый временный пароль сотруднику {user.name}? Все его сеансы закроются, при входе пароль " f"нужно сменить."
+        )
         details.append(["Новый пароль", "временный, будет показан один раз"])
     elif action == "close_sessions":
         reply = f"Закрыть все сеансы сотрудника {user.name}? Ему придётся войти заново."
@@ -344,8 +386,10 @@ def plan_user_action(ctx: Ctx, action: str) -> Draft:
         roles = roles_of(ctx.session)
         code = cmd.role_of(ctx.tokens, [(item.code, item.title) for item in roles])
         if code is None:
-            raise Ask("Какую роль назначить? Есть роли: " + ", ".join(f"«{item.title}»" for item in roles) + ".",
-                      [f"Смени роль {user.email} на {item.title.lower()}" for item in roles[:4]])
+            raise Ask(
+                "Какую роль назначить? Есть роли: " + ", ".join(f"«{item.title}»" for item in roles) + ".",
+                [f"Смени роль {user.email} на {item.title.lower()}" for item in roles[:4]],
+            )
         if code == user.role:
             raise Ask(f"У сотрудника {user.name} уже роль «{role_title(ctx.session, code)}».")
         params["role"] = code
@@ -359,8 +403,14 @@ def run_user_action(ctx: Ctx, params: dict, action: str) -> Draft:
     user_id = params["user_id"]
     secret = None
     if action == "block_user":
-        view = call(webadmin_api.block_with_reason, user_id, webadmin_api.BlockBody(reason=params["reason"]),
-                    ctx.request, ctx.actor, ctx.session)
+        view = call(
+            webadmin_api.block_with_reason,
+            user_id,
+            webadmin_api.BlockBody(reason=params["reason"]),
+            ctx.request,
+            ctx.actor,
+            ctx.session,
+        )
         text = f"{view['name']} заблокирован(а), сеансы закрыты."
     elif action == "unblock_user":
         view = call(admin.unblock_user, user_id, ctx.request, ctx.actor, ctx.session)
@@ -374,11 +424,14 @@ def run_user_action(ctx: Ctx, params: dict, action: str) -> Draft:
         view = admin.get_user(user_id, ctx.session)
         text = f"Закрыто сеансов {view['name']}: {answer['revoked']}."
     else:
-        view = call(admin.change_role, user_id, admin.RoleAssignBody(role=params["role"]), ctx.request, ctx.actor,
-                    ctx.session)
+        view = call(admin.change_role, user_id, admin.RoleAssignBody(role=params["role"]), ctx.request, ctx.actor, ctx.session)
         text = f"Роль {view['name']} изменена на «{view['role_title']}»."
-    rows = [["Сотрудник", view["name"]], ["Почта", view["email"]], ["Роль", view["role_title"]],
-            ["Состояние", view["status_title"]]]
+    rows = [
+        ["Сотрудник", view["name"]],
+        ["Почта", view["email"]],
+        ["Роль", view["role_title"]],
+        ["Состояние", view["status_title"]],
+    ]
     return Draft(text, result={"title": ACTIONS[action].title, "rows": rows, "secret": secret}, links=[link("users")])
 
 
@@ -390,13 +443,20 @@ def answer_user_list(ctx: Ctx, action: str) -> Draft:
         users = [user for user in users if user["must_change_password"]]
     title = "Заблокированные учётные записи" if blocked else "Учётные записи с временным паролем"
     if not users:
-        return Draft("Заблокированных учётных записей нет." if blocked else "Временных паролей ни у кого нет.",
-                     done=True, links=[link("users")])
+        return Draft(
+            "Заблокированных учётных записей нет." if blocked else "Временных паролей ни у кого нет.",
+            done=True,
+            links=[link("users")],
+        )
     rows = [[user["name"], f"{user['email']} · {user['role_title']}"] for user in users[:MAX_ROWS]]
     lines = "\n".join(f"• {name} - {info}" for name, info in rows)
-    return Draft(f"{title}: {len(users)}.\n{lines}", done=True, result={"title": title, "rows": rows},
-                 links=[link("users")],
-                 suggestions=[f"{'Разблокируй' if blocked else 'Сбрось пароль'} {users[0]['email']}"])
+    return Draft(
+        f"{title}: {len(users)}.\n{lines}",
+        done=True,
+        result={"title": title, "rows": rows},
+        links=[link("users")],
+        suggestions=[f"{'Разблокируй' if blocked else 'Сбрось пароль'} {users[0]['email']}"],
+    )
 
 
 def answer_security_events(ctx: Ctx) -> Draft:
@@ -429,8 +489,12 @@ def answer_security_events(ctx: Ctx) -> Draft:
         mark = " · через ассистента" if via else ""
         table.append([row["at"].replace("T", " ")[:16], f"{row['title']}{' · ' + who if who else ''}{mark}"])
     lines = "\n".join(f"• {at} - {what}" for at, what in table)
-    return Draft(f"Последние события{' (' + scope + ')' if scope else ''}:\n{lines}", done=True,
-                 result={"title": "Журнал безопасности", "rows": table}, links=[link("seclog")])
+    return Draft(
+        f"Последние события{' (' + scope + ')' if scope else ''}:\n{lines}",
+        done=True,
+        result={"title": "Журнал безопасности", "rows": table},
+        links=[link("seclog")],
+    )
 
 
 def policy_value(field_name: str, value) -> str:
@@ -447,19 +511,30 @@ def answer_policy(ctx: Ctx) -> Draft:
     fields = [wanted] if wanted else list(cmd.POLICY_FIELDS)
     rows = [[cmd.POLICY_FIELDS[name], policy_value(name, view[name])] for name in fields]
     if wanted:
-        return Draft(f"{rows[0][0]}: {rows[0][1]}.", done=True, result={"title": "Политика безопасности", "rows": rows},
-                     links=[link("policy")])
+        return Draft(
+            f"{rows[0][0]}: {rows[0][1]}.",
+            done=True,
+            result={"title": "Политика безопасности", "rows": rows},
+            links=[link("policy")],
+        )
     lines = "\n".join(f"• {label}: {value}" for label, value in rows)
-    return Draft(f"Политика безопасности:\n{lines}", done=True, result={"title": "Политика безопасности", "rows": rows},
-                 links=[link("policy")], suggestions=["Поставь минимальную длину пароля 12"])
+    return Draft(
+        f"Политика безопасности:\n{lines}",
+        done=True,
+        result={"title": "Политика безопасности", "rows": rows},
+        links=[link("policy")],
+        suggestions=["Поставь минимальную длину пароля 12"],
+    )
 
 
 def plan_policy(ctx: Ctx) -> Draft:
     """Изменение одного значения политики безопасности с проверкой допустимых границ."""
     name = cmd.policy_field(ctx.tokens)
     if name is None:
-        raise Ask("Какое значение политики изменить? " + "; ".join(cmd.POLICY_FIELDS.values()) + ".",
-                  ["Поставь минимальную длину пароля 12", "Запрети вход по биометрии"])
+        raise Ask(
+            "Какое значение политики изменить? " + "; ".join(cmd.POLICY_FIELDS.values()) + ".",
+            ["Поставь минимальную длину пароля 12", "Запрети вход по биометрии"],
+        )
     value: Any
     if name in ("require_letters_digits", "biometrics_allowed"):
         value = cmd.switch_value(ctx.tokens)
@@ -472,27 +547,36 @@ def plan_policy(ctx: Ctx) -> Draft:
     try:
         admin.PolicyBody(**{name: value})
     except ValidationError:
-        bounds = {"min_password_length": "от 6 до 128", "lockout_attempts": "от 3 до 100",
-                  "lockout_minutes": "от 1 до 1440", "session_hours": "от 1 до 8760"}.get(name, "")
+        bounds = {
+            "min_password_length": "от 6 до 128",
+            "lockout_attempts": "от 3 до 100",
+            "lockout_minutes": "от 1 до 1440",
+            "session_hours": "от 1 до 8760",
+        }.get(name, "")
         raise Ask(f"Значение {value} не подходит для «{cmd.POLICY_FIELDS[name]}»: допустимо {bounds}.") from None
     current = admin.get_policy(ctx.session)[name]
     if current == value:
         raise Ask(f"«{cmd.POLICY_FIELDS[name]}» уже {policy_value(name, value)}.")
-    return Draft(f"Изменить «{cmd.POLICY_FIELDS[name]}» с {policy_value(name, current)} на "
-                 f"{policy_value(name, value)}? Действует с ближайшего входа.", params={"field": name, "value": value},
-                 details=[["Параметр", cmd.POLICY_FIELDS[name]], ["Было", policy_value(name, current)],
-                          ["Станет", policy_value(name, value)]])
+    return Draft(
+        f"Изменить «{cmd.POLICY_FIELDS[name]}» с {policy_value(name, current)} на "
+        f"{policy_value(name, value)}? Действует с ближайшего входа.",
+        params={"field": name, "value": value},
+        details=[
+            ["Параметр", cmd.POLICY_FIELDS[name]],
+            ["Было", policy_value(name, current)],
+            ["Станет", policy_value(name, value)],
+        ],
+    )
 
 
 def run_policy(ctx: Ctx, params: dict) -> Draft:
     """Меняет политику функцией маршрута PATCH /admin/policy."""
-    view = call(admin.update_policy, admin.PolicyBody(**{params["field"]: params["value"]}), ctx.request, ctx.actor,
-                ctx.session)
+    view = call(admin.update_policy, admin.PolicyBody(**{params["field"]: params["value"]}), ctx.request, ctx.actor, ctx.session)
     label = cmd.POLICY_FIELDS[params["field"]]
     value = policy_value(params["field"], view[params["field"]])
-    return Draft(f"Готово: «{label}» - {value}.", result={"title": "Политика изменена", "rows": [[label, value]]},
-                 links=[link("policy")])
-
+    return Draft(
+        f"Готово: «{label}» - {value}.", result={"title": "Политика изменена", "rows": [[label, value]]}, links=[link("policy")]
+    )
 
 
 def plan_scenario(ctx: Ctx) -> Draft:
@@ -503,12 +587,17 @@ def plan_scenario(ctx: Ctx) -> Draft:
     wanted = {stem(word) for word in ctx.tokens if len(word) > 2}
     named = any(cmd.has(ctx.tokens, word[:5]) for option in options for word in cmd.words(option["title"]) if len(word) > 4)
     normal = cmd.has(ctx.tokens, "нормальн", "норм") or (
-        cmd.has(ctx.tokens, "сброс", "верн", "убер", "выключ", "отключ") and not named)
+        cmd.has(ctx.tokens, "сброс", "верн", "убер", "выключ", "отключ") and not named
+    )
 
     def score(option: dict) -> int:
         """Сколько слов названия сценария есть в команде."""
-        return sum(1 for word in cmd.words(option["title"]) if len(word) > 3 and any(
-            similar(stem(word), other) or (len(other) >= 5 and distance(stem(word), other) <= 1) for other in wanted))
+        return sum(
+            1
+            for word in cmd.words(option["title"])
+            if len(word) > 3
+            and any(similar(stem(word), other) or (len(other) >= 5 and distance(stem(word), other) <= 1) for other in wanted)
+        )
 
     if normal:
         chosen = [option for option in options if option["id"] == "normal"]
@@ -520,14 +609,20 @@ def plan_scenario(ctx: Ctx) -> Draft:
     if len(chosen) != 1:
         titles = ", ".join(f"«{option['title']}»" for option in (chosen or options))
         lead = "Какой именно сценарий? Подходят: " if chosen else f"Сценарии {item.name}: "
-        return Draft(lead + titles + ".", done=not chosen, links=[link("telemetry")],
-                     suggestions=[f"Включи {option['title'].lower()} на {unit}" for option in (chosen or options)[:4]])
+        return Draft(
+            lead + titles + ".",
+            done=not chosen,
+            links=[link("telemetry")],
+            suggestions=[f"Включи {option['title'].lower()} на {unit}" for option in (chosen or options)[:4]],
+        )
     option = chosen[0]
     rules = ", ".join(option.get("expected_rules") or []) or "-"
-    return Draft(f"Включить на {item.name} сценарий «{option['title']}»? Лента встанет на час наибольшего отклонения, "
-                 f"показания и диагноз пересчитаются.",
-                 params={"equipment_id": item.id, "scenario": option["id"]},
-                 details=[["Агрегат", item.name], ["Сценарий", option["title"]], ["Ожидаемые правила", rules]])
+    return Draft(
+        f"Включить на {item.name} сценарий «{option['title']}»? Лента встанет на час наибольшего отклонения, "
+        f"показания и диагноз пересчитаются.",
+        params={"equipment_id": item.id, "scenario": option["id"]},
+        details=[["Агрегат", item.name], ["Сценарий", option["title"]], ["Ожидаемые правила", rules]],
+    )
 
 
 def run_scenario(ctx: Ctx, params: dict) -> Draft:
@@ -535,11 +630,18 @@ def run_scenario(ctx: Ctx, params: dict) -> Draft:
     answer = call(telemetry_api.select_scenario, params["equipment_id"], params["scenario"], ctx.session)
     audit(ctx, "scenario_switch", {"equipment_id": params["equipment_id"], "scenario": params["scenario"]})
     scenario = answer["scenario"]
-    return Draft(f"Сценарий «{scenario['title']}» включён на {params['equipment_id']}.",
-                 result={"title": "Сценарий включён", "rows": [["Агрегат", params["equipment_id"]],
-                                                               ["Сценарий", scenario["title"]],
-                                                               ["Время ленты", answer["at"].replace("T", " ")[:16]]]},
-                 links=[link("telemetry")])
+    return Draft(
+        f"Сценарий «{scenario['title']}» включён на {params['equipment_id']}.",
+        result={
+            "title": "Сценарий включён",
+            "rows": [
+                ["Агрегат", params["equipment_id"]],
+                ["Сценарий", scenario["title"]],
+                ["Время ленты", answer["at"].replace("T", " ")[:16]],
+            ],
+        },
+        links=[link("telemetry")],
+    )
 
 
 def plan_time(ctx: Ctx) -> Draft:
@@ -549,13 +651,18 @@ def plan_time(ctx: Ctx) -> Draft:
     first, last = player.bounds()
     target = cmd.target_time(ctx.text, player.cursor, first, last)
     if target is None:
-        raise Ask(f"На какое время поставить ленту {item.name}? Сейчас {stamp(player.cursor)}, запись с {stamp(first)} "
-                  f"по {stamp(last)}.", ["Перемотай время стенда на 3 часа вперёд", "Перемотай время стенда в начало"])
+        raise Ask(
+            f"На какое время поставить ленту {item.name}? Сейчас {stamp(player.cursor)}, запись с {stamp(first)} "
+            f"по {stamp(last)}.",
+            ["Перемотай время стенда на 3 часа вперёд", "Перемотай время стенда в начало"],
+        )
     if not first <= target <= last:
         raise Ask(f"Время {stamp(target)} вне записи: доступно с {stamp(first)} по {stamp(last)}.")
-    return Draft(f"Переставить время стенда {item.name} с {stamp(player.cursor)} на {stamp(target)}?",
-                 params={"equipment_id": item.id, "at": target.isoformat(timespec="minutes")},
-                 details=[["Агрегат", item.name], ["Сейчас", stamp(player.cursor)], ["Станет", stamp(target)]])
+    return Draft(
+        f"Переставить время стенда {item.name} с {stamp(player.cursor)} на {stamp(target)}?",
+        params={"equipment_id": item.id, "at": target.isoformat(timespec="minutes")},
+        details=[["Агрегат", item.name], ["Сейчас", stamp(player.cursor)], ["Станет", stamp(target)]],
+    )
 
 
 def run_time(ctx: Ctx, params: dict) -> Draft:
@@ -563,16 +670,23 @@ def run_time(ctx: Ctx, params: dict) -> Draft:
     body = telemetry_api.CursorBody(at=params["at"])
     answer = call(telemetry_api.set_cursor, params["equipment_id"], body, ctx.session)
     audit(ctx, "move_time", {"equipment_id": params["equipment_id"], "at": answer["at"]})
-    return Draft(f"Время стенда {params['equipment_id']}: {answer['at'].replace('T', ' ')[:16]}.",
-                 result={"title": "Время стенда", "rows": [["Агрегат", params["equipment_id"]],
-                                                           ["Время ленты", answer["at"].replace("T", " ")[:16]]]},
-                 links=[link("telemetry")])
+    return Draft(
+        f"Время стенда {params['equipment_id']}: {answer['at'].replace('T', ' ')[:16]}.",
+        result={
+            "title": "Время стенда",
+            "rows": [["Агрегат", params["equipment_id"]], ["Время ленты", answer["at"].replace("T", " ")[:16]]],
+        },
+        links=[link("telemetry")],
+    )
 
 
 def plan_backup(ctx: Ctx) -> Draft:
     """Резервная копия базы."""
-    return Draft("Сделать резервную копию базы? Сервер не останавливается.", params={},
-                 details=[["Что", "Копия базы SQLite"], ["Куда", "папка backups рядом с базой"]])
+    return Draft(
+        "Сделать резервную копию базы? Сервер не останавливается.",
+        params={},
+        details=[["Что", "Копия базы SQLite"], ["Куда", "папка backups рядом с базой"]],
+    )
 
 
 def run_backup(ctx: Ctx, params: dict) -> Draft:
@@ -580,9 +694,11 @@ def run_backup(ctx: Ctx, params: dict) -> Draft:
     view = call(webadmin_api.create_backup)
     audit(ctx, "backup", {"file": view["file"]})
     size = f"{round(view['size_bytes'] / 1048576, 1)} МБ"
-    return Draft(f"Резервная копия создана: {view['file']}.",
-                 result={"title": "Резервная копия", "rows": [["Файл", view["file"]], ["Размер", size]]},
-                 links=[link("log")])
+    return Draft(
+        f"Резервная копия создана: {view['file']}.",
+        result={"title": "Резервная копия", "rows": [["Файл", view["file"]], ["Размер", size]]},
+        links=[link("log")],
+    )
 
 
 def answer_server(ctx: Ctx) -> Draft:
@@ -605,8 +721,7 @@ def answer_server(ctx: Ctx) -> Draft:
     rows.append(["Отпечаток моделей", fingerprint.short() or "-"])
     lead = "Все каналы сервера в порядке." if not bad else "Требуют внимания: " + ", ".join(bad) + "."
     lines = "\n".join(f"• {label}: {value}" for label, value in rows)
-    return Draft(f"{lead}\n{lines}", done=True, result={"title": "Состояние сервера", "rows": rows},
-                 links=[link("overview")])
+    return Draft(f"{lead}\n{lines}", done=True, result={"title": "Состояние сервера", "rows": rows}, links=[link("overview")])
 
 
 def answer_models(ctx: Ctx) -> Draft:
@@ -619,33 +734,48 @@ def answer_models(ctx: Ctx) -> Draft:
     mark = view["fingerprint"]
     rows.append(["Отпечаток набора", (mark.get("fingerprint") if isinstance(mark, dict) else mark) or "-"])
     lines = "\n".join(f"• {label}: {value}" for label, value in rows)
-    return Draft(f"Модели распознавания ({len(view['models'])}):\n{lines}", done=True,
-                 result={"title": "Модели распознавания", "rows": rows}, links=[link("models")])
+    return Draft(
+        f"Модели распознавания ({len(view['models'])}):\n{lines}",
+        done=True,
+        result={"title": "Модели распознавания", "rows": rows},
+        links=[link("models")],
+    )
 
 
 def answer_equipment(ctx: Ctx) -> Draft:
     """Список оборудования с режимом и незакрытыми замечаниями."""
     items = equipment.list_equipment(ctx.session, None, None, None)
-    rows = [[item["name"], f"{MODES.get(item['mode'], item['mode'])} · замечаний: {item['open_findings']}"]
-            for item in items]
+    rows = [[item["name"], f"{MODES.get(item['mode'], item['mode'])} · замечаний: {item['open_findings']}"] for item in items]
     lines = "\n".join(f"• {label}: {value}" for label, value in rows)
-    return Draft(f"Оборудование ({len(items)}):\n{lines}", done=True, result={"title": "Оборудование", "rows": rows},
-                 links=[link("equipment")], suggestions=[f"Открой {items[0]['name'].split()[-1]}"] if items else [])
+    return Draft(
+        f"Оборудование ({len(items)}):\n{lines}",
+        done=True,
+        result={"title": "Оборудование", "rows": rows},
+        links=[link("equipment")],
+        suggestions=[f"Открой {items[0]['name'].split()[-1]}"] if items else [],
+    )
 
 
 def answer_unit(ctx: Ctx) -> Draft:
     """Краткая карточка агрегата и переход в раздел оборудования."""
     item = find_unit(ctx)
     summary = next(entry for entry in equipment.list_equipment(ctx.session, None, None, None) if entry["id"] == item.id)
-    rows = [["Агрегат", summary["name"]], ["Модель", summary.get("model") or "-"],
-            ["Серийный номер", summary.get("serial") or "-"], ["Место", summary.get("location") or "-"],
-            ["Режим", MODES.get(summary["mode"], summary["mode"])], ["Наработка, ч", str(summary.get("run_hours") or "-")],
-            ["Незакрытых замечаний", str(summary["open_findings"])],
-            ["Телеметрия", "есть" if summary["telemetry"] else "нет"]]
-    return Draft(f"{summary['name']}: {rows[4][1]}, незакрытых замечаний {summary['open_findings']}.", done=True,
-                 result={"title": summary["name"], "rows": rows},
-                 links=[{"label": f"{summary['name']} · Оборудование", "route": "equipment"}])
-
+    rows = [
+        ["Агрегат", summary["name"]],
+        ["Модель", summary.get("model") or "-"],
+        ["Серийный номер", summary.get("serial") or "-"],
+        ["Место", summary.get("location") or "-"],
+        ["Режим", MODES.get(summary["mode"], summary["mode"])],
+        ["Наработка, ч", str(summary.get("run_hours") or "-")],
+        ["Незакрытых замечаний", str(summary["open_findings"])],
+        ["Телеметрия", "есть" if summary["telemetry"] else "нет"],
+    ]
+    return Draft(
+        f"{summary['name']}: {rows[4][1]}, незакрытых замечаний {summary['open_findings']}.",
+        done=True,
+        result={"title": summary["name"], "rows": rows},
+        links=[{"label": f"{summary['name']} · Оборудование", "route": "equipment"}],
+    )
 
 
 def answer_summary(ctx: Ctx) -> Draft:
@@ -676,18 +806,32 @@ def answer_summary(ctx: Ctx) -> Draft:
         if unit in attention:
             parts.append(f"замечаний: {len(attention[unit])}")
         notes.append(f"{names.get(unit, unit)} ({', '.join(parts)})")
-    rows = [["Смена", f"{shift['shift_title']} {shift['shift']}"],
-            ["Идут осмотры", ", ".join(f"№ {entry['id']} {entry['equipment_id']} · {(entry['user'] or {}).get('name')}"
-                                       for entry in active) or "нет"],
-            ["Незакрытых замечаний", str(len(unresolved))], ["Ждут подтверждения", str(len(waiting))],
-            ["Требуют внимания", "; ".join(notes) or "нет"], ["Открытых заданий", str(tasks)],
-            ["Новых сообщений о неисправности", str(reports)]]
-    text = (f"Сейчас идёт осмотров: {len(active)}. Незакрытых замечаний: {len(unresolved)}, из них ждут подтверждения "
-            f"{len(waiting)}. "
-            + (f"Требуют внимания: {'; '.join(notes)}. " if notes else "Агрегатов, требующих внимания, нет. ")
-            + f"Открытых заданий: {tasks}, новых сообщений о неисправности: {reports}.")
-    return Draft(text, done=True, result={"title": "Сводка смены", "rows": rows}, links=[link("summary")],
-                 suggestions=["Какие находки ждут подтверждения?"] if waiting else [])
+    rows = [
+        ["Смена", f"{shift['shift_title']} {shift['shift']}"],
+        [
+            "Идут осмотры",
+            ", ".join(f"№ {entry['id']} {entry['equipment_id']} · {(entry['user'] or {}).get('name')}" for entry in active)
+            or "нет",
+        ],
+        ["Незакрытых замечаний", str(len(unresolved))],
+        ["Ждут подтверждения", str(len(waiting))],
+        ["Требуют внимания", "; ".join(notes) or "нет"],
+        ["Открытых заданий", str(tasks)],
+        ["Новых сообщений о неисправности", str(reports)],
+    ]
+    text = (
+        f"Сейчас идёт осмотров: {len(active)}. Незакрытых замечаний: {len(unresolved)}, из них ждут подтверждения "
+        f"{len(waiting)}. "
+        + (f"Требуют внимания: {'; '.join(notes)}. " if notes else "Агрегатов, требующих внимания, нет. ")
+        + f"Открытых заданий: {tasks}, новых сообщений о неисправности: {reports}."
+    )
+    return Draft(
+        text,
+        done=True,
+        result={"title": "Сводка смены", "rows": rows},
+        links=[link("summary")],
+        suggestions=["Какие находки ждут подтверждения?"] if waiting else [],
+    )
 
 
 def answer_pending(ctx: Ctx) -> Draft:
@@ -695,18 +839,27 @@ def answer_pending(ctx: Ctx) -> Draft:
     found = service.list_findings(ctx.session, state="open", limit=100)
     if not found:
         return Draft("Находок, ждущих подтверждения, нет.", done=True, links=[link("summary")])
-    rows = [[f"№ {entry['id']} · {entry['equipment_id']}", f"{entry['title']} · {entry['status_title']}"]
-            for entry in found[:MAX_ROWS]]
+    rows = [
+        [f"№ {entry['id']} · {entry['equipment_id']}", f"{entry['title']} · {entry['status_title']}"]
+        for entry in found[:MAX_ROWS]
+    ]
     lines = "\n".join(f"• {label}: {value}" for label, value in rows)
-    return Draft(f"Ждут подтверждения: {len(found)}.\n{lines}", done=True,
-                 result={"title": "Находки на подтверждение", "rows": rows}, links=[link("summary")])
+    return Draft(
+        f"Ждут подтверждения: {len(found)}.\n{lines}",
+        done=True,
+        result={"title": "Находки на подтверждение", "rows": rows},
+        links=[link("summary")],
+    )
 
 
 def plan_task(ctx: Ctx) -> Draft:
     """Задание инженеру осмотреть агрегат: агрегат, исполнитель с правом осмотра, причина, срочность."""
     item = find_unit(ctx)
-    engineer = one_user(ctx, f"Назначь осмотр {item.name.split()[-1]}",
-                        only=lambda user: user.is_active and "inspect.run" in granted(ctx.session, user))
+    engineer = one_user(
+        ctx,
+        f"Назначь осмотр {item.name.split()[-1]}",
+        only=lambda user: user.is_active and "inspect.run" in granted(ctx.session, user),
+    )
     reason = cmd.reason_of(ctx.text) or "Осмотр по поручению мастера"
     priority = "normal"
     if cmd.has(ctx.tokens, "срочн"):
@@ -718,26 +871,41 @@ def plan_task(ctx: Ctx) -> Draft:
         due = now().date()
     elif cmd.has(ctx.tokens, "завтра"):
         due = now().date() + timedelta(days=1)
-    details = [["Агрегат", item.name], ["Исполнитель", engineer.name], ["Причина", reason],
-               ["Срочность", workflow.PRIORITY_TITLES[priority]]]
+    details = [
+        ["Агрегат", item.name],
+        ["Исполнитель", engineer.name],
+        ["Причина", reason],
+        ["Срочность", workflow.PRIORITY_TITLES[priority]],
+    ]
     if due:
         details.append(["Срок", due.strftime("%d.%m.%Y")])
-    return Draft(f"Назначить осмотр «{item.name}» исполнителю {engineer.name}?",
-                 params={"equipment_id": item.id, "assignee_id": engineer.id, "reason": reason, "priority": priority,
-                         "due_date": due.isoformat() if due else None}, details=details)
+    return Draft(
+        f"Назначить осмотр «{item.name}» исполнителю {engineer.name}?",
+        params={
+            "equipment_id": item.id,
+            "assignee_id": engineer.id,
+            "reason": reason,
+            "priority": priority,
+            "due_date": due.isoformat() if due else None,
+        },
+        details=details,
+    )
 
 
 def run_task(ctx: Ctx, params: dict) -> Draft:
     """Создаёт задание функцией маршрута POST /tasks и пишет действие в журнал."""
     body = workflow.TaskBody(**params)
     task = call(workflow.create_task, body, ctx.actor, ctx.session)
-    audit(ctx, "assign_task", {"task": task["id"], "equipment_id": params["equipment_id"],
-                               "assignee_id": params["assignee_id"]})
-    rows = [["Задание", f"№ {task['id']}"], ["Агрегат", params["equipment_id"]],
-            ["Исполнитель", (task.get("assignee") or {}).get("name", "")], ["Причина", params["reason"]]]
-    return Draft(f"Задание № {task['id']} назначено.", result={"title": "Задание на осмотр", "rows": rows},
-                 links=[link("summary")])
-
+    audit(ctx, "assign_task", {"task": task["id"], "equipment_id": params["equipment_id"], "assignee_id": params["assignee_id"]})
+    rows = [
+        ["Задание", f"№ {task['id']}"],
+        ["Агрегат", params["equipment_id"]],
+        ["Исполнитель", (task.get("assignee") or {}).get("name", "")],
+        ["Причина", params["reason"]],
+    ]
+    return Draft(
+        f"Задание № {task['id']} назначено.", result={"title": "Задание на осмотр", "rows": rows}, links=[link("summary")]
+    )
 
 
 def answer_help(ctx: Ctx) -> Draft:
@@ -748,8 +916,7 @@ def answer_help(ctx: Ctx) -> Draft:
     text = "Я выполняю команды панели с вашими правами и перед каждым действием показываю план на подтверждение."
     if examples:
         text += f" Например:\n{lines}"
-    text += ("\nЕщё могу открыть раздел («открой журнал безопасности») и рассказать о странице "
-             "(«помощь по странице политика»).")
+    text += "\nЕщё могу открыть раздел («открой журнал безопасности») и рассказать о странице " "(«помощь по странице политика»)."
     return Draft(text, done=True, links=pages[:6], suggestions=examples[:4] or ["Открой профиль"])
 
 
@@ -763,8 +930,7 @@ def answer_navigate(ctx: Ctx) -> Draft:
     route = cmd.page_of(ctx.tokens)
     codes = PAGE_PERMISSIONS[route]
     if not allowed(ctx, codes):
-        return Draft(f"Раздел «{cmd.PAGES[route][0]}» вам недоступен - нужно право «{permission_title(codes[0])}».",
-                     done=True)
+        return Draft(f"Раздел «{cmd.PAGES[route][0]}» вам недоступен - нужно право «{permission_title(codes[0])}».", done=True)
     return Draft(f"Открываю «{cmd.PAGES[route][0]}».", done=True, links=[link(route)])
 
 
@@ -776,8 +942,12 @@ def answer_page_help(ctx: Ctx) -> Draft:
 
 def answer_delete(ctx: Ctx) -> Draft:
     """Удаление через ассистента не предусмотрено."""
-    return Draft("Удалять учётные записи и данные я не могу - в панели это не предусмотрено. Учётную запись можно "
-                 "заблокировать с причиной.", done=True, suggestions=["Заблокируй Смирнова, причина: увольнение"])
+    return Draft(
+        "Удалять учётные записи и данные я не могу - в панели это не предусмотрено. Учётную запись можно "
+        "заблокировать с причиной.",
+        done=True,
+        suggestions=["Заблокируй Смирнова, причина: увольнение"],
+    )
 
 
 @dataclass(frozen=True)
@@ -791,8 +961,13 @@ class Action:
     danger: bool = False
 
 
-PHRASES = {"block_user": "Заблокируй", "unblock_user": "Разблокируй", "reset_password": "Сбрось пароль",
-           "close_sessions": "Закрой сеансы", "change_role": "Смени роль"}
+PHRASES = {
+    "block_user": "Заблокируй",
+    "unblock_user": "Разблокируй",
+    "reset_password": "Сбрось пароль",
+    "close_sessions": "Закрой сеансы",
+    "change_role": "Смени роль",
+}
 
 
 def _user_action(action: str) -> tuple[Callable, Callable]:
@@ -837,15 +1012,25 @@ def plan_id(actor: User, action: str, params: dict, details: list[list[str]]) ->
 
 def reply_of(draft: Draft, plan: dict | None = None) -> dict:
     """Ответ по контракту из разобранной команды."""
-    return {"reply": draft.reply, "plan": plan, "done": draft.done, "result": draft.result, "links": draft.links,
-            "suggestions": draft.suggestions}
+    return {
+        "reply": draft.reply,
+        "plan": plan,
+        "done": draft.done,
+        "result": draft.result,
+        "links": draft.links,
+        "suggestions": draft.suggestions,
+    }
 
 
 def unknown_reply(ctx: Ctx) -> dict:
     """Команда не узнана: ассистент ничего не делает и подсказывает, что умеет."""
     examples = [example for code, items in EXAMPLES.items() if code in ctx.rights for example in items]
-    return reply_of(Draft("Не понял команду, поэтому ничего не делаю. Скажите «что ты умеешь» - покажу список команд.",
-                          suggestions=["Что ты умеешь?", *examples[:3]]))
+    return reply_of(
+        Draft(
+            "Не понял команду, поэтому ничего не делаю. Скажите «что ты умеешь» - покажу список команд.",
+            suggestions=["Что ты умеешь?", *examples[:3]],
+        )
+    )
 
 
 def handle(ctx: Ctx, confirm: bool, submitted: dict | None) -> dict:
@@ -855,9 +1040,13 @@ def handle(ctx: Ctx, confirm: bool, submitted: dict | None) -> dict:
         return unknown_reply(ctx)
     action = ACTIONS[name]
     if action.permission and action.permission not in ctx.rights:
-        return reply_of(Draft(f"Не могу: для действия «{action.title.lower()}» нужно право "
-                              f"«{permission_title(action.permission)}», а у вашей роли его нет. Обратитесь к "
-                              f"администратору ИБ."))
+        return reply_of(
+            Draft(
+                f"Не могу: для действия «{action.title.lower()}» нужно право "
+                f"«{permission_title(action.permission)}», а у вашей роли его нет. Обратитесь к "
+                f"администратору ИБ."
+            )
+        )
     try:
         draft = action.plan(ctx)
     except Ask as question:
@@ -865,14 +1054,24 @@ def handle(ctx: Ctx, confirm: bool, submitted: dict | None) -> dict:
     draft.links = [item for item in draft.links if allowed(ctx, PAGE_PERMISSIONS.get(item["route"], ()))]
     if draft.params is None or action.run is None:
         return reply_of(draft)
-    plan = {"id": plan_id(ctx.actor, name, draft.params, draft.details), "action": name, "title": action.title,
-            "details": draft.details, "danger": action.danger}
+    plan = {
+        "id": plan_id(ctx.actor, name, draft.params, draft.details),
+        "action": name,
+        "title": action.title,
+        "details": draft.details,
+        "danger": action.danger,
+    }
     if not confirm or submitted is None:
         return reply_of(draft, plan)
     keys = ("id", "action", "title", "details", "danger")
     if any(submitted.get(key) != plan[key] for key in keys):
-        return reply_of(Draft("План не совпадает с командой - ничего не выполнено. Проверьте новый план и подтвердите "
-                              "его ещё раз.", details=draft.details), plan)
+        return reply_of(
+            Draft(
+                "План не совпадает с командой - ничего не выполнено. Проверьте новый план и подтвердите " "его ещё раз.",
+                details=draft.details,
+            ),
+            plan,
+        )
     token = security.VIA.set(VIA)
     try:
         done = action.run(ctx, draft.params)
@@ -887,8 +1086,12 @@ def handle(ctx: Ctx, confirm: bool, submitted: dict | None) -> dict:
 
 
 @router.post("/assistant", response_model=AssistantReply)
-def assistant(body: AssistantBody, request: Request, actor: Annotated[User, Depends(current_user)],
-              session: Annotated[Session, Depends(get_session)]) -> dict:
+def assistant(
+    body: AssistantBody,
+    request: Request,
+    actor: Annotated[User, Depends(current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Ассистент панели: команда по-русски - план или ответ; confirm=true с планом - выполнение с правами сотрудника.
 
     Без confirm ничего не меняется. При подтверждении текст разбирается заново и план сверяется с присланным;

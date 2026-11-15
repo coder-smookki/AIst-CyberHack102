@@ -8,6 +8,7 @@
 Без третьего параметра файл появляется в папке weights рядом с местом запуска. Размер входа задаётся
 для моделей, обученных на другом размере кадра, например RF-DETR nano на 384 px.
 """
+
 import os
 import shutil
 import sys
@@ -26,5 +27,8 @@ def export(weights: str, kind: str, target: str | None = None, imgsz: int = 640)
 
 
 if __name__ == "__main__":
-    print(export(sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None,
-                 int(sys.argv[4]) if len(sys.argv) > 4 else 640))
+    print(
+        export(
+            sys.argv[1], sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None, int(sys.argv[4]) if len(sys.argv) > 4 else 640
+        )
+    )

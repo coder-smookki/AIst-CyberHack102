@@ -8,6 +8,7 @@
 Пороги по классам задаются отображением уверенности remap_scores: порог класса переходит в общий
 порог, поэтому показатели cv/protocol.py на этом общем пороге соответствуют порогам по классам.
 """
+
 from types import SimpleNamespace
 
 import numpy as np
@@ -28,6 +29,7 @@ def nms(boxes: np.ndarray, scores: np.ndarray, threshold: float) -> list[int]:
         x2 = np.minimum(boxes[first, 2], boxes[rest, 2])
         y2 = np.minimum(boxes[first, 3], boxes[rest, 3])
         inter = np.clip(x2 - x1, 0, None) * np.clip(y2 - y1, 0, None)
+
         def area(b):
             """Площадь рамок xyxy."""
             return (b[..., 2] - b[..., 0]) * (b[..., 3] - b[..., 1])
@@ -66,6 +68,7 @@ class Options:
         """Прогоняет модель на одном кадре и возвращает рамки, классы и уверенности как массивы numpy."""
         result = self.model(frame, conf=conf)
         result = result[0] if isinstance(result, (list, tuple)) else result
+
         def as_array(value):
             """Переводит тензор или массив в numpy."""
             return value.cpu().numpy() if hasattr(value, "cpu") else np.asarray(value)
@@ -97,8 +100,7 @@ class Options:
             keep = np.array(sorted(keep), dtype=int)
         else:
             keep = np.arange(len(scores))
-        return SimpleNamespace(boxes=SimpleNamespace(xyxy=boxes[keep], cls=classes[keep], conf=scores[keep]),
-                               names=self.names)
+        return SimpleNamespace(boxes=SimpleNamespace(xyxy=boxes[keep], cls=classes[keep], conf=scores[keep]), names=self.names)
 
 
 def remap_score(score: float, threshold: float, level: float = 0.25) -> float:
@@ -113,7 +115,8 @@ def remap_records(records: list[dict], thresholds: dict, level: float = 0.25) ->
     out = []
     for row in records:
         copy = dict(row)
-        copy["predicted"] = [(name, box, remap_score(score, thresholds.get(name, level), level))
-                             for name, box, score in row["predicted"]]
+        copy["predicted"] = [
+            (name, box, remap_score(score, thresholds.get(name, level), level)) for name, box, score in row["predicted"]
+        ]
         out.append(copy)
     return out

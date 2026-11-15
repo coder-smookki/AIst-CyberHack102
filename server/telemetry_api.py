@@ -6,6 +6,7 @@
 курсор проигрывателя телеметрии; у агрегата без телеметрии оценки строятся по карточке и сегодняшней дате.
 Чтение требует права «Просмотр телеметрии», выбор сценария и перестановка времени - «Управление лентой телеметрии».
 """
+
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Annotated
@@ -137,14 +138,26 @@ def diagnosis_view(result: dict, names: dict[str, str]) -> dict:
     Статус без замечаний всегда сопровождается оговоркой: он не подтверждает исправность.
     """
     status = result["status"]
-    findings = [{**found, "node_name": names.get(found["node_id"], WHOLE_UNIT),
-                 "status_title": STATUS_TITLES[found["status"]], "severity_title": SEVERITY_TITLES.get(found["severity"])}
-                for found in result["findings"]]
-    nodes = {code: {**state, "name": names.get(code, WHOLE_UNIT), "status_title": STATUS_TITLES[state["status"]]}
-             for code, state in result["nodes"].items()}
-    return {"status": status, "status_title": STATUS_TITLES[status],
-            "status_note": f"Статус «{STATUS_TITLES['ok']}» {OK_NOTE}" if status == "ok" else None,
-            "findings": findings, "nodes": nodes}
+    findings = [
+        {
+            **found,
+            "node_name": names.get(found["node_id"], WHOLE_UNIT),
+            "status_title": STATUS_TITLES[found["status"]],
+            "severity_title": SEVERITY_TITLES.get(found["severity"]),
+        }
+        for found in result["findings"]
+    ]
+    nodes = {
+        code: {**state, "name": names.get(code, WHOLE_UNIT), "status_title": STATUS_TITLES[state["status"]]}
+        for code, state in result["nodes"].items()
+    }
+    return {
+        "status": status,
+        "status_title": STATUS_TITLES[status],
+        "status_note": f"Статус «{STATUS_TITLES['ok']}» {OK_NOTE}" if status == "ok" else None,
+        "findings": findings,
+        "nodes": nodes,
+    }
 
 
 def mark_unwalked(nodes: dict, card: dict, coverage: dict | None) -> dict:
@@ -194,27 +207,55 @@ def telemetry(equipment_id: str, session: Annotated[Session, Depends(get_session
     item = get_equipment(session, equipment_id)
     feed = feed_for(item.id)
     if feed.player is None:
-        return {"equipment_id": item.id, "available": False, "reason": feed.reason, "at": None, "bounds": None,
-                "customer_until": None, "level": None, "level_title": None, "labels": None, "parameters": []}
+        return {
+            "equipment_id": item.id,
+            "available": False,
+            "reason": feed.reason,
+            "at": None,
+            "bounds": None,
+            "customer_until": None,
+            "level": None,
+            "level_title": None,
+            "labels": None,
+            "parameters": [],
+        }
     first, last = feed.player.bounds()
     parameters = []
     for meta in feed.player.parameters(feed.at):
         value = feed.readings.get(meta["code"])
         level = level_of(value, meta)
         slope = feed.trends.get(meta["code"])
-        parameters.append({**meta, "value": value, "level": level, "level_title": LEVEL_TITLES.get(level),
-                           "trend": None if slope is None else round(slope, 4)})
+        parameters.append(
+            {
+                **meta,
+                "value": value,
+                "level": level,
+                "level_title": LEVEL_TITLES.get(level),
+                "trend": None if slope is None else round(slope, 4),
+            }
+        )
     worst = max((entry["level"] for entry in parameters if entry["level"]), key=LEVEL_RANK.__getitem__, default=None)
-    return {"equipment_id": item.id, "available": True, "reason": None, "at": stamp(feed.at),
-            "bounds": {"first": stamp(first), "last": stamp(last)},
-            "customer_until": stamp(feed.player.customer_bounds()[1]),
-            "level": worst, "level_title": LEVEL_TITLES.get(worst),
-            "labels": labels_at(feed.player, feed.readings, feed.at), "parameters": parameters}
+    return {
+        "equipment_id": item.id,
+        "available": True,
+        "reason": None,
+        "at": stamp(feed.at),
+        "bounds": {"first": stamp(first), "last": stamp(last)},
+        "customer_until": stamp(feed.player.customer_bounds()[1]),
+        "level": worst,
+        "level_title": LEVEL_TITLES.get(worst),
+        "labels": labels_at(feed.player, feed.readings, feed.at),
+        "parameters": parameters,
+    }
 
 
 @router.get("/{equipment_id}/telemetry/{code}")
-def series(equipment_id: str, code: str, session: Annotated[Session, Depends(get_session)],
-           hours: Annotated[int, Query(ge=1, le=MAX_WINDOW_HOURS)] = 24) -> dict:
+def series(
+    equipment_id: str,
+    code: str,
+    session: Annotated[Session, Depends(get_session)],
+    hours: Annotated[int, Query(ge=1, le=MAX_WINDOW_HOURS)] = 24,
+) -> dict:
     """Ряд значений параметра за последние hours часов до текущего момента ленты - для графика с линиями уставок.
 
     model_since - время первой точки окна, рассчитанной моделью; None, если все точки из баз заказчика.
@@ -225,9 +266,15 @@ def series(equipment_id: str, code: str, session: Annotated[Session, Depends(get
     points = player.window(code, hours, at)
     slope = player.trend(code, min(hours, TREND_HOURS), at)
     model_since = next((moment for moment, _ in points if player.source(code, moment) == "model"), None)
-    return {**meta, "equipment_id": equipment_id, "at": stamp(at), "hours": hours,
-            "trend": None if slope is None else round(slope, 4), "model_since": stamp(model_since),
-            "points": [{"t": stamp(moment), "v": value} for moment, value in points]}
+    return {
+        **meta,
+        "equipment_id": equipment_id,
+        "at": stamp(at),
+        "hours": hours,
+        "trend": None if slope is None else round(slope, 4),
+        "model_since": stamp(model_since),
+        "points": [{"t": stamp(moment), "v": value} for moment, value in points],
+    }
 
 
 def _crossing(points: list, limit: float | None, direction: str) -> dict | None:
@@ -258,8 +305,12 @@ def _forecast_text(name: str, unit: str, window: int, crossings: dict) -> str:
 
 
 @router.get("/{equipment_id}/forecast/{code}")
-def forecast(equipment_id: str, code: str, session: Annotated[Session, Depends(get_session)],
-             hours: Annotated[int, Query(ge=MIN_FORECAST_POINTS, le=168)] = TREND_HOURS) -> dict:
+def forecast(
+    equipment_id: str,
+    code: str,
+    session: Annotated[Session, Depends(get_session)],
+    hours: Annotated[int, Query(ge=MIN_FORECAST_POINTS, le=168)] = TREND_HOURS,
+) -> dict:
     """Прогноз времени до уставок параметра по линейному тренду последних hours часов.
 
     state: "no_thresholds" - уставок у параметра нет; "insufficient_data" - в окне меньше четырёх точек;
@@ -271,15 +322,27 @@ def forecast(equipment_id: str, code: str, session: Annotated[Session, Depends(g
     meta = _meta(player, code, at)
     points = player.window(code, hours, at)
     slope = player.trend(code, hours, at)
-    answer = {"equipment_id": equipment_id, "code": code, "name": meta["name"], "unit": meta["unit"], "at": stamp(at),
-              "hours": hours, "value": points[-1][1] if points else None, "direction": meta["direction"],
-              "trend": None if slope is None else round(slope, 4), "warn": None, "alarm": None}
+    answer = {
+        "equipment_id": equipment_id,
+        "code": code,
+        "name": meta["name"],
+        "unit": meta["unit"],
+        "at": stamp(at),
+        "hours": hours,
+        "value": points[-1][1] if points else None,
+        "direction": meta["direction"],
+        "trend": None if slope is None else round(slope, 4),
+        "warn": None,
+        "alarm": None,
+    }
     if meta["direction"] is None or (meta["warn"] is None and meta["alarm"] is None):
-        return {**answer, "state": "no_thresholds",
-                "text": f"{meta['name']}: уставки не заданы, прогноз не строится"}
+        return {**answer, "state": "no_thresholds", "text": f"{meta['name']}: уставки не заданы, прогноз не строится"}
     if len(points) < MIN_FORECAST_POINTS:
-        return {**answer, "state": "insufficient_data",
-                "text": f"{meta['name']}: недостаточно данных - в окне {hours} ч меньше {MIN_FORECAST_POINTS} точек"}
+        return {
+            **answer,
+            "state": "insufficient_data",
+            "text": f"{meta['name']}: недостаточно данных - в окне {hours} ч меньше {MIN_FORECAST_POINTS} точек",
+        }
     crossings = {kind: _crossing(points, meta[kind], meta["direction"]) for kind in ("warn", "alarm")}
     found = [crossing for crossing in crossings.values() if crossing]
     if any(crossing["reached"] for crossing in found):
@@ -337,8 +400,9 @@ def set_cursor(equipment_id: str, body: CursorBody, session: Annotated[Session, 
 
 
 @router.get("/{equipment_id}/diagnosis")
-def diagnosis(equipment_id: str, session: Annotated[Session, Depends(get_session)],
-              inspection_id: Annotated[int | None, Query(ge=1)] = None) -> dict:
+def diagnosis(
+    equipment_id: str, session: Annotated[Session, Depends(get_session)], inspection_id: Annotated[int | None, Query(ge=1)] = None
+) -> dict:
     """Диагноз агрегата по правилам на текущий момент ленты с основаниями по каждой находке.
 
     Без inspection_id учитываются только датчики и ресурс. С номером идущего осмотра этого агрегата в диагноз
@@ -359,9 +423,15 @@ def diagnosis(equipment_id: str, session: Annotated[Session, Depends(get_session
         coverage = tracker_for(session, inspection).state()
     result = {**result, "nodes": mark_unwalked(result["nodes"], card, coverage)}
     labels = labels_at(feed.player, feed.readings, feed.at) if feed.player else None
-    return {"equipment_id": item.id, "inspection_id": inspection_id, "at": stamp(feed.at),
-            "telemetry": feed.player is not None, "telemetry_reason": feed.reason, "labels": labels,
-            **diagnosis_view(result, node_names(item))}
+    return {
+        "equipment_id": item.id,
+        "inspection_id": inspection_id,
+        "at": stamp(feed.at),
+        "telemetry": feed.player is not None,
+        "telemetry_reason": feed.reason,
+        "labels": labels,
+        **diagnosis_view(result, node_names(item)),
+    }
 
 
 @router.get("/{equipment_id}/route")
@@ -400,11 +470,32 @@ def resource(equipment_id: str, session: Annotated[Session, Depends(get_session)
     nodes = []
     for node in card["nodes"]:
         estimate = resource_estimates(card, node, run_hours, today)
-        nodes.append({"code": node["id"], "name": node["name"], "normative": estimate["normative"],
-                      "calculated": estimate["calculated"], "actual": _actual(states.get(node["id"]))})
+        nodes.append(
+            {
+                "code": node["id"],
+                "name": node["name"],
+                "normative": estimate["normative"],
+                "calculated": estimate["calculated"],
+                "actual": _actual(states.get(node["id"])),
+            }
+        )
     if EQUIPMENT_NODE in states:
-        nodes.append({"code": EQUIPMENT_NODE, "name": WHOLE_UNIT, "normative": None, "calculated": None,
-                      "actual": _actual(states[EQUIPMENT_NODE])})
-    return {"equipment_id": item.id, "run_hours": run_hours, "estimates_on": today.isoformat(),
-            "telemetry_at": stamp(feed.at), "telemetry": feed.player is not None, "telemetry_reason": feed.reason,
-            "nodes": nodes, "maintenance": maintenance_intervals(card, run_hours)}
+        nodes.append(
+            {
+                "code": EQUIPMENT_NODE,
+                "name": WHOLE_UNIT,
+                "normative": None,
+                "calculated": None,
+                "actual": _actual(states[EQUIPMENT_NODE]),
+            }
+        )
+    return {
+        "equipment_id": item.id,
+        "run_hours": run_hours,
+        "estimates_on": today.isoformat(),
+        "telemetry_at": stamp(feed.at),
+        "telemetry": feed.player is not None,
+        "telemetry_reason": feed.reason,
+        "nodes": nodes,
+        "maintenance": maintenance_intervals(card, run_hours),
+    }

@@ -12,6 +12,7 @@ protocol.summarize; уровень conf_served - ровно то, что вер�
 поверх порогов из описания. Отложенные снимки заказчика, их копии и набор из сети только проверяются:
 выбирать пороги по ним нельзя, для выбора служит часть val.
 """
+
 import argparse
 import hashlib
 import json
@@ -100,6 +101,7 @@ def evaluate(entries: list[dict], models_dir: str, sets: list[str], mode: str, l
     classes = DEFECT_CLASSES if mode == "defects" else PART_CLASSES
     if loader is None:
         from libreyolo import LibreYOLO
+
         loader = LibreYOLO
     files = [os.path.join(models_dir, entry["file"]) for entry in entries]
     models = {}
@@ -138,18 +140,27 @@ def main() -> None:
     entries = json.load(open(args.manifest, encoding="utf-8"))
     entries = entries.get("models", []) if isinstance(entries, dict) else entries
     models_dir = args.models or os.path.dirname(os.path.abspath(args.manifest))
-    report = {"name": args.name, "manifest": args.manifest, "models": [entry["file"] for entry in entries],
-              "thresholds": {entry["file"]: model_thresholds(entry) for entry in entries}, "mode": args.mode,
-              "iou": 0.5, "floor": FLOOR, "date": time.strftime("%Y-%m-%d"),
-              "sets": evaluate(entries, models_dir, args.sets.split(","), args.mode)}
+    report = {
+        "name": args.name,
+        "manifest": args.manifest,
+        "models": [entry["file"] for entry in entries],
+        "thresholds": {entry["file"]: model_thresholds(entry) for entry in entries},
+        "mode": args.mode,
+        "iou": 0.5,
+        "floor": FLOOR,
+        "date": time.strftime("%Y-%m-%d"),
+        "sets": evaluate(entries, models_dir, args.sets.split(","), args.mode),
+    }
     out = os.path.join(ROOT, "runs", "reports", f"{args.name}.json")
     json.dump(report, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     for set_name, part in report["sets"].items():
         row = part.get("conf_served")
         if row:
-            print(f"{args.name} {set_name}: рамки P {row['box_precision']} R {row['box_recall']}, дефект найден "
-                  f"{row['image_defect_found']}, нужный класс {row['image_right_class_found']}, "
-                  f"ложные тревоги {row['false_alarm_rate']}, mAP50 {part['map50']}")
+            print(
+                f"{args.name} {set_name}: рамки P {row['box_precision']} R {row['box_recall']}, дефект найден "
+                f"{row['image_defect_found']}, нужный класс {row['image_right_class_found']}, "
+                f"ложные тревоги {row['false_alarm_rate']}, mAP50 {part['map50']}"
+            )
     print("отчёт:", out)
 
 

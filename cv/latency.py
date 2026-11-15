@@ -5,6 +5,7 @@
 
 Замеряется только работа сети в ONNX Runtime на процессоре и через CoreML, без чтения кадра и отрисовки.
 """
+
 import json
 import os
 import statistics
@@ -20,8 +21,9 @@ def measure(path: str, provider: str, repeats: int = 60) -> dict:
     session = onnxruntime.InferenceSession(path, providers=list(dict.fromkeys([provider, "CPUExecutionProvider"])))
     feeds = {}
     for item in session.get_inputs():
-        shape = [side if isinstance(side, int) and side > 0 else (1 if index == 0 else 640)
-                 for index, side in enumerate(item.shape)]
+        shape = [
+            side if isinstance(side, int) and side > 0 else (1 if index == 0 else 640) for index, side in enumerate(item.shape)
+        ]
         kind = np.float32 if "float" in item.type else np.int64
         feeds[item.name] = np.random.rand(*shape).astype(kind) if kind is np.float32 else np.full(shape, 640, kind)
     for _ in range(8):
@@ -32,9 +34,12 @@ def measure(path: str, provider: str, repeats: int = 60) -> dict:
         session.run(None, feeds)
         times.append((time.perf_counter() - started) * 1000)
     times.sort()
-    return {"provider": session.get_providers()[0], "median_ms": round(statistics.median(times), 1),
-            "p90_ms": round(times[int(len(times) * 0.9)], 1),
-            "input": {name: list(value.shape) for name, value in feeds.items()}}
+    return {
+        "provider": session.get_providers()[0],
+        "median_ms": round(statistics.median(times), 1),
+        "p90_ms": round(times[int(len(times) * 0.9)], 1),
+        "input": {name: list(value.shape) for name, value in feeds.items()},
+    }
 
 
 def main() -> None:

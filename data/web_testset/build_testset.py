@@ -14,6 +14,7 @@
 которые отказывают автоматическому доступу (401, 403, 451), пропускаются без обхода.
 Загруженные файлы считаются недоверенными данными: они только сохраняются на диск.
 """
+
 import csv
 import html
 import io
@@ -44,74 +45,167 @@ MAX_LONG_SIDE = 1600
 PER_QUERY = 20
 PER_POOL = 120
 MEMBER = "::member="
-FIELDS = ["file", "class", "source", "page_url", "download_url", "licence",
-          "author", "width", "height", "note"]
-CLASSES = ["corrosion", "leak", "burnt_electrical", "bolt_defect", "guard_missing",
-           "guard_ok", "motor_damage", "insulation_damage", "crack", "gauge",
-           "nameplate", "equipment_ok"]
+FIELDS = ["file", "class", "source", "page_url", "download_url", "licence", "author", "width", "height", "note"]
+CLASSES = [
+    "corrosion",
+    "leak",
+    "burnt_electrical",
+    "bolt_defect",
+    "guard_missing",
+    "guard_ok",
+    "motor_damage",
+    "insulation_damage",
+    "crack",
+    "gauge",
+    "nameplate",
+    "equipment_ok",
+]
 
 COMMONS_QUERIES = {
     "corrosion": [
-        "rusty pump", "corroded flange", "corroded valve", "rusty valve",
-        "rusty pipe flange", "rusty gate valve", "rusty electric motor",
-        "corroded pipe", "corrosion pipeline flange", "corroded pump",
-        "Korrosion Pumpe", "Korrosion Flansch", "rostige Pumpe",
-        "verrostetes Ventil", "verrostetes Rohr", "ржавый насос",
-        "ржавая задвижка", "коррозия трубопровода", "ржавая труба фланец",
-        'incategory:"Rust" pump', 'incategory:"Rust" valve',
-        'incategory:"Corrosion" pipe', 'incategory:"Corrosion" flange',
+        "rusty pump",
+        "corroded flange",
+        "corroded valve",
+        "rusty valve",
+        "rusty pipe flange",
+        "rusty gate valve",
+        "rusty electric motor",
+        "corroded pipe",
+        "corrosion pipeline flange",
+        "corroded pump",
+        "Korrosion Pumpe",
+        "Korrosion Flansch",
+        "rostige Pumpe",
+        "verrostetes Ventil",
+        "verrostetes Rohr",
+        "ржавый насос",
+        "ржавая задвижка",
+        "коррозия трубопровода",
+        "ржавая труба фланец",
+        'incategory:"Rust" pump',
+        'incategory:"Rust" valve',
+        'incategory:"Corrosion" pipe',
+        'incategory:"Corrosion" flange',
     ],
     "leak": [
-        "oil leak pump", "leaking valve", "leaking pipe flange", "leaking pump",
-        "leaking pump seal", "water leak pipe", "oil leak machine",
-        "leaking mechanical seal", "leaking gland packing", "steam leak valve",
-        "hydraulic oil leak", "pipe leak drip", "undichte Pumpe", "Leckage Rohr",
-        "Ölleck", "tropfendes Ventil", "undichter Flansch", "утечка масла",
-        "течь трубы", "протечка трубы", "течь задвижки",
-        'incategory:"Leaks" pipe', 'incategory:"Oil leaks"',
-        "leaking pipe", "leaking flange", "dripping pipe", "pipe leak",
-        "oil leak", "water leak", "leaking valve stem", "leak clamp pipe",
-        'incategory:"Leaks"', 'incategory:"Water leaks"', "Leckage", "течь",
+        "oil leak pump",
+        "leaking valve",
+        "leaking pipe flange",
+        "leaking pump",
+        "leaking pump seal",
+        "water leak pipe",
+        "oil leak machine",
+        "leaking mechanical seal",
+        "leaking gland packing",
+        "steam leak valve",
+        "hydraulic oil leak",
+        "pipe leak drip",
+        "undichte Pumpe",
+        "Leckage Rohr",
+        "Ölleck",
+        "tropfendes Ventil",
+        "undichter Flansch",
+        "утечка масла",
+        "течь трубы",
+        "протечка трубы",
+        "течь задвижки",
+        'incategory:"Leaks" pipe',
+        'incategory:"Oil leaks"',
+        "leaking pipe",
+        "leaking flange",
+        "dripping pipe",
+        "pipe leak",
+        "oil leak",
+        "water leak",
+        "leaking valve stem",
+        "leak clamp pipe",
+        'incategory:"Leaks"',
+        'incategory:"Water leaks"',
+        "Leckage",
+        "течь",
     ],
     "gauge": [
-        "pressure gauge", "Manometer", "манометр", "bourdon gauge",
-        "pressure gauge pump", "Druckmanometer", 'incategory:"Pressure gauges"',
+        "pressure gauge",
+        "Manometer",
+        "манометр",
+        "bourdon gauge",
+        "pressure gauge pump",
+        "Druckmanometer",
+        'incategory:"Pressure gauges"',
     ],
     "nameplate": [
-        "electric motor nameplate", "Typenschild Elektromotor", "pump nameplate",
-        "шильдик электродвигателя", "motor rating plate", "Typenschild Pumpe",
-        "Typenschild Motor", "rating plate electric motor",
+        "electric motor nameplate",
+        "Typenschild Elektromotor",
+        "pump nameplate",
+        "шильдик электродвигателя",
+        "motor rating plate",
+        "Typenschild Pumpe",
+        "Typenschild Motor",
+        "rating plate electric motor",
         "Typenschild Drehstrommotor",
     ],
     "equipment_ok": [
-        "centrifugal pump", "Inline-Pumpe", "circulation pump", "Kreiselpumpe",
-        "Umwälzpumpe", "Grundfos pump", "electric motor industrial",
-        "Drehstrommotor", "gate valve", "центробежный насос", "Heizungspumpe",
+        "centrifugal pump",
+        "Inline-Pumpe",
+        "circulation pump",
+        "Kreiselpumpe",
+        "Umwälzpumpe",
+        "Grundfos pump",
+        "electric motor industrial",
+        "Drehstrommotor",
+        "gate valve",
+        "центробежный насос",
+        "Heizungspumpe",
     ],
     "burnt_electrical": [
-        "burnt terminal block", "burnt electrical connector", "overheated cable",
-        "burnt wire", "melted cable insulation", "burnt contactor",
-        "burnt fuse holder", "verschmortes Kabel", "Kabelbrand",
+        "burnt terminal block",
+        "burnt electrical connector",
+        "overheated cable",
+        "burnt wire",
+        "melted cable insulation",
+        "burnt contactor",
+        "burnt fuse holder",
+        "verschmortes Kabel",
+        "Kabelbrand",
         "оплавленный кабель",
     ],
     "bolt_defect": [
-        "rusty bolts", "corroded bolt", "missing bolt", "rusty anchor bolt",
-        "rusty flange bolts", "broken bolt",
+        "rusty bolts",
+        "corroded bolt",
+        "missing bolt",
+        "rusty anchor bolt",
+        "rusty flange bolts",
+        "broken bolt",
     ],
     "coupling": [
-        "shaft coupling", "coupling guard", "pump coupling",
-        "flexible coupling pump motor", "Wellenkupplung", "Kupplungsschutz",
+        "shaft coupling",
+        "coupling guard",
+        "pump coupling",
+        "flexible coupling pump motor",
+        "Wellenkupplung",
+        "Kupplungsschutz",
     ],
     "crack": [
-        "cracked pipe", "cracked weld", "weld crack", "fatigue crack steel",
-        "Rohrbruch", "трещина трубы", "cracked casting",
+        "cracked pipe",
+        "cracked weld",
+        "weld crack",
+        "fatigue crack steel",
+        "Rohrbruch",
+        "трещина трубы",
+        "cracked casting",
     ],
     "insulation_damage": [
-        "damaged pipe insulation", "pipe lagging", "pipe insulation",
-        "Rohrisolierung", "теплоизоляция труб", "теплотрасса изоляция",
+        "damaged pipe insulation",
+        "pipe lagging",
+        "pipe insulation",
+        "Rohrisolierung",
+        "теплоизоляция труб",
+        "теплотрасса изоляция",
     ],
     "motor_damage": [
-        "damaged electric motor", "broken electric motor", "old electric motor",
+        "damaged electric motor",
+        "broken electric motor",
+        "old electric motor",
         "electric motor fan cover",
     ],
 }
@@ -123,26 +217,32 @@ EXCLUDE = re.compile(
     r"schema|logo|\bmap\b|karte|icon|\.svg|engraving|patent|coat of arms|"
     r"gas station|petrol|fuel pump|tankstelle|hand pump|water pump at|"
     r"village pump|windmill|aircraft|airplane|flugzeug|самол[её]т|"
-    r"fire hydrant|hydrant", re.I)
+    r"fire hydrant|hydrant",
+    re.I,
+)
 
 DATASETS = {
     "zn_ostrava": {
-        "source": "zenodo", "pool": "corrosion",
-        "url": "https://zenodo.org/api/records/11235637/files/"
-               "corrosion-in-industrial-complexes-in-ostrava.zip/content",
+        "source": "zenodo",
+        "pool": "corrosion",
+        "url": "https://zenodo.org/api/records/11235637/files/" "corrosion-in-industrial-complexes-in-ostrava.zip/content",
         "page_url": "https://zenodo.org/records/11235637",
-        "licence": "CC BY 4.0", "author": "Frič, Matěj (Zenodo 11235637)",
+        "licence": "CC BY 4.0",
+        "author": "Frič, Matěj (Zenodo 11235637)",
         "samples": [(r"/images/[^/]+\.jpg$", 15)],
     },
     "md_bolts": {
-        "source": "mendeley", "pool": "bolt_defect",
+        "source": "mendeley",
+        "pool": "bolt_defect",
         "url": "https://data.mendeley.com/public-files/datasets/cxnj6cp4rb/files/"
-               "8227ae89-9e21-4880-ae64-f150c10180df/file_downloaded",
+        "8227ae89-9e21-4880-ae64-f150c10180df/file_downloaded",
         "page_url": "https://data.mendeley.com/datasets/cxnj6cp4rb/1",
         "licence": "CC BY 4.0",
         "author": "Jafari, Faezeh; Dorafshan, Sattar (Mendeley cxnj6cp4rb)",
-        "samples": [(r"Loosen bolt.*/Resized images 640-640/[^/]+\.(jpg|jpeg|png)$", 10),
-                    (r"Missing bolt.*/Resized- 640-640/[^/]+\.(jpg|jpeg|png)$", 10)],
+        "samples": [
+            (r"Loosen bolt.*/Resized images 640-640/[^/]+\.(jpg|jpeg|png)$", 10),
+            (r"Missing bolt.*/Resized- 640-640/[^/]+\.(jpg|jpeg|png)$", 10),
+        ],
     },
 }
 
@@ -169,8 +269,7 @@ def _open(url, headers=None, timeout=90, retries=4):
             time.sleep(wait)
         _last_request[0] = time.time()
         try:
-            return urllib.request.urlopen(
-                urllib.request.Request(url, headers=hdrs), timeout=timeout)
+            return urllib.request.urlopen(urllib.request.Request(url, headers=hdrs), timeout=timeout)
         except urllib.error.HTTPError as e:
             err = e
             if e.code in (401, 403, 451):
@@ -218,10 +317,9 @@ def image_size(data):
         if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
             i += 2
             continue
-        seglen = struct.unpack(">H", data[i + 2:i + 4])[0]
-        if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB,
-                      0xCD, 0xCE, 0xCF):
-            h, w = struct.unpack(">HH", data[i + 5:i + 9])
+        seglen = struct.unpack(">H", data[i + 2 : i + 4])[0]
+        if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+            h, w = struct.unpack(">HH", data[i + 5 : i + 9])
             return w, h, "jpg"
         i += 2 + seglen
     return None
@@ -259,9 +357,14 @@ def commons_search(query, limit=PER_QUERY):
     где автоматическим клиентам отвечают 429, поэтому они тоже пропускаются.
     """
     params = {
-        "action": "query", "format": "json", "generator": "search",
-        "gsrnamespace": "6", "gsrsearch": query, "gsrlimit": str(limit),
-        "prop": "imageinfo", "iiprop": "url|extmetadata|size|mime",
+        "action": "query",
+        "format": "json",
+        "generator": "search",
+        "gsrnamespace": "6",
+        "gsrsearch": query,
+        "gsrlimit": str(limit),
+        "prop": "imageinfo",
+        "iiprop": "url|extmetadata|size|mime",
         "iiurlwidth": "1280",
         "iiextmetadatafilter": "LicenseShortName|Artist|ImageDescription",
     }
@@ -282,15 +385,21 @@ def commons_search(query, limit=PER_QUERY):
         thumb = ii["thumburl"].split("?")[0]
         if "/thumb/" not in thumb:
             continue
-        out.append({
-            "id": "cm%d" % p["pageid"], "source": "commons", "title": title,
-            "desc": clean(meta.get("ImageDescription", {}).get("value", ""), 200),
-            "page_url": ii.get("descriptionurl", ""), "download_url": thumb,
-            "preview_url": re.sub(r"/\d+px-", "/330px-", thumb),
-            "licence": licence,
-            "author": clean(meta.get("Artist", {}).get("value", "")) or "unknown",
-            "width": ii.get("thumbwidth", 0), "height": ii.get("thumbheight", 0),
-        })
+        out.append(
+            {
+                "id": "cm%d" % p["pageid"],
+                "source": "commons",
+                "title": title,
+                "desc": clean(meta.get("ImageDescription", {}).get("value", ""), 200),
+                "page_url": ii.get("descriptionurl", ""),
+                "download_url": thumb,
+                "preview_url": re.sub(r"/\d+px-", "/330px-", thumb),
+                "licence": licence,
+                "author": clean(meta.get("Artist", {}).get("value", "")) or "unknown",
+                "width": ii.get("thumbwidth", 0),
+                "height": ii.get("thumbheight", 0),
+            }
+        )
     return out
 
 
@@ -316,10 +425,8 @@ def cmd_search(args):
                 except Exception as e:
                     hits, status = [], "error: %s" % e
                 new = [h for h in hits if h["id"] not in seen]
-                log.write("commons\t%s\t%s\t%d\t%d\t%s\n" % (
-                    pool, q, len(hits), len(new), status))
-                print("%-18s %-40s hits=%2d new=%2d %s" % (
-                    pool, q, len(hits), len(new), "" if status == "ok" else status))
+                log.write("commons\t%s\t%s\t%d\t%d\t%s\n" % (pool, q, len(hits), len(new), status))
+                print("%-18s %-40s hits=%2d new=%2d %s" % (pool, q, len(hits), len(new), "" if status == "ok" else status))
                 for h in new:
                     h["query"] = q
                     seen.add(h["id"])
@@ -381,7 +488,7 @@ class HttpRangeFile(io.RawIOBase):
             self.cache = http_bytes(self.url, {"Range": "bytes=%d-%d" % (self.pos, end)})
             self.cache_start = self.pos
             lo = 0
-        data = self.cache[lo:lo + n]
+        data = self.cache[lo : lo + n]
         self.pos += len(data)
         return data
 
@@ -427,8 +534,7 @@ def cmd_datasets(args):
         if args and key not in args:
             continue
         try:
-            names = [i.filename for i in remote_zip(ds["url"]).infolist()
-                     if not i.is_dir()]
+            names = [i.filename for i in remote_zip(ds["url"]).infolist() if not i.is_dir()]
         except Refused as e:
             print(key, "refused, skipped:", e)
             continue
@@ -440,10 +546,19 @@ def cmd_datasets(args):
             cid = "%s_%03d" % (key, k)
             dl = ds["url"] + MEMBER + urllib.parse.quote(member)
             cands[cid] = {
-                "id": cid, "source": ds["source"], "title": member, "desc": "",
-                "page_url": ds["page_url"], "download_url": dl, "preview_url": dl,
-                "licence": ds["licence"], "author": ds["author"],
-                "width": 0, "height": 0, "pool": ds["pool"], "query": key,
+                "id": cid,
+                "source": ds["source"],
+                "title": member,
+                "desc": "",
+                "page_url": ds["page_url"],
+                "download_url": dl,
+                "preview_url": dl,
+                "licence": ds["licence"],
+                "author": ds["author"],
+                "width": 0,
+                "height": 0,
+                "pool": ds["pool"],
+                "query": key,
             }
         print(key, "members:", len(names), "sampled:", len(picks))
         save_candidates(cands)
@@ -456,7 +571,7 @@ def cmd_previews(args):
     и необязательные имена пулов. Выборки из архивов загружаются всегда.
     Миниатюра Commons, которую сервер не отдал за 15 с, пропускается.
     """
-    limit = int(args[0]) if args and args[0].isdigit() else 10 ** 6
+    limit = int(args[0]) if args and args[0].isdigit() else 10**6
     pools = [a for a in args if not a.isdigit()]
     count = {}
     done = failed = 0
@@ -500,8 +615,9 @@ def shrink(path):
     with open(path, "rb") as f:
         size = image_size(f.read())
     if size and max(size[0], size[1]) > MAX_LONG_SIDE and shutil.which("sips"):
-        subprocess.run(["sips", "-Z", str(MAX_LONG_SIDE), path], check=False,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["sips", "-Z", str(MAX_LONG_SIDE), path], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         with open(path, "rb") as f:
             size = image_size(f.read())
     return size
@@ -543,8 +659,7 @@ def cmd_build(args):
         seen.add(cid)
         c = cands[cid]
         os.makedirs(os.path.join(IMG, cls), exist_ok=True)
-        local = [p for p in (os.path.join(IMG, cls, cid + e) for e in (".jpg", ".png"))
-                 if os.path.exists(p)]
+        local = [p for p in (os.path.join(IMG, cls, cid + e) for e in (".jpg", ".png")) if os.path.exists(p)]
         preview = os.path.join(WORK, "previews", c["pool"], cid + ".img")
         try:
             if local:
@@ -567,12 +682,20 @@ def cmd_build(args):
             with open(path, "wb") as fh:
                 fh.write(data)
         size = shrink(path)
-        rows.append({
-            "file": rel, "class": cls, "source": c["source"],
-            "page_url": c["page_url"], "download_url": c["download_url"],
-            "licence": c["licence"], "author": c["author"],
-            "width": size[0], "height": size[1], "note": note,
-        })
+        rows.append(
+            {
+                "file": rel,
+                "class": cls,
+                "source": c["source"],
+                "page_url": c["page_url"],
+                "download_url": c["download_url"],
+                "licence": c["licence"],
+                "author": c["author"],
+                "width": size[0],
+                "height": size[1],
+                "note": note,
+            }
+        )
     write_manifest(rows)
     print("manifest rows:", len(rows), "of", len(seen))
 
@@ -634,8 +757,14 @@ def cmd_verify(args):
     return 1 if problems else 0
 
 
-COMMANDS = {"search": cmd_search, "datasets": cmd_datasets, "previews": cmd_previews,
-            "build": cmd_build, "rebuild": cmd_rebuild, "verify": cmd_verify}
+COMMANDS = {
+    "search": cmd_search,
+    "datasets": cmd_datasets,
+    "previews": cmd_previews,
+    "build": cmd_build,
+    "rebuild": cmd_rebuild,
+    "verify": cmd_verify,
+}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:

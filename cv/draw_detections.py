@@ -10,14 +10,20 @@ models.json, рамки получает детектор сервера (server
 подписью GT. Дефекты выделены красным и оранжевым, исправные узлы синим. Каждый файл ужимается до
 размера не больше 200 КБ.
 """
+
 import os
 import sys
 
 import cv2
 import numpy as np
 
-DEFECT_COLORS = {"corrosion": (12, 154, 227), "leak": (48, 59, 217), "terminal_box_burnt": (48, 59, 217),
-                 "damage": (187, 79, 107), "coupling_no_guard": (48, 59, 217)}
+DEFECT_COLORS = {
+    "corrosion": (12, 154, 227),
+    "leak": (48, 59, 217),
+    "terminal_box_burnt": (48, 59, 217),
+    "damage": (187, 79, 107),
+    "coupling_no_guard": (48, 59, 217),
+}
 NODE_COLOR = (166, 90, 19)
 LIMIT = 200_000
 
@@ -29,8 +35,10 @@ def detections(models: list, frame: np.ndarray, conf: float = 0.25) -> list[tupl
         result = model(frame, conf=conf)
         result = result[0] if isinstance(result, (list, tuple)) else result
         names = getattr(result, "names", None) or getattr(model, "names", {})
-        rows += [(names[int(cls)], [int(v) for v in box], float(score))
-                 for box, cls, score in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)]
+        rows += [
+            (names[int(cls)], [int(v) for v in box], float(score))
+            for box, cls, score in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)
+        ]
     return sorted(merge_same_class(rows), key=lambda row: row[2])
 
 
@@ -38,13 +46,17 @@ def served_detections(manifest: str):
     """Возвращает функцию кадр -> рамки детектора сервера с порогами из указанного models.json."""
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
     from server.recognition import Detector
+
     detector = Detector(os.path.dirname(os.path.abspath(manifest)))
 
     def run(frame: np.ndarray) -> list[tuple]:
         """Находит рамки на кадре так же, как сервер, и сортирует их по возрастанию уверенности."""
-        rows = [(box["cls"], [int(box["x1"]), int(box["y1"]), int(box["x2"]), int(box["y2"])], float(box["conf"]))
-                for box in detector.detect(frame)]
+        rows = [
+            (box["cls"], [int(box["x1"]), int(box["y1"]), int(box["x2"]), int(box["y2"])], float(box["conf"]))
+            for box in detector.detect(frame)
+        ]
         return sorted(rows, key=lambda row: row[2])
+
     return run
 
 
@@ -58,6 +70,7 @@ def truth_boxes(path: str, frame: np.ndarray) -> list[tuple]:
     if os.path.basename(split_dir) != "images" or not os.path.exists(labels) or not os.path.exists(names_file):
         return []
     from evaluate import load_names, read_truth
+
     names = load_names(names_file)
     height, width = frame.shape[:2]
     return [(names[cls], [int(v) for v in box]) for cls, box in read_truth(labels, width, height)]
@@ -126,10 +139,13 @@ def main() -> None:
         find = served_detections(weights)
     else:
         from libreyolo import LibreYOLO
+
         models = [LibreYOLO(path) for path in weights.split(",")]
+
         def find(frame):
             """Находит рамки всеми переданными моделями."""
             return detections(models, frame)
+
     os.makedirs(out, exist_ok=True)
     for index, path in enumerate(files):
         target, _, source = path.rpartition("=")

@@ -11,6 +11,7 @@
 пересобирается так же: номера находок сохраняются, недостающие столбцы получают пустые значения.
 Недостающие необязательные столбцы других таблиц (способ опознания агрегата в осмотре) добавляются ALTER TABLE.
 """
+
 import json
 import sqlite3
 from datetime import datetime
@@ -53,7 +54,7 @@ def _table_ddl(table, name: str) -> str:
     head = f"CREATE TABLE {table.name} "
     if not ddl.startswith(head):
         raise RuntimeError(f"Неожиданное описание таблицы {table.name} - перевод базы невозможен")
-    return f"CREATE TABLE {name} " + ddl[len(head):]
+    return f"CREATE TABLE {name} " + ddl[len(head) :]
 
 
 def _users_ddl(name: str) -> str:
@@ -137,12 +138,15 @@ def _upgrade_users(path: str) -> bool:
                 connection.execute(
                     "INSERT OR IGNORE INTO roles (code, title, description, is_system, permissions, created_at, updated_at)"
                     " VALUES (?, ?, ?, 1, ?, ?, ?)",
-                    (code, title, description, json.dumps(ordered(permissions), ensure_ascii=False), moment, moment))
+                    (code, title, description, json.dumps(ordered(permissions), ensure_ascii=False), moment, moment),
+                )
             connection.execute("DROP TABLE IF EXISTS users_upgrade")
             connection.execute(_users_ddl("users_upgrade"))
             connection.execute(
                 "INSERT INTO users_upgrade (id, email, name, role, password_hash, is_active, must_change_password, created_at)"
-                " SELECT id, email, name, role, password_hash, 1, 0, ? FROM users", (moment,))
+                " SELECT id, email, name, role, password_hash, 1, 0, ? FROM users",
+                (moment,),
+            )
             connection.execute("DROP TABLE users")
             connection.execute("ALTER TABLE users_upgrade RENAME TO users")
             connection.execute("CREATE INDEX IF NOT EXISTS ix_users_role ON users (role)")

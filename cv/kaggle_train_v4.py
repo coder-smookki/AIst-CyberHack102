@@ -13,6 +13,7 @@
     оставляет в /kaggle/working/runs/<опыт> только best.pt, last.pt, журналы и сводку обучения.
 Эпоха и лучшие веса выбираются только по части val; порог уверенности здесь не подбирается.
 """
+
 import csv
 import glob
 import json
@@ -68,7 +69,7 @@ def input_file(name: str) -> str:
 
 def resolve_weights(weights: str) -> str:
     """Переводит запись "input:<файл>" в путь внутри приложенных данных, имя LibreYOLO оставляет как есть."""
-    return input_file(weights[len("input:"):]) if weights.startswith("input:") else weights
+    return input_file(weights[len("input:") :]) if weights.startswith("input:") else weights
 
 
 def previous_run(name: str) -> str | None:
@@ -117,9 +118,14 @@ def prepare(source: str, name: str, screen: bool, limit: int | None = None) -> s
 def child_config(experiment: dict, source: str) -> dict:
     """Готовит настройки обучения опыта: набор, папку вывода, начальные веса и продолжение прерванного опыта."""
     name = experiment["name"]
-    config = {"data": prepare(source, name, experiment.get("screen", True), experiment.get("limit")),
-              "project": os.path.join(OUT, "runs"), "name": name, "exist_ok": True, "device": "0",
-              "workers": experiment.get("workers", 2)}
+    config = {
+        "data": prepare(source, name, experiment.get("screen", True), experiment.get("limit")),
+        "project": os.path.join(OUT, "runs"),
+        "name": name,
+        "exist_ok": True,
+        "device": "0",
+        "workers": experiment.get("workers", 2),
+    }
     config.update({key: value for key, value in experiment.items() if key not in OWN_KEYS})
     resume = previous_run(name)
     if resume:
@@ -138,8 +144,9 @@ def launch(experiment: dict, source: str, gpu: int) -> tuple:
     log.write(json.dumps({key: value for key, value in config.items() if key != "data"}) + "\n")
     log.flush()
     env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), PYTHONUNBUFFERED="1")
-    process = subprocess.Popen([sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env,
-                               stdout=log, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        [sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env, stdout=log, stderr=subprocess.STDOUT
+    )
     return process, log, time.time() + experiment.get("minutes", 180) * 60
 
 
@@ -165,9 +172,18 @@ def main() -> None:
     os.makedirs(WORK, exist_ok=True)
     source = unpack()
     import torch
+
     gpus = max(1, torch.cuda.device_count())
-    print("видеокарт", gpus, [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],
-          "набор", source, "train", len(os.listdir(os.path.join(source, "images", "train"))), flush=True)
+    print(
+        "видеокарт",
+        gpus,
+        [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],
+        "набор",
+        source,
+        "train",
+        len(os.listdir(os.path.join(source, "images", "train"))),
+        flush=True,
+    )
     queue = list(EXPERIMENTS)
     running, status = {}, {}
     while queue or running:

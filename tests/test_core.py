@@ -1,4 +1,5 @@
 """Проверки ядра сервера: вход и токены, права по ролям, оборудование, история агрегата, начальное наполнение базы."""
+
 import hashlib
 import json
 import shutil
@@ -126,15 +127,36 @@ def test_login_success(client):
     response = client.post("/auth/login", json=form)
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"access_token", "refresh_token", "token_type", "expires_in", "user", "must_change_password",
-                         "permissions", "biometrics_allowed"}
+    assert set(body) == {
+        "access_token",
+        "refresh_token",
+        "token_type",
+        "expires_in",
+        "user",
+        "must_change_password",
+        "permissions",
+        "biometrics_allowed",
+    }
     assert body["token_type"] == "bearer" and body["expires_in"] == 30 * 60
     assert body["must_change_password"] is False and body["biometrics_allowed"] is True
-    assert body["permissions"] == ["inspect.run", "findings.view", "findings.create", "equipment.view", "telemetry.view",
-                                   "reports.own", "assistant.use"]
-    assert body["user"] == {"id": body["user"]["id"], "email": "engineer@kst.demo", "name": DEMO_USERS[0][1],
-                            "role": "engineer", "role_title": "инженер", "permissions": body["permissions"],
-                            "must_change_password": False}
+    assert body["permissions"] == [
+        "inspect.run",
+        "findings.view",
+        "findings.create",
+        "equipment.view",
+        "telemetry.view",
+        "reports.own",
+        "assistant.use",
+    ]
+    assert body["user"] == {
+        "id": body["user"]["id"],
+        "email": "engineer@kst.demo",
+        "name": DEMO_USERS[0][1],
+        "role": "engineer",
+        "role_title": "инженер",
+        "permissions": body["permissions"],
+        "must_change_password": False,
+    }
     assert client.get("/auth/me", headers=bearer(body)).json() == body["user"]
     access = jwt.decode(body["access_token"], SECRET, algorithms=["HS256"])
     renewal = jwt.decode(body["refresh_token"], SECRET, algorithms=["HS256"])
@@ -255,8 +277,12 @@ def test_refresh_rejects_wrong_tokens(client):
     """Обновление не принимает мусор, токен доступа, просроченный токен и токен с чужой подписью."""
     tokens = sign_in(client)
     past = int((datetime.now(UTC) - timedelta(minutes=1)).timestamp())
-    for token in ("мусор", tokens["access_token"], reissued(tokens["refresh_token"], exp=past),
-                  reissued(tokens["refresh_token"], secret="z" * 48)):
+    for token in (
+        "мусор",
+        tokens["access_token"],
+        reissued(tokens["refresh_token"], exp=past),
+        reissued(tokens["refresh_token"], secret="z" * 48),
+    ):
         response = client.post("/auth/refresh", json={"refresh_token": token})
         assert response.status_code == 401 and "недействителен" in response.json()["detail"], token
     assert client.post("/auth/refresh", json={}).status_code == 422
@@ -329,12 +355,26 @@ def test_equipment_search(client):
     """Поиск находит агрегат по обозначению, названию, модели, номеру и месту, не глядя на регистр и разделители."""
     head = bearer(sign_in(client))
     expected = {
-        "н-101": ["N-101"], "Н101": ["N-101"], "n-101": ["N-101"], "2786107": ["N-101"], "27861070142": ["N-101"],
-        "il 65/160": ["N-101"], "IL65160": ["N-101"], "kst demo pumps": ["N-101"], "kst demo": ["N-101", "SHU-3", "TR-1"], "зал 2": ["N-101"],
-        "ВИНТОВОЙ №2": ["AMS-2"], "21031004-1": ["AMS-1"], "площадка винтовой": ["AMS-1", "AMS-2"],
-        "насос": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"], "насос зал": ["N-101"],
-        "   ": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"], "ТМ-400/10": ["TR-1"], "2408-0317": ["SHU-3"],
-        "компрессор": [], "н-101 площадка": [],
+        "н-101": ["N-101"],
+        "Н101": ["N-101"],
+        "n-101": ["N-101"],
+        "2786107": ["N-101"],
+        "27861070142": ["N-101"],
+        "il 65/160": ["N-101"],
+        "IL65160": ["N-101"],
+        "kst demo pumps": ["N-101"],
+        "kst demo": ["N-101", "SHU-3", "TR-1"],
+        "зал 2": ["N-101"],
+        "ВИНТОВОЙ №2": ["AMS-2"],
+        "21031004-1": ["AMS-1"],
+        "площадка винтовой": ["AMS-1", "AMS-2"],
+        "насос": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"],
+        "насос зал": ["N-101"],
+        "   ": ["AMS-1", "AMS-2", "N-101", "SHU-3", "TR-1"],
+        "ТМ-400/10": ["TR-1"],
+        "2408-0317": ["SHU-3"],
+        "компрессор": [],
+        "н-101 площадка": [],
     }
     for query, ids in expected.items():
         found = client.get("/equipment", headers=head, params={"q": query}).json()
@@ -368,8 +408,13 @@ def test_card_and_nodes_match_equipment_file(client):
 def test_by_serial(client):
     """Карточка находится по серийному номеру с шильдика, в том числе без разделителей; догадок по части номера нет."""
     head = bearer(sign_in(client))
-    for serial, expected in (("2786107-0142", "N-101"), ("27861070142", "N-101"), (" 2786107 0142 ", "N-101"),
-                             ("21031004-2", "AMS-2"), ("210310041", "AMS-1")):
+    for serial, expected in (
+        ("2786107-0142", "N-101"),
+        ("27861070142", "N-101"),
+        (" 2786107 0142 ", "N-101"),
+        ("21031004-2", "AMS-2"),
+        ("210310041", "AMS-1"),
+    ):
         response = client.get(f"/equipment/by-serial/{serial}", headers=head)
         assert response.status_code == 200 and response.json()["id"] == expected, serial
         assert response.json()["nodes"]
@@ -394,23 +439,43 @@ def test_history_ordering(client):
     assert leak["node_code"] == "seal" and leak["node_name"] == "Торцевое уплотнение" and leak["state"] == "open"
     assert leak["evidence"][0]["source"] == "camera" and leak["has_photo"] is False and "photo_path" not in leak
     oldest = events[-1]
-    assert oldest == {"type": "maintenance", "id": oldest["id"], "at": "2022-06-10T10:30:00", "kind": "replacement",
-                      "node_code": "seal", "node_name": "Торцевое уплотнение", "comment": oldest["comment"],
-                      "user": oldest["user"], "hours_at": 6000}
+    assert oldest == {
+        "type": "maintenance",
+        "id": oldest["id"],
+        "at": "2022-06-10T10:30:00",
+        "kind": "replacement",
+        "node_code": "seal",
+        "node_name": "Торцевое уплотнение",
+        "comment": oldest["comment"],
+        "user": oldest["user"],
+        "hours_at": 6000,
+    }
     assert oldest["user"]["role"] == "master"
     with db.SessionLocal() as session:
         user = session.scalar(select(User).where(User.email == "engineer@kst.demo"))
         moment = datetime(2026, 11, 12, 10, 0)
-        session.add(MaintenanceRecord(equipment_id="N-101", node_code="flanges", kind="checked", user_id=user.id,
-                                      at=moment, hours_at=19238, comment="Протечек нет"))
+        session.add(
+            MaintenanceRecord(
+                equipment_id="N-101",
+                node_code="flanges",
+                kind="checked",
+                user_id=user.id,
+                at=moment,
+                hours_at=19238,
+                comment="Протечек нет",
+            )
+        )
         session.add(Inspection(equipment_id="N-101", user_id=user.id, started_at=moment))
         session.add(Inspection(equipment_id="N-101", user_id=user.id, started_at=moment + timedelta(days=1)))
         session.add(Inspection(equipment_id="AMS-1", user_id=user.id, started_at=moment + timedelta(days=2)))
         session.commit()
     events = client.get("/equipment/N-101/history", headers=head).json()
     assert [(event["type"], event["at"]) for event in events[:4]] == [
-        ("inspection", "2026-11-13T10:00:00"), ("inspection", "2026-11-12T10:00:00"),
-        ("maintenance", "2026-11-12T10:00:00"), ("inspection", "2026-10-27T14:05:00")]
+        ("inspection", "2026-11-13T10:00:00"),
+        ("inspection", "2026-11-12T10:00:00"),
+        ("maintenance", "2026-11-12T10:00:00"),
+        ("inspection", "2026-10-27T14:05:00"),
+    ]
     assert events[0]["status"] == "active" and events[0]["finished_at"] is None and events[0]["findings"] == []
     assert {event["status"] for event in events if event["type"] == "inspection"} == set(INSPECTION_STATUSES)
     assert len(events) == 10
@@ -424,7 +489,9 @@ def test_history_of_one_node(client):
     head = bearer(sign_in(client))
     events = client.get("/equipment/N-101/history", headers=head, params={"node": "seal"}).json()
     assert [(event["type"], event["at"]) for event in events] == [
-        ("inspection", "2026-10-27T14:05:00"), ("maintenance", "2022-06-10T10:30:00")]
+        ("inspection", "2026-10-27T14:05:00"),
+        ("maintenance", "2022-06-10T10:30:00"),
+    ]
     assert [finding["node_code"] for finding in events[0]["findings"]] == ["seal"]
     assert client.get("/equipment/N-101/history", headers=head, params={"node": "flanges"}).json() == []
     missing = client.get("/equipment/N-101/history", headers=head, params={"node": "gearbox"})
@@ -494,10 +561,10 @@ def test_database_constraints(client):
     broken = [
         lambda: User(email="new@kst.demo", name="Новый", role="boss", password_hash="-"),
         lambda: User(email="engineer@kst.demo", name="Двойник", role="engineer", password_hash="-"),
-        lambda: Equipment(id="X-1", name="Копия", type="pump", model="-", serial="2786107-0142", location="-",
-                          mode="running", run_hours=0),
-        lambda: Equipment(id="X-2", name="Насос", type="pump", model="-", serial="X-2", location="-",
-                          mode="broken", run_hours=0),
+        lambda: Equipment(
+            id="X-1", name="Копия", type="pump", model="-", serial="2786107-0142", location="-", mode="running", run_hours=0
+        ),
+        lambda: Equipment(id="X-2", name="Насос", type="pump", model="-", serial="X-2", location="-", mode="broken", run_hours=0),
         lambda: Node(equipment_id="N-101", code="seal", name="Повтор", data={}),
         lambda: Node(equipment_id="NOPE", code="seal", name="Чужой", data={}),
         lambda: Finding(inspection_id=1, equipment_id="N-101", source="manual", status="ok", title="-", state="closed"),

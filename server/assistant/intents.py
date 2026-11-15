@@ -4,6 +4,7 @@
 правил диагностики и показаний датчиков. Если данных нет, помощник так и отвечает и предлагает примеры
 вопросов. Ссылки вида kstvizor://... открывает мобильное приложение.
 """
+
 import json
 import re
 from dataclasses import dataclass, field
@@ -50,8 +51,22 @@ INSPECTION_WORDS = ("осмотр", "обход", "осматрив")
 WORK_WORDS = ("проводил", "выполнял", "делал", "ремонтировал")
 WORK_TOKENS = frozenset(("работы", "работ", "работах"))
 WORK_PHRASES = ("что было", "что происходило", "что случилось")
-MAINTENANCE_WORDS = ("обслуживан", "техобслуживан", "регламент", "ревизи", "ремонт", "ресурс", "замен", "менять",
-                     "менял", "поменя", "межремонтн", "наработк", "моточас", "срок")
+MAINTENANCE_WORDS = (
+    "обслуживан",
+    "техобслуживан",
+    "регламент",
+    "ревизи",
+    "ремонт",
+    "ресурс",
+    "замен",
+    "менять",
+    "менял",
+    "поменя",
+    "межремонтн",
+    "наработк",
+    "моточас",
+    "срок",
+)
 MAINTENANCE_TOKENS = frozenset(("то", "то1", "то2", "тр"))
 TELEMETRY_WORDS = ("телеметри", "показани", "график", "тренд")
 RESOLVED_WORDS = ("устранен", "закрыт", "исправлен")
@@ -59,24 +74,61 @@ CARD_WORDS = ("производител", "изготовител", "модел"
 LIST_WORDS = ("список", "перечень", "перечисл")
 STOPPED_WORDS = ("остановлен", "простаива")
 RUNNING_PHRASES = ("в работе", "работают", "работает", "запущен")
-EVERYWHERE_TOKENS = frozenset(("агрегаты", "агрегатов", "агрегатам", "агрегатах", "насосы", "насосов", "насосам",
-                               "насосах", "везде"))
+EVERYWHERE_TOKENS = frozenset(
+    ("агрегаты", "агрегатов", "агрегатам", "агрегатах", "насосы", "насосов", "насосам", "насосах", "везде")
+)
 EVERYWHERE_PHRASES = ("какое оборудование", "все оборудование", "всего оборудования", "всему оборудованию")
-TYPO_WORDS = ("истори", "уставк", "серийн", "последн", "следующ", "оборудован", "находит", "расположен", "работает",
-              "требует", "показат", "сколько")
-EXPLAIN_PHRASES = ("что делать", "как устранить", "как исправить", "что значит", "что означает", "что такое",
-                   "о чем говорит", "почему", "причин")
+TYPO_WORDS = (
+    "истори",
+    "уставк",
+    "серийн",
+    "последн",
+    "следующ",
+    "оборудован",
+    "находит",
+    "расположен",
+    "работает",
+    "требует",
+    "показат",
+    "сколько",
+)
+EXPLAIN_PHRASES = (
+    "что делать",
+    "как устранить",
+    "как исправить",
+    "что значит",
+    "что означает",
+    "что такое",
+    "о чем говорит",
+    "почему",
+    "причин",
+)
 EXPLAIN_SKIP = frozenset(search.stem(word) for word in ("устранить", "исправить", "причина", "причины", "говорит"))
 PARAMETER_FAMILIES = (
-    (("вибрац", "виброскорост", "скз"), (
-        ("vib_rms", ("скз", "общ")), ("vib_1x", ("1x", "1х", "оборотн")), ("vib_2x", ("2x", "2х")),
-        ("vib_hf", ("вч", "высокочастотн", "шум")), ("vib_axial", ("осев",)))),
+    (
+        ("вибрац", "виброскорост", "скз"),
+        (
+            ("vib_rms", ("скз", "общ")),
+            ("vib_1x", ("1x", "1х", "оборотн")),
+            ("vib_2x", ("2x", "2х")),
+            ("vib_hf", ("вч", "высокочастотн", "шум")),
+            ("vib_axial", ("осев",)),
+        ),
+    ),
     (("температур", "нагрев"), (("temp_bearing", ("подшипник",)), ("temp_winding", ("обмот", "двигател", "электродвигател")))),
-    (("давлен",), (
-        ("press_in", ("вход", "всас")), ("press_out", ("выход", "нагнетан")), ("press_out_true", ("манометр", "стрелочн")))),
-    (("ток", "небаланс"), (
-        ("current_a", ("фаз",)), ("current_b", ("фаз",)), ("current_c", ("фаз",)),
-        ("current_unbalance", ("небаланс", "перекос")))),
+    (
+        ("давлен",),
+        (("press_in", ("вход", "всас")), ("press_out", ("выход", "нагнетан")), ("press_out_true", ("манометр", "стрелочн"))),
+    ),
+    (
+        ("ток", "небаланс"),
+        (
+            ("current_a", ("фаз",)),
+            ("current_b", ("фаз",)),
+            ("current_c", ("фаз",)),
+            ("current_unbalance", ("небаланс", "перекос")),
+        ),
+    ),
     (("расход", "подач"), (("flow", ()),)),
     (("мощност",), (("power", ()),)),
     (("кпд",), (("efficiency", ()),)),
@@ -88,13 +140,22 @@ MODE_TITLES = {"running": "в работе", "stopped": "остановлен"}
 STATUS_TITLES = {"ok": "без замечаний", "check": "требует проверки", "defect": "признаки возможного дефекта"}
 STATE_TITLES = {"open": "открыто", "in_work": "в работе", "resolved": "устранено"}
 WORK_TITLES = {"checked": "проверка", "maintenance": "обслуживание", "replacement": "замена"}
-SENSOR_TITLES = {"ok": "отклонений по датчикам нет", "check": "рекомендуется проверка",
-                 "defect": "обнаружены признаки возможного дефекта", "unknown": "недостаточно данных датчиков по этому узлу"}
+SENSOR_TITLES = {
+    "ok": "отклонений по датчикам нет",
+    "check": "рекомендуется проверка",
+    "defect": "обнаружены признаки возможного дефекта",
+    "unknown": "недостаточно данных датчиков по этому узлу",
+}
 LEVEL_TITLES = {"ok": "норма", "warn": "уставки предупреждения", "alarm": "уставки тревоги"}
 SOURCE_TITLES = {"customer": "база заказчика", "model": "модельный ряд"}
 LABEL_TITLES = (("vibration", "по вибрации"), ("temperature", "по температуре"))
-RECORD_TITLES = {"finding": "Замечание", "maintenance": "Запись о работах", "document": "Документ", "node": "Узел",
-                 "rule": "Правило"}
+RECORD_TITLES = {
+    "finding": "Замечание",
+    "maintenance": "Запись о работах",
+    "document": "Документ",
+    "node": "Узел",
+    "rule": "Правило",
+}
 
 
 def deeplink(*path) -> str:
@@ -215,8 +276,12 @@ class Unit:
         readings = player.snapshot(moment)
         if not readings:
             return None
-        return {"player": player, "moment": moment, "readings": readings,
-                "parameters": {entry["code"]: entry for entry in player.parameters(moment)}}
+        return {
+            "player": player,
+            "moment": moment,
+            "readings": readings,
+            "parameters": {entry["code"]: entry for entry in player.parameters(moment)},
+        }
 
     @cached_property
     def telemetry_note(self) -> str:
@@ -268,9 +333,22 @@ def _load_units(session: Session, today: date) -> list[Unit]:
 def _vocabulary(units: list[Unit], rules: list[dict]) -> frozenset[str]:
     """Собирает словарь для исправления опечаток: слова карточек, названий правил и слова самих вопросов."""
     result = set(search.base_vocabulary()) | set(TYPO_WORDS)
-    for group in (RULE_WORDS, DOCUMENT_WORDS, ATTENTION_WORDS, STATE_WORDS, FINDING_WORDS, JOURNAL_WORDS,
-                  INSPECTION_WORDS, WORK_WORDS, MAINTENANCE_WORDS, TELEMETRY_WORDS, RESOLVED_WORDS, CARD_WORDS,
-                  LIST_WORDS, STOPPED_WORDS):
+    for group in (
+        RULE_WORDS,
+        DOCUMENT_WORDS,
+        ATTENTION_WORDS,
+        STATE_WORDS,
+        FINDING_WORDS,
+        JOURNAL_WORDS,
+        INSPECTION_WORDS,
+        WORK_WORDS,
+        MAINTENANCE_WORDS,
+        TELEMETRY_WORDS,
+        RESOLVED_WORDS,
+        CARD_WORDS,
+        LIST_WORDS,
+        STOPPED_WORDS,
+    ):
         result.update(group)
     for family, members in PARAMETER_FAMILIES:
         result.update(family)
@@ -367,8 +445,9 @@ def _remarks(findings) -> list[Finding]:
 
 def _unresolved(session: Session, equipment_id: str, node_code: str | None = None) -> list[Finding]:
     """Читает незакрытые замечания агрегата или одного его узла, сначала новые."""
-    query = select(Finding).where(Finding.equipment_id == equipment_id, Finding.state.notin_(("resolved", "rejected")),
-                                  Finding.status != "ok")
+    query = select(Finding).where(
+        Finding.equipment_id == equipment_id, Finding.state.notin_(("resolved", "rejected")), Finding.status != "ok"
+    )
     if node_code is not None:
         query = query.where(Finding.node_code == node_code)
     return list(session.scalars(query.order_by(Finding.created_at.desc(), Finding.id.desc()).limit(RECORD_LIMIT)))
@@ -376,8 +455,11 @@ def _unresolved(session: Session, equipment_id: str, node_code: str | None = Non
 
 def _inspections(session: Session, equipment_id: str, limit: int) -> list[Inspection]:
     """Читает последние осмотры агрегата вместе с исполнителем и записями."""
-    query = select(Inspection).where(Inspection.equipment_id == equipment_id).options(
-        joinedload(Inspection.user), selectinload(Inspection.findings))
+    query = (
+        select(Inspection)
+        .where(Inspection.equipment_id == equipment_id)
+        .options(joinedload(Inspection.user), selectinload(Inspection.findings))
+    )
     return list(session.scalars(query.order_by(Inspection.started_at.desc(), Inspection.id.desc()).limit(limit)))
 
 
@@ -398,8 +480,11 @@ def _inspection_line(inspection: Inspection) -> str:
     remarks = _remarks(inspection.findings)
     if not remarks:
         return f"{head}: замечаний нет."
-    listed = "; ".join(f"{finding.title} ({STATUS_TITLES.get(finding.status, finding.status)}, "
-                       f"{STATE_TITLES.get(finding.state, finding.state)})" for finding in remarks)
+    listed = "; ".join(
+        f"{finding.title} ({STATUS_TITLES.get(finding.status, finding.status)}, "
+        f"{STATE_TITLES.get(finding.state, finding.state)})"
+        for finding in remarks
+    )
     return f"{head}: {len(remarks)} {_plural(len(remarks), 'замечание', 'замечания', 'замечаний')} - {listed}."
 
 
@@ -409,8 +494,10 @@ def _work_line(record: MaintenanceRecord, names: dict[str, str]) -> str:
     where = f", узел «{node}»" if node else ""
     hours = f" Наработка {_number(record.hours_at)} ч." if record.hours_at is not None else ""
     comment = _sentence(record.comment or "без описания")
-    return (f"{_moment(record.at)} - {WORK_TITLES.get(record.kind, record.kind)}{where}: {comment}{hours} "
-            f"Выполнил: {_person(record.user)}.")
+    return (
+        f"{_moment(record.at)} - {WORK_TITLES.get(record.kind, record.kind)}{where}: {comment}{hours} "
+        f"Выполнил: {_person(record.user)}."
+    )
 
 
 def _level(meta: dict, value: float) -> str | None:
@@ -453,16 +540,21 @@ def _sensor_findings(unit: Unit) -> list[dict]:
     """Возвращает находки диагностики по датчикам; сроки обслуживания сюда не входят - они считаются отдельно."""
     if not unit.diagnosis:
         return []
-    return [found for found in unit.diagnosis["findings"]
-            if {line.get("source") for line in found.get("evidence") or []} != {"resource"}]
+    return [
+        found
+        for found in unit.diagnosis["findings"]
+        if {line.get("source") for line in found.get("evidence") or []} != {"resource"}
+    ]
 
 
 def _interval_line(entry: dict) -> str:
     """Описывает один вид обслуживания: интервал, наработка после последнего и остаток."""
     if entry["state"] == "insufficient_data":
         return f"{entry['name']}: недостаточно данных - нет: {'; '.join(entry['missing'])}."
-    head = (f"{entry['name']}: интервал {_number(entry['interval_hours'])} ч, после последнего обслуживания "
-            f"{_number(entry['since_hours'])} ч")
+    head = (
+        f"{entry['name']}: интервал {_number(entry['interval_hours'])} ч, после последнего обслуживания "
+        f"{_number(entry['since_hours'])} ч"
+    )
     if entry["state"] == "due":
         over = entry["since_hours"] - entry["interval_hours"]
         return f"{head} - срок наступил, превышение {_number(over)} ч."
@@ -479,25 +571,41 @@ def _reasons(session: Session, unit: Unit) -> list[tuple[int, str, tuple]]:
     names = unit.node_names
     reasons: list[tuple[int, str, tuple]] = []
     for finding in _unresolved(session, unit.id):
-        reasons.append((0 if finding.status == "defect" else 1,
-                        f"Незакрытое замечание: {_finding_line(finding, names)}.",
-                        ("finding", finding.title, "finding", finding.id)))
+        reasons.append(
+            (
+                0 if finding.status == "defect" else 1,
+                f"Незакрытое замечание: {_finding_line(finding, names)}.",
+                ("finding", finding.title, "finding", finding.id),
+            )
+        )
     for found in _sensor_findings(unit):
         status = SENSOR_TITLES.get(found["status"], found["status"])
-        reasons.append((2 if found["status"] == "defect" else 3,
-                        f"По датчикам на {_moment(unit.live['moment'])}: {found['title']} (правило "
-                        f"{found['rule_id']}) - {status}.",
-                        ("rule", f"Правило {found['rule_id']}: {found['title']}", "rule", found["rule_id"])))
+        reasons.append(
+            (
+                2 if found["status"] == "defect" else 3,
+                f"По датчикам на {_moment(unit.live['moment'])}: {found['title']} (правило " f"{found['rule_id']}) - {status}.",
+                ("rule", f"Правило {found['rule_id']}: {found['title']}", "rule", found["rule_id"]),
+            )
+        )
     for entry in maintenance_intervals(unit.card, unit.run_hours):
         if entry["state"] in ("due", "approaching"):
-            reasons.append((4 if entry["state"] == "due" else 5, f"Обслуживание - {_interval_line(entry)}",
-                            ("equipment", unit.item.name, "equipment", unit.id)))
+            reasons.append(
+                (
+                    4 if entry["state"] == "due" else 5,
+                    f"Обслуживание - {_interval_line(entry)}",
+                    ("equipment", unit.item.name, "equipment", unit.id),
+                )
+            )
     for node in unit.card["nodes"]:
         calculated = unit.resource(node)["calculated"]
         if calculated["state"] in ("due", "approaching"):
-            reasons.append((4 if calculated["state"] == "due" else 5,
-                            f"Ресурс узла «{node['name']}»: {_resource_text(calculated)}",
-                            ("node", f"{node['name']} - {unit.item.name}", "equipment", unit.id, "node", node["id"])))
+            reasons.append(
+                (
+                    4 if calculated["state"] == "due" else 5,
+                    f"Ресурс узла «{node['name']}»: {_resource_text(calculated)}",
+                    ("node", f"{node['name']} - {unit.item.name}", "equipment", unit.id, "node", node["id"]),
+                )
+            )
     reasons.sort(key=lambda reason: reason[0])
     return reasons
 
@@ -522,10 +630,13 @@ def _card(session: Session, reply: Reply, unit: Unit) -> None:
     """Отвечает карточкой агрегата: что это, где стоит, в каком режиме и что требует внимания."""
     item = unit.item
     maker = unit.card.get("manufacturer")
-    reply.say(f"{unit.label}: модель {item.model}, серийный номер {item.serial}"
-              + (f", производитель {maker}." if maker else "."))
-    reply.say(f"Место установки: {item.location}. Режим: {MODE_TITLES.get(item.mode, item.mode)}. "
-              f"Наработка: {_number(unit.run_hours)} ч.")
+    reply.say(
+        f"{unit.label}: модель {item.model}, серийный номер {item.serial}" + (f", производитель {maker}." if maker else ".")
+    )
+    reply.say(
+        f"Место установки: {item.location}. Режим: {MODE_TITLES.get(item.mode, item.mode)}. "
+        f"Наработка: {_number(unit.run_hours)} ч."
+    )
     latest = session.scalar(select(func.max(Inspection.started_at)).where(Inspection.equipment_id == unit.id))
     reply.say(f"Последний осмотр: {_moment(latest)}." if latest else "Осмотров агрегата в базе нет.")
     reply.link("equipment", item.name, "equipment", unit.id)
@@ -554,8 +665,9 @@ def _attention(session: Session, units: list[Unit]) -> Reply:
     for unit, _ in urgent or listed:
         reply.link("equipment", unit.item.name, "equipment", unit.id)
     if len(units) > 1:
-        reply.say(f"Внимания требуют {len(urgent)} из {len(units)} "
-                  f"{_plural(len(units), 'агрегата', 'агрегатов', 'агрегатов')}.")
+        reply.say(
+            f"Внимания требуют {len(urgent)} из {len(units)} " f"{_plural(len(units), 'агрегата', 'агрегатов', 'агрегатов')}."
+        )
     for unit, reasons in listed:
         place = f"{unit.label}, {unit.item.location}, {MODE_TITLES.get(unit.item.mode, unit.item.mode)}"
         if not reasons:
@@ -593,9 +705,11 @@ def _history(session: Session, units: list[Unit]) -> Reply:
         if not inspections and not works:
             reply.say(f"{unit.label}: история пуста - осмотров и записей о работах нет.")
             continue
-        reply.say(f"{unit.label}: в истории {len(inspections)} "
-                  f"{_plural(len(inspections), 'осмотр', 'осмотра', 'осмотров')} и {len(works)} "
-                  f"{_plural(len(works), 'запись', 'записи', 'записей')} о работах.")
+        reply.say(
+            f"{unit.label}: в истории {len(inspections)} "
+            f"{_plural(len(inspections), 'осмотр', 'осмотра', 'осмотров')} и {len(works)} "
+            f"{_plural(len(works), 'запись', 'записи', 'записей')} о работах."
+        )
         events: list[tuple[datetime, int, int, Any]] = [(entry.started_at, 1, entry.id, entry) for entry in inspections]
         events += [(entry.at, 0, entry.id, entry) for entry in works]
         events.sort(key=lambda event: event[:3], reverse=True)
@@ -606,8 +720,10 @@ def _history(session: Session, units: list[Unit]) -> Reply:
             else:
                 reply.say(f"- {_work_line(entry, unit.node_names)}")
         if len(events) > per_unit:
-            reply.say(f"Показаны последние {per_unit} из {len(events)} "
-                      f"{_plural(len(events), 'события', 'событий', 'событий')} - полная история по ссылке.")
+            reply.say(
+                f"Показаны последние {per_unit} из {len(events)} "
+                f"{_plural(len(events), 'события', 'событий', 'событий')} - полная история по ссылке."
+            )
     _note_cut(reply, units)
     return reply
 
@@ -630,8 +746,9 @@ def _last_inspection(session: Session, units: list[Unit]) -> Reply:
         reply.link("inspection", f"Осмотр {_day(inspection.started_at)} - {unit.item.name}", "inspection", inspection.id)
         remarks = _remarks(inspection.findings)
         clean = len(inspection.findings) - len(remarks)
-        reply.say(f"Записей осмотра: {len(inspection.findings)}, из них с замечаниями - {len(remarks)}, "
-                  f"без замечаний - {clean}.")
+        reply.say(
+            f"Записей осмотра: {len(inspection.findings)}, из них с замечаниями - {len(remarks)}, " f"без замечаний - {clean}."
+        )
         for finding in remarks:
             reply.say(f"- {_finding_line(finding, unit.node_names)}.")
             reply.link("finding", finding.title, "finding", finding.id)
@@ -642,8 +759,10 @@ def _last_inspection(session: Session, units: list[Unit]) -> Reply:
 
 def _wants_resolved(query: search.Query) -> bool:
     """Проверяет, что спрашивают об устранённых замечаниях: «устранённые», «закрытые», но не «не устранены»."""
-    return any(token.startswith(RESOLVED_WORDS) and (index == 0 or query.tokens[index - 1] != "не")
-               for index, token in enumerate(query.tokens))
+    return any(
+        token.startswith(RESOLVED_WORDS) and (index == 0 or query.tokens[index - 1] != "не")
+        for index, token in enumerate(query.tokens)
+    )
 
 
 def _resolved_findings(session: Session, units: list[Unit]) -> Reply:
@@ -669,11 +788,16 @@ def _unit_list(units: list[Unit], mode: str | None) -> Reply:
     reply = Reply("equipment_list")
     chosen = [unit for unit in units if mode is None or unit.item.mode == mode]
     title = {None: "В базе", "running": "В работе", "stopped": "Остановлено"}[mode]
-    reply.say(f"{title} {len(chosen)} из {len(units)} единиц оборудования." if mode else
-              f"{title} {len(units)} {_plural(len(units), 'единица', 'единицы', 'единиц')} оборудования.")
+    reply.say(
+        f"{title} {len(chosen)} из {len(units)} единиц оборудования."
+        if mode
+        else f"{title} {len(units)} {_plural(len(units), 'единица', 'единицы', 'единиц')} оборудования."
+    )
     for unit in chosen:
-        reply.say(f"- {unit.label}: {unit.item.location}, {MODE_TITLES.get(unit.item.mode, unit.item.mode)}, "
-                  f"наработка {_number(unit.run_hours)} ч.")
+        reply.say(
+            f"- {unit.label}: {unit.item.location}, {MODE_TITLES.get(unit.item.mode, unit.item.mode)}, "
+            f"наработка {_number(unit.run_hours)} ч."
+        )
         reply.link("equipment", unit.item.name, "equipment", unit.id)
     return reply
 
@@ -695,8 +819,11 @@ def _open_findings(session: Session, units: list[Unit]) -> Reply:
             advice = f" Рекомендация: {_sentence(finding.recommendation)}" if finding.recommendation else ""
             reply.say(f"- {_finding_line(finding, unit.node_names)}.{advice}")
             reply.link("finding", finding.title, "finding", finding.id)
-        resolved = session.scalar(select(func.count()).select_from(Finding).where(
-            Finding.equipment_id == unit.id, Finding.state == "resolved", Finding.status != "ok"))
+        resolved = session.scalar(
+            select(func.count())
+            .select_from(Finding)
+            .where(Finding.equipment_id == unit.id, Finding.state == "resolved", Finding.status != "ok")
+        )
         if resolved:
             reply.say(f"Устранённых замечаний в истории агрегата: {resolved}.")
     for unit, _ in found:
@@ -706,8 +833,9 @@ def _open_findings(session: Session, units: list[Unit]) -> Reply:
 
 def _resolved_on_node(session: Session, equipment_id: str, node_code: str) -> list[Finding]:
     """Читает устранённые замечания по одному узлу агрегата, сначала новые."""
-    query = select(Finding).where(Finding.equipment_id == equipment_id, Finding.node_code == node_code,
-                                  Finding.state == "resolved", Finding.status != "ok")
+    query = select(Finding).where(
+        Finding.equipment_id == equipment_id, Finding.node_code == node_code, Finding.state == "resolved", Finding.status != "ok"
+    )
     return list(session.scalars(query.order_by(Finding.created_at.desc(), Finding.id.desc()).limit(RECORD_LIMIT)))
 
 
@@ -725,8 +853,7 @@ def _node_findings(session: Session, hits: list[tuple[Unit, dict]], resolved_onl
     for unit, node, opened, solved in found[:MAX_UNITS]:
         where = f"{unit.label}, узел «{node['name']}»"
         if resolved_only:
-            reply.say(f"{where}: устранённых замечаний - {len(solved)}." if solved else
-                      f"{where}: устранённых замечаний нет.")
+            reply.say(f"{where}: устранённых замечаний - {len(solved)}." if solved else f"{where}: устранённых замечаний нет.")
         elif opened or solved:
             reply.say(f"{where}: незакрытых замечаний - {len(opened)}, устранённых - {len(solved)}.")
         else:
@@ -781,11 +908,13 @@ def _node(session: Session, hits: list[tuple[Unit, dict]]) -> Reply:
         reply.say(f"{node['name']} - {unit.label}.")
         reply.link("node", f"{node['name']} - {unit.item.name}", "equipment", unit.id, "node", code)
         if unit.live:
-            state = (unit.diagnosis["nodes"].get(code) or {"status": "unknown", "reasons": []})
+            state = unit.diagnosis["nodes"].get(code) or {"status": "unknown", "reasons": []}
             flagged = state["status"] in ("check", "defect") and state.get("reasons")
             reasons = f": {'; '.join(state['reasons'])}" if flagged else ""
-            reply.say(f"Фактическое состояние по датчикам на {_moment(unit.live['moment'])}: "
-                      f"{SENSOR_TITLES.get(state['status'], state['status'])}{reasons}.")
+            reply.say(
+                f"Фактическое состояние по датчикам на {_moment(unit.live['moment'])}: "
+                f"{SENSOR_TITLES.get(state['status'], state['status'])}{reasons}."
+            )
             for found in _sensor_findings(unit):
                 if found["node_id"] != code:
                     continue
@@ -793,8 +922,11 @@ def _node(session: Session, hits: list[tuple[Unit, dict]]) -> Reply:
                 if found.get("missing"):
                     reply.say(f"  Что ещё проверить: {'; '.join(found['missing'])}.")
                 reply.link("rule", f"Правило {found['rule_id']}: {found['title']}", "rule", found["rule_id"])
-            shown = [(key, unit.live["parameters"][key]) for key in node.get("parameters") or []
-                     if key in unit.live["parameters"] and key in unit.live["readings"]]
+            shown = [
+                (key, unit.live["parameters"][key])
+                for key in node.get("parameters") or []
+                if key in unit.live["parameters"] and key in unit.live["readings"]
+            ]
             if shown:
                 reply.say("Показания: " + "; ".join(_reading(meta, unit.live["readings"][key]) for key, meta in shown) + ".")
             for key, meta in shown:
@@ -904,8 +1036,10 @@ def _documents(query: search.Query, units: list[Unit]) -> Reply:
 def _rule_text(reply: Reply, rule: dict, node_names: dict[str, str]) -> None:
     """Описывает правило диагностики: признаки, диагноз, рекомендация, узел и критичность."""
     reply.say(f"Правило {rule['id']} «{rule['title']}».")
-    reply.say(f"Что видит камера: {_sentence(_lower_first(rule.get('camera_text') or 'не задано'))} "
-              f"Данные датчиков: {_sentence(_lower_first(rule.get('sensor_text') or 'не заданы'))}")
+    reply.say(
+        f"Что видит камера: {_sentence(_lower_first(rule.get('camera_text') or 'не задано'))} "
+        f"Данные датчиков: {_sentence(_lower_first(rule.get('sensor_text') or 'не заданы'))}"
+    )
     reply.say(f"Диагноз: {_sentence(_plain(rule.get('diagnosis')))}")
     reply.say(f"Рекомендация: {_sentence(_plain(rule.get('recommendation')))}")
     status = STATUS_TITLES.get(rule.get("status"), rule.get("status"))
@@ -925,11 +1059,17 @@ def _all_node_names(units: list[Unit]) -> dict[str, str]:
 
 def _rule_records(rules: list[dict]) -> list[search.Record]:
     """Готовит правила для поиска по словам: заголовок и текст признаков, диагноза и рекомендации."""
-    return [search.Record(
-        kind="rule", title=rule["title"], deeplink=deeplink("rule", rule["id"]), ref=rule["id"],
-        summary=f"{rule['id']} «{rule['title']}»",
-        text=" ".join(_plain(rule.get(key)) for key in ("diagnosis", "recommendation", "camera_text", "sensor_text")))
-        for rule in rules]
+    return [
+        search.Record(
+            kind="rule",
+            title=rule["title"],
+            deeplink=deeplink("rule", rule["id"]),
+            ref=rule["id"],
+            summary=f"{rule['id']} «{rule['title']}»",
+            text=" ".join(_plain(rule.get(key)) for key in ("diagnosis", "recommendation", "camera_text", "sensor_text")),
+        )
+        for rule in rules
+    ]
 
 
 def _rules(query: search.Query, rules: list[dict], units: list[Unit]) -> Reply | None:
@@ -958,8 +1098,7 @@ def _rules(query: search.Query, rules: list[dict], units: list[Unit]) -> Reply |
             _rule_text(reply, by_id[record.ref], names)
         return reply
     customer = [rule for rule in rules if rule.get("group") == "customer"] or rules
-    reply.say(f"В перечне {len(rules)} {_plural(len(rules), 'правило', 'правила', 'правил')} диагностики. "
-              f"Правила заказчика:")
+    reply.say(f"В перечне {len(rules)} {_plural(len(rules), 'правило', 'правила', 'правил')} диагностики. " f"Правила заказчика:")
     for rule in customer:
         reply.say(f"- {rule['id']}: {rule['title']}.")
         reply.link("rule", f"Правило {rule['id']}: {rule['title']}", "rule", rule["id"])
@@ -990,26 +1129,55 @@ def _records(session: Session, units: list[Unit], rules: list[dict]) -> list[sea
         names = unit.node_names
         findings = select(Finding).where(Finding.equipment_id == unit.id, Finding.status != "ok", Finding.state != "rejected")
         for finding in session.scalars(findings.order_by(Finding.id.desc()).limit(RECORD_LIMIT)):
-            text = " ".join(filter(None, (finding.diagnosis, finding.recommendation, finding.comment,
-                                          names.get(finding.node_code))))
-            records.append(search.Record(
-                kind="finding", title=finding.title, text=text, deeplink=deeplink("finding", finding.id),
-                equipment_id=unit.id, at=finding.created_at, summary=f"{_finding_line(finding, names)} - {unit.label}"))
+            text = " ".join(
+                filter(None, (finding.diagnosis, finding.recommendation, finding.comment, names.get(finding.node_code)))
+            )
+            records.append(
+                search.Record(
+                    kind="finding",
+                    title=finding.title,
+                    text=text,
+                    deeplink=deeplink("finding", finding.id),
+                    equipment_id=unit.id,
+                    at=finding.created_at,
+                    summary=f"{_finding_line(finding, names)} - {unit.label}",
+                )
+            )
         for record in _works(session, unit.id, RECORD_LIMIT):
             title = " ".join(filter(None, (WORK_TITLES.get(record.kind), names.get(record.node_code))))
-            records.append(search.Record(
-                kind="maintenance", title=title, text=record.comment or "", equipment_id=unit.id, at=record.at,
-                deeplink=deeplink("equipment", unit.id, "history"),
-                summary=f"{_work_line(record, names)} Агрегат: {unit.label}"))
+            records.append(
+                search.Record(
+                    kind="maintenance",
+                    title=title,
+                    text=record.comment or "",
+                    equipment_id=unit.id,
+                    at=record.at,
+                    deeplink=deeplink("equipment", unit.id, "history"),
+                    summary=f"{_work_line(record, names)} Агрегат: {unit.label}",
+                )
+            )
         for document in unit.card.get("documents") or []:
-            records.append(search.Record(
-                kind="document", title=document["title"], text="", deeplink=deeplink("document", document["id"]),
-                equipment_id=unit.id, summary=f"{document['title']} - {unit.label}"))
+            records.append(
+                search.Record(
+                    kind="document",
+                    title=document["title"],
+                    text="",
+                    deeplink=deeplink("document", document["id"]),
+                    equipment_id=unit.id,
+                    summary=f"{document['title']} - {unit.label}",
+                )
+            )
         for node in unit.card["nodes"]:
-            records.append(search.Record(
-                kind="node", title=node["name"], text=node.get("source") or "", equipment_id=unit.id,
-                deeplink=deeplink("equipment", unit.id, "node", node["id"]),
-                summary=f"{node['name']} - {unit.label}" + (f". {_sentence(node['source'])}" if node.get("source") else "")))
+            records.append(
+                search.Record(
+                    kind="node",
+                    title=node["name"],
+                    text=node.get("source") or "",
+                    equipment_id=unit.id,
+                    deeplink=deeplink("equipment", unit.id, "node", node["id"]),
+                    summary=f"{node['name']} - {unit.label}" + (f". {_sentence(node['source'])}" if node.get("source") else ""),
+                )
+            )
     return records
 
 
@@ -1046,8 +1214,11 @@ def examples(units: list[Unit]) -> list[str]:
     if not units:
         return ["Какое оборудование требует внимания?", "Что означает правило R06?", "Какие есть правила диагностики?"]
     first = next((unit for unit in units if unit.card.get("maintenance")), units[0])
-    return [f"Покажи историю агрегата {first.id}", f"Какие открытые замечания по {first.id}?",
-            "Какое оборудование требует внимания?"]
+    return [
+        f"Покажи историю агрегата {first.id}",
+        f"Какие открытые замечания по {first.id}?",
+        "Какое оборудование требует внимания?",
+    ]
 
 
 def _not_found(units: list[Unit]) -> Reply:

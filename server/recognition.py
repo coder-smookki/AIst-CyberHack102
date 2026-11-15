@@ -7,6 +7,7 @@
 ({класс: порог}); без них действует общий порог 0,25. Чтение шильдика и манометра выполняют функции из
 папки cv.
 """
+
 import io
 import json
 import logging
@@ -86,8 +87,11 @@ def _overlap(first: dict, second: dict) -> float:
     width = min(first["x2"], second["x2"]) - max(first["x1"], second["x1"])
     height = min(first["y2"], second["y2"]) - max(first["y1"], second["y1"])
     shared = max(0.0, width) * max(0.0, height)
-    union = ((first["x2"] - first["x1"]) * (first["y2"] - first["y1"])
-             + (second["x2"] - second["x1"]) * (second["y2"] - second["y1"]) - shared)
+    union = (
+        (first["x2"] - first["x1"]) * (first["y2"] - first["y1"])
+        + (second["x2"] - second["x1"]) * (second["y2"] - second["y1"])
+        - shared
+    )
     return shared / union if union > 0 else 0.0
 
 
@@ -124,6 +128,7 @@ def _tune_session(model) -> None:
         return
     try:
         import onnxruntime as ort
+
         options = ort.SessionOptions()
         options.intra_op_num_threads = ort_threads()
         options.inter_op_num_threads = 1
@@ -135,6 +140,7 @@ def _tune_session(model) -> None:
 def _load_model(path: Path):
     """Загружает модель ONNX; библиотека детектора подключается только здесь, при первом кадре."""
     from libreyolo import LibreYOLO
+
     model = LibreYOLO(str(path))
     _tune_session(model)
     return model
@@ -185,8 +191,13 @@ def model_options(entry) -> dict:
     return options
 
 
-def _model_boxes(model, frame: np.ndarray, default: float = WEAK_CONFIDENCE,
-                 classes: dict[str, float] | None = None, options: dict | None = None) -> list[dict]:
+def _model_boxes(
+    model,
+    frame: np.ndarray,
+    default: float = WEAK_CONFIDENCE,
+    classes: dict[str, float] | None = None,
+    options: dict | None = None,
+) -> list[dict]:
     """Запускает одну модель на кадре и возвращает её рамки в пикселях кадра.
 
     Модель запускается с наименьшим из её порогов, затем каждая рамка сверяется с порогом своего класса.
@@ -282,9 +293,14 @@ class Detector:
                 options = {}
                 names = [DEFAULT_MODEL]
         found = [name for name in names if (self._dir / name).is_file()]
-        return {"files": found, "missing": [name for name in names if name not in found], "defects": defects, "note": note,
-                "thresholds": {name: thresholds.get(name, (WEAK_CONFIDENCE, {})) for name in found},
-                "options": {name: options.get(name, {}) for name in found}}
+        return {
+            "files": found,
+            "missing": [name for name in names if name not in found],
+            "defects": defects,
+            "note": note,
+            "thresholds": {name: thresholds.get(name, (WEAK_CONFIDENCE, {})) for name in found},
+            "options": {name: options.get(name, {}) for name in found},
+        }
 
     @property
     def available(self) -> bool:
@@ -310,8 +326,13 @@ class Detector:
     def info(self) -> dict:
         """Описывает состояние детектора для проверки готовности сервера."""
         plan = self._plan()
-        return {"ready": bool(plan["files"]) and self._failure is None, "loaded": self.loaded, "models": plan["files"],
-                "missing": plan["missing"], "note": self._failure or plan["note"]}
+        return {
+            "ready": bool(plan["files"]) and self._failure is None,
+            "loaded": self.loaded,
+            "models": plan["files"],
+            "missing": plan["missing"],
+            "note": self._failure or plan["note"],
+        }
 
     def load(self) -> list:
         """Загружает модели при первом вызове и возвращает их; повторные вызовы ничего не загружают.
@@ -392,8 +413,12 @@ def detect_frame(detector, data: bytes) -> dict:
     started = time.perf_counter()
     boxes = [dict(box) for box in detector.detect(frame) if box["conf"] >= floor]
     boxes.sort(key=lambda box: -box["conf"])
-    return {"w": int(frame.shape[1]), "h": int(frame.shape[0]), "ms": round((time.perf_counter() - started) * 1000, 1),
-            "boxes": boxes}
+    return {
+        "w": int(frame.shape[1]),
+        "h": int(frame.shape[0]),
+        "ms": round((time.perf_counter() - started) * 1000, 1),
+        "boxes": boxes,
+    }
 
 
 def read_text(frame: np.ndarray) -> list[dict]:
@@ -424,8 +449,13 @@ def read_gauge(frame: np.ndarray, scale: dict) -> dict:
     """
     found = import_module("cv.gauge").read_gauge(frame, float(scale["min"]), float(scale["max"]), float(scale["sweep_deg"]))
     if found.get("ok") and found.get("value") is not None:
-        return {"ok": True, "value": float(found["value"]), "reason": None, "angle_deg": found.get("angle_deg"),
-                "contrast": found.get("contrast")}
+        return {
+            "ok": True,
+            "value": float(found["value"]),
+            "reason": None,
+            "angle_deg": found.get("angle_deg"),
+            "contrast": found.get("contrast"),
+        }
     reason = found.get("reason")
     reason = f"Манометр не прочитан: {reason}" if reason else GAUGE_UNSURE
     return {"ok": False, "value": None, "reason": reason, "angle_deg": found.get("angle_deg"), "contrast": found.get("contrast")}

@@ -4,6 +4,7 @@
 
 Сервер собирается целиком на копии базы, детектор подменён, стоимость хэша пароля снижена.
 """
+
 import re
 import shutil
 from pathlib import Path
@@ -85,14 +86,22 @@ def headers(client, email):
 
 def test_static_files_and_style():
     """Страница, стили, сценарии, шрифты и картинки на месте; нет внешних адресов и строчных комментариев."""
-    for name in ("index.html", "css/app.css", "css/web.css", "css/panel.css", "js/core.js", "js/web.js", *[f"js/{n}" for n in OWN_JS]):
+    for name in (
+        "index.html",
+        "css/app.css",
+        "css/web.css",
+        "css/panel.css",
+        "js/core.js",
+        "js/web.js",
+        *[f"js/{n}" for n in OWN_JS],
+    ):
         path = WEB / name
         assert path.is_file() and path.stat().st_size > 100, name
         text = path.read_text(encoding="utf-8").replace("http://www.w3.org/2000/svg", "")
         assert not EXTERNAL.search(text), name
         if name.endswith(".js"):
             plain = re.sub(r"/\*\*.*?\*/", "", text, flags=re.DOTALL)
-            plain = re.sub(r"\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", "\"\"", plain)
+            plain = re.sub(r"\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", '""', plain)
             assert not re.search(r"(?<![:\\])//", plain), name
     assert {path.name for path in (WEB / "assets" / "fonts").iterdir()} >= {"Geologica-Regular.ttf", "Geologica-SemiBold.ttf"}
     assert (WEB / "assets" / "hero.jpg").is_file()
@@ -157,8 +166,11 @@ def test_block_with_reason(client):
     users = {item["email"]: item for item in client.get("/admin/users", headers=security).json()}
     operator = users["operator@kst.demo"]
     headers(client, "operator@kst.demo")
-    blocked = client.post(f"/webadmin/users/{operator['id']}/block", headers=security,
-                          json={"reason": "Утеря устройства", "comment": "Планшет KV-T07"})
+    blocked = client.post(
+        f"/webadmin/users/{operator['id']}/block",
+        headers=security,
+        json={"reason": "Утеря устройства", "comment": "Планшет KV-T07"},
+    )
     assert blocked.status_code == 200 and blocked.json()["is_active"] is False and blocked.json()["active_sessions"] == 0
     info = client.get(f"/webadmin/users/{operator['id']}/block", headers=security).json()
     assert info["reason"] == "Утеря устройства" and info["comment"] == "Планшет KV-T07" and info["actor"]

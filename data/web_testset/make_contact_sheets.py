@@ -11,6 +11,7 @@
 
 Снимки только декодируются библиотекой Pillow.
 """
+
 import json
 import os
 import sys
@@ -52,7 +53,7 @@ def grid(items, out_prefix, cols, rows, cell, font_size):
     per = cols * rows
     paths = []
     for s in range(0, len(items), per):
-        chunk = items[s:s + per]
+        chunk = items[s : s + per]
         nrows = (len(chunk) + cols - 1) // cols
         sheet = Image.new("RGB", (cols * cell, nrows * (cell + lab)), (30, 30, 30))
         draw = ImageDraw.Draw(sheet)
@@ -62,11 +63,9 @@ def grid(items, out_prefix, cols, rows, cell, font_size):
                 with Image.open(path) as im:
                     im = ImageOps.exif_transpose(im).convert("RGB")
                     im.thumbnail((cell - 6, cell - 6))
-                    sheet.paste(im, (x + (cell - im.width) // 2,
-                                     y + lab + (cell - im.height) // 2))
+                    sheet.paste(im, (x + (cell - im.width) // 2, y + lab + (cell - im.height) // 2))
             except Exception as e:
-                draw.text((x + 6, y + lab + 20), "ERR %s" % str(e)[:30],
-                          fill=(255, 80, 80), font=font)
+                draw.text((x + 6, y + lab + 20), "ERR %s" % str(e)[:30], fill=(255, 80, 80), font=font)
             draw.rectangle([x, y, x + cell - 1, y + lab - 1], fill=(0, 0, 0))
             draw.text((x + 6, y + 2), label, fill=(255, 255, 0), font=font)
         out = "%s_%02d.jpg" % (out_prefix, s // per + 1)
@@ -91,8 +90,7 @@ def cmd_sheets(pools):
                 path = os.path.join(WORK, "previews", pool, cid + ".img")
                 if os.path.exists(path):
                     items.append(("%d" % n, path))
-                    f.write("%d\t%s\t%s\t%s\t%s\n" % (
-                        n, cid, c["licence"], c["title"][-70:], c.get("desc", "")[:90]))
+                    f.write("%d\t%s\t%s\t%s\t%s\n" % (n, cid, c["licence"], c["title"][-70:], c.get("desc", "")[:90]))
         for p in grid(items, os.path.join(out_dir, pool), 6, 5, 300, 22):
             print(p)
 
@@ -123,8 +121,7 @@ def cmd_final(classes):
         d = os.path.join(img_root, cls)
         if not os.path.isdir(d) or (classes and cls not in classes):
             continue
-        items = [(os.path.splitext(fn)[0][-12:], os.path.join(d, fn))
-                 for fn in sorted(os.listdir(d)) if not fn.startswith(".")]
+        items = [(os.path.splitext(fn)[0][-12:], os.path.join(d, fn)) for fn in sorted(os.listdir(d)) if not fn.startswith(".")]
         for p in grid(items, os.path.join(out_dir, cls), 5, 4, 360, 22):
             print(p)
 

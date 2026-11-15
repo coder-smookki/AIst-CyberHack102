@@ -1,4 +1,5 @@
 """QR-код как запасной путь опознания агрегата: разбор адресов, точное совпадение, порядок после шильдика."""
+
 import cv2
 import numpy as np
 import pytest
@@ -6,9 +7,11 @@ import pytest
 from server import qr, recognition
 from test_api_extra import client, headers, readings, seeded_database
 
-CARDS = [{"id": "N-101", "serial": "2786107-0142", "model": "IL 65/160-5,5/2"},
-         {"id": "AMS-1", "serial": "21031004-1", "model": "PCP60S12/3"},
-         {"id": "AMS-2", "serial": "21031004-2", "model": "PCP60S12/3"}]
+CARDS = [
+    {"id": "N-101", "serial": "2786107-0142", "model": "IL 65/160-5,5/2"},
+    {"id": "AMS-1", "serial": "21031004-1", "model": "PCP60S12/3"},
+    {"id": "AMS-2", "serial": "21031004-2", "model": "PCP60S12/3"},
+]
 
 
 def qr_image(text: str, scale: int = 8, border: int = 48, with_text: bool = False) -> np.ndarray:
@@ -30,16 +33,19 @@ def jpeg_of(frame: np.ndarray) -> bytes:
     return data.tobytes()
 
 
-@pytest.mark.parametrize("text, expected", [
-    ("https://kct-vizor.lumnex.ru:4433/equipment/N-101", ["N-101", "equipment"]),
-    ("http://plant.local/u?id=AMS-1&src=label", ["AMS-1", "label", "u"]),
-    ("id:N-101", ["id:N-101", "N-101"]),
-    ("KST N-101", ["KST N-101", "KST", "N-101"]),
-])
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("https://kct-vizor.lumnex.ru:4433/equipment/N-101", ["N-101", "equipment"]),
+        ("http://plant.local/u?id=AMS-1&src=label", ["AMS-1", "label", "u"]),
+        ("id:N-101", ["id:N-101", "N-101"]),
+        ("KST N-101", ["KST N-101", "KST", "N-101"]),
+    ],
+)
 def test_code_tokens_strip_urls(text, expected):
     """От адреса остаются значения параметров и части пути; имя сервера в коды не попадает."""
     tokens = qr.code_tokens(text)
-    assert tokens[:len(expected)] == expected
+    assert tokens[: len(expected)] == expected
     assert not any("lumnex" in token or "plant.local" in token for token in tokens)
 
 
@@ -75,8 +81,11 @@ def test_endpoint_falls_back_to_qr_and_flows_into_inspection(client, monkeypatch
     assert body["found"] is True and body["match"]["by"] == "qr" and body["match"]["equipment_id"] == "N-101"
     assert body["identified_by"] == "qr" and body["qr"] == "N-101" and "QR" in body["message"]
     assert body["lines"] == [{"text": "XYZ", "score": 0.8}]
-    response = client.post("/inspections", json={"equipment_id": body["match"]["equipment_id"],
-                                                 "identified_by": body["identified_by"]}, headers=engineer)
+    response = client.post(
+        "/inspections",
+        json={"equipment_id": body["match"]["equipment_id"], "identified_by": body["identified_by"]},
+        headers=engineer,
+    )
     assert response.status_code in (200, 201) and response.json()["identified_by"] == "qr"
 
 
@@ -104,5 +113,6 @@ def test_qr_works_when_text_recognition_is_unavailable(client, monkeypatch):
     body = client.post("/recognize/nameplate", headers=engineer, files={"frame": ("p.jpg", frame, "image/jpeg")}).json()
     assert body["match"]["equipment_id"] == "AMS-1" and body["identified_by"] == "qr" and body["lines"] == []
     plain = jpeg_of(np.full((240, 320, 3), 180, np.uint8))
-    assert client.post("/recognize/nameplate", headers=engineer,
-                       files={"frame": ("p.jpg", plain, "image/jpeg")}).status_code == 503
+    assert (
+        client.post("/recognize/nameplate", headers=engineer, files={"frame": ("p.jpg", plain, "image/jpeg")}).status_code == 503
+    )

@@ -1,4 +1,5 @@
 """Отпечаток набора моделей в находках, отчётах, /health и /webadmin; состояние каналов в /health без путей."""
+
 import io
 import json
 from pathlib import Path

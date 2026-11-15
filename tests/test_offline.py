@@ -5,6 +5,7 @@
 внешнее имя или отправить датаграмму наружу запоминается и проваливает проверку, даже если вызывающий
 код проглотил ошибку.
 """
+
 import socket
 from importlib import import_module
 
@@ -151,20 +152,21 @@ def test_full_scenario_without_internet(no_internet, tmp_path, monkeypatch):
             assert "N-101" in {unit["id"] for unit in units}
             assert client.get("/equipment/N-101", headers=engineer).json()["serial"] == "2786107-0142"
 
-            plate = client.post("/recognize/nameplate", headers=engineer,
-                                files={"frame": ("plate.jpg", _jpeg(_plate()), "image/jpeg")})
+            plate = client.post(
+                "/recognize/nameplate", headers=engineer, files={"frame": ("plate.jpg", _jpeg(_plate()), "image/jpeg")}
+            )
             if _ocr_available():
                 assert plate.status_code == 200, plate.text
                 body = plate.json()
                 assert body["match"]["equipment_id"] == "N-101" and body["identified_by"] == "nameplate"
             else:
                 assert plate.status_code == 503
-            by_qr = client.post("/recognize/nameplate", headers=engineer,
-                                files={"frame": ("qr.jpg", _jpeg(_qr("N-101")), "image/jpeg")}).json()
+            by_qr = client.post(
+                "/recognize/nameplate", headers=engineer, files={"frame": ("qr.jpg", _jpeg(_qr("N-101")), "image/jpeg")}
+            ).json()
             assert by_qr["match"]["equipment_id"] == "N-101" and by_qr["match"]["by"] == "qr"
 
-            started = client.post("/inspections", json={"equipment_id": "N-101", "identified_by": "nameplate"},
-                                  headers=engineer)
+            started = client.post("/inspections", json={"equipment_id": "N-101", "identified_by": "nameplate"}, headers=engineer)
             assert started.status_code == 201, started.text
             inspection_id = started.json()["id"]
             if detector.available:
@@ -173,9 +175,12 @@ def test_full_scenario_without_internet(no_internet, tmp_path, monkeypatch):
                     live.send_bytes(_jpeg(_plate()))
                     reply = live.receive_json()
                     assert reply["type"] == "frame", reply
-            finding = client.post(f"/inspections/{inspection_id}/findings", headers=engineer,
-                                  data={"kind": "defect", "sign": "corrosion", "node": "casing"},
-                                  files={"frame": ("f.jpg", _jpeg(_plate()), "image/jpeg")})
+            finding = client.post(
+                f"/inspections/{inspection_id}/findings",
+                headers=engineer,
+                data={"kind": "defect", "sign": "corrosion", "node": "casing"},
+                files={"frame": ("f.jpg", _jpeg(_plate()), "image/jpeg")},
+            )
             assert finding.status_code == 201, finding.text
             assert finding.json()["has_photo"] is True and finding.json()["models_fingerprint"]
             finished = client.post(f"/inspections/{inspection_id}/finish", headers=engineer).json()

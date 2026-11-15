@@ -1,4 +1,5 @@
 """Осмотры оборудования: полнота обхода, фиксация результатов, замечания и отчёты."""
+
 from server.inspections.coverage import CoverageTracker, static_priority
 from server.inspections.router import router
 from server.inspections.service import (

@@ -1,4 +1,5 @@
 """Проверки телеметрии: сохранность баз заказчика, полнота и физическая согласованность модельных рядов."""
+
 import itertools
 import math
 import random
@@ -20,10 +21,22 @@ MODEL = PumpModel(flow_m3h=47.0, head_m=31.7, power_kw=5.5, rated_current_a=11.0
 RUN_HOURS_START = 19190
 SERVICE_DUE = 19200
 FAULTS = ("imbalance", "misalignment", "bearing_wear", "winding_overheat", "cavitation", "hydraulic_wear", "sensor_drift")
-VIBRATION_HEADER = ("Дата и время", "Обороты (об/мин)", "СКЗ общее (мм/с)", "Ампл. 1x (мм/с)", "Ампл. 2x (мм/с)",
-                    "ВЧ шум (g)", "Диагноз по вибрации")
-TEMPERATURE_HEADER = ("Дата и время", "Обороты (об/мин)", "Темп. подшипника насоса (°C)", "Темп. обмоток ЭД (°C)",
-                      "Диагноз по температуре")
+VIBRATION_HEADER = (
+    "Дата и время",
+    "Обороты (об/мин)",
+    "СКЗ общее (мм/с)",
+    "Ампл. 1x (мм/с)",
+    "Ампл. 2x (мм/с)",
+    "ВЧ шум (g)",
+    "Диагноз по вибрации",
+)
+TEMPERATURE_HEADER = (
+    "Дата и время",
+    "Обороты (об/мин)",
+    "Темп. подшипника насоса (°C)",
+    "Темп. обмоток ЭД (°C)",
+    "Диагноз по температуре",
+)
 
 
 def customer_files():
@@ -63,8 +76,15 @@ def write_bases(base, vibration_lines, temperature_lines, temperature_header=TEM
 
 def baseline_rows(count):
     """Готовит условные строки нормального режима для проверок, которым базы заказчика не нужны."""
-    values = {"rpm": 2950, "vib_rms": 1.01, "vib_1x": 0.8, "vib_2x": 0.3, "vib_hf": 0.1,
-              "temp_bearing": 50.0, "temp_winding": 65.0}
+    values = {
+        "rpm": 2950,
+        "vib_rms": 1.01,
+        "vib_1x": 0.8,
+        "vib_2x": 0.3,
+        "vib_hf": 0.1,
+        "temp_bearing": 50.0,
+        "temp_winding": 65.0,
+    }
     labels = {"vibration": "Норма", "temperature": "Норма"}
     return [CustomerRow(FIRST + HOUR * index, dict(values), dict(labels)) for index in range(count)]
 
@@ -166,12 +186,22 @@ def test_loader_keeps_values_and_merges_by_time(tmp_path):
     write_bases(
         tmp_path,
         [("2026-11-10 09:00", 2953, 1.01, 0.81, 0.3, 0.09, "Норма"), ("2026-11-10 08:00", 2963, 1.02, 0.84, 0.22, 0.1, "Норма")],
-        [("2026-11-10 08:00", 2963, 50.6, 64.3, "Норма"), ("2026-11-10 09:00", 2953, 91.5, 66.2, "Тревога: Перегрев подш. насоса")],
+        [
+            ("2026-11-10 08:00", 2963, 50.6, 64.3, "Норма"),
+            ("2026-11-10 09:00", 2953, 91.5, 66.2, "Тревога: Перегрев подш. насоса"),
+        ],
     )
     rows = loader.load_customer(tmp_path)
     assert [row.at for row in rows] == [FIRST, FIRST + HOUR]
-    assert rows[0].values == {"rpm": 2963, "vib_rms": 1.02, "vib_1x": 0.84, "vib_2x": 0.22, "vib_hf": 0.1,
-                              "temp_bearing": 50.6, "temp_winding": 64.3}
+    assert rows[0].values == {
+        "rpm": 2963,
+        "vib_rms": 1.02,
+        "vib_1x": 0.84,
+        "vib_2x": 0.22,
+        "vib_hf": 0.1,
+        "temp_bearing": 50.6,
+        "temp_winding": 64.3,
+    }
     assert isinstance(rows[0].values["rpm"], int)
     assert rows[1].labels == {"vibration": "Норма", "temperature": "Тревога: Перегрев подш. насоса"}
 
@@ -185,8 +215,12 @@ def test_loader_rejects_inconsistent_bases(tmp_path):
     write_bases(tmp_path / "time", vibration, [("2026-11-10 09:00", 2963, 50.6, 64.3, "Норма")])
     with pytest.raises(TelemetryDataError, match="разные отметки времени"):
         loader.load_customer(tmp_path / "time")
-    write_bases(tmp_path / "column", vibration, [("2026-11-10 08:00", 2963, 50.6, "Норма")],
-                temperature_header=TEMPERATURE_HEADER[:3] + TEMPERATURE_HEADER[4:])
+    write_bases(
+        tmp_path / "column",
+        vibration,
+        [("2026-11-10 08:00", 2963, 50.6, "Норма")],
+        temperature_header=TEMPERATURE_HEADER[:3] + TEMPERATURE_HEADER[4:],
+    )
     with pytest.raises(TelemetryDataError, match="нет столбцов"):
         loader.load_customer(tmp_path / "column")
     write_bases(tmp_path / "text", vibration, [("2026-11-10 08:00", 2963, "нет", 64.3, "Норма")])
@@ -227,14 +261,12 @@ def test_affinity_laws_for_speed_change():
     assert MODEL.duty(2950.0) == pytest.approx((47.0, 31.7, 5.5))
     flow, head, power = MODEL.duty(2950.0 * 0.8)
     assert flow / 47.0 == pytest.approx(0.8)
-    assert head / 31.7 == pytest.approx(0.8 ** 2)
-    assert power / 5.5 == pytest.approx(0.8 ** 3)
+    assert head / 31.7 == pytest.approx(0.8**2)
+    assert power / 5.5 == pytest.approx(0.8**3)
     assert synth.hydraulic_power_kw(flow, head) / power * 100 == pytest.approx(MODEL.nominal_efficiency)
     worn_flow, worn_head, worn_power = MODEL.duty(2950.0, flow_factor=0.94)
     assert worn_power == pytest.approx(5.5)
-    assert synth.hydraulic_power_kw(worn_flow, worn_head) / worn_power * 100 == pytest.approx(
-        MODEL.nominal_efficiency * 0.94 ** 3
-    )
+    assert synth.hydraulic_power_kw(worn_flow, worn_head) / worn_power * 100 == pytest.approx(MODEL.nominal_efficiency * 0.94**3)
     assert MODEL.power_from_current(MODEL.mean_current(4.2)) == pytest.approx(4.2)
     assert MODEL.mean_current(5.5) == pytest.approx(11.0)
 
@@ -306,8 +338,15 @@ def test_customer_rows_preserved_exactly(player):
         at = datetime.strptime(vib[0], "%Y-%m-%d %H:%M")
         assert temp[0] == vib[0]
         values = player.snapshot(at)
-        expected = {"rpm": vib[1], "vib_rms": vib[2], "vib_1x": vib[3], "vib_2x": vib[4], "vib_hf": vib[5],
-                    "temp_bearing": temp[2], "temp_winding": temp[3]}
+        expected = {
+            "rpm": vib[1],
+            "vib_rms": vib[2],
+            "vib_1x": vib[3],
+            "vib_2x": vib[4],
+            "vib_hf": vib[5],
+            "temp_bearing": temp[2],
+            "temp_winding": temp[3],
+        }
         assert {code: values[code] for code in CUSTOMER_CODES} == expected
         assert player.customer_label("vibration", at) == vib[6]
         assert player.customer_label("temperature", at) == temp[4]
@@ -350,8 +389,13 @@ def test_modelled_values_are_flagged(player):
 def test_customer_thresholds_in_parameters(player):
     """Уставки пяти параметров заказчика совпадают с его описаниями баз, направление - превышение."""
     parameters = {item["code"]: item for item in player.parameters()}
-    expected = {"vib_1x": (2.8, 4.5), "vib_2x": (1.8, 3.0), "vib_hf": (2.5, 5.0),
-                "temp_bearing": (75.0, 90.0), "temp_winding": (90.0, 110.0)}
+    expected = {
+        "vib_1x": (2.8, 4.5),
+        "vib_2x": (1.8, 3.0),
+        "vib_hf": (2.5, 5.0),
+        "temp_bearing": (75.0, 90.0),
+        "temp_winding": (90.0, 110.0),
+    }
     for code, (warn, alarm) in expected.items():
         assert (parameters[code]["warn"], parameters[code]["alarm"], parameters[code]["direction"]) == (warn, alarm, "high")
     assert (parameters["current_unbalance"]["warn"], parameters["current_unbalance"]["direction"]) == (5.0, "high")
@@ -365,12 +409,26 @@ def test_scenarios_follow_the_plan(player):
     scenarios = player.scenarios()
     assert [item["id"] for item in scenarios[:7]] == list(FAULTS)
     assert [item["id"] for item in scenarios[7:]] == ["normal", "maintenance_due"]
-    days = {"imbalance": ((11, 15), (11, 17)), "misalignment": ((11, 20), (11, 22)),
-            "bearing_wear": ((11, 25), (11, 27)), "winding_overheat": ((11, 29), (12, 1)),
-            "cavitation": ((12, 2), (12, 3)), "hydraulic_wear": ((12, 4), (12, 5)), "sensor_drift": ((12, 6), (12, 6))}
-    rules = {"imbalance": ["R02"], "misalignment": ["R09"], "bearing_wear": ["R08", "R01", "R03"],
-             "winding_overheat": ["R04"], "cavitation": ["R07", "R12"], "hydraulic_wear": ["R10"],
-             "sensor_drift": ["R05"], "normal": [], "maintenance_due": ["R11"]}
+    days = {
+        "imbalance": ((11, 15), (11, 17)),
+        "misalignment": ((11, 20), (11, 22)),
+        "bearing_wear": ((11, 25), (11, 27)),
+        "winding_overheat": ((11, 29), (12, 1)),
+        "cavitation": ((12, 2), (12, 3)),
+        "hydraulic_wear": ((12, 4), (12, 5)),
+        "sensor_drift": ((12, 6), (12, 6)),
+    }
+    rules = {
+        "imbalance": ["R02"],
+        "misalignment": ["R09"],
+        "bearing_wear": ["R08", "R01", "R03"],
+        "winding_overheat": ["R04"],
+        "cavitation": ["R07", "R12"],
+        "hydraulic_wear": ["R10"],
+        "sensor_drift": ["R05"],
+        "normal": [],
+        "maintenance_due": ["R11"],
+    }
     for item in scenarios:
         assert set(item) >= {"id", "title", "start", "end", "peak", "expected_rules", "source"}
         assert item["onset"] <= item["start"] <= item["peak"] <= item["end"]
@@ -387,8 +445,12 @@ def test_scenarios_follow_the_plan(player):
 
 def test_customer_episode_starts_match_customer_labels(player):
     """Начало эпизодов заказчика - первый час с его диагнозом не "Норма"; вне эпизодов диагнозы "Норма"."""
-    kinds = {"imbalance": "vibration", "misalignment": "vibration", "bearing_wear": "vibration",
-             "winding_overheat": "temperature"}
+    kinds = {
+        "imbalance": "vibration",
+        "misalignment": "vibration",
+        "bearing_wear": "vibration",
+        "winding_overheat": "temperature",
+    }
     for scenario_id, kind in kinds.items():
         item = scenario(player, scenario_id)
         flagged = [at for at in hours_of(player) if inside(at, item) and player.customer_label(kind, at) != "Норма"]
@@ -619,9 +681,7 @@ def test_series_follow_affinity_laws(player):
         expected_flow, expected_head, expected_power = MODEL.duty(values["rpm"])
         assert values["flow"] == pytest.approx(expected_flow, rel=0.01)
         assert values["power"] == pytest.approx(expected_power, rel=0.01)
-        assert values["press_out_true"] - values["press_in"] == pytest.approx(
-            1000.0 * 9.80665 * expected_head / 1.0e5, abs=0.03
-        )
+        assert values["press_out_true"] - values["press_in"] == pytest.approx(1000.0 * 9.80665 * expected_head / 1.0e5, abs=0.03)
 
 
 def test_extension_reproduces_customer_baseline(player):
@@ -630,8 +690,15 @@ def test_extension_reproduces_customer_baseline(player):
     customer = [player.snapshot(at) for at in quiet if at <= CUSTOMER_LAST]
     modelled = [player.snapshot(at) for at in quiet if at > CUSTOMER_LAST]
     assert len(customer) == 120 and len(modelled) == 28
-    tolerance = {"rpm": 6.0, "vib_rms": 0.03, "vib_1x": 0.03, "vib_2x": 0.03, "vib_hf": 0.03,
-                 "temp_bearing": 0.6, "temp_winding": 0.6}
+    tolerance = {
+        "rpm": 6.0,
+        "vib_rms": 0.03,
+        "vib_1x": 0.03,
+        "vib_2x": 0.03,
+        "vib_hf": 0.03,
+        "temp_bearing": 0.6,
+        "temp_winding": 0.6,
+    }
     for code, allowed in tolerance.items():
         customer_mean = sum(values[code] for values in customer) / len(customer)
         modelled_mean = sum(values[code] for values in modelled) / len(modelled)
@@ -643,7 +710,7 @@ def test_extension_reproduces_customer_baseline(player):
         if inside(at, cavitation):
             continue
         values = player.snapshot(at)
-        overall = math.sqrt(values["vib_1x"] ** 2 + values["vib_2x"] ** 2 + 0.5 ** 2) + 0.2 * values["vib_hf"]
+        overall = math.sqrt(values["vib_1x"] ** 2 + values["vib_2x"] ** 2 + 0.5**2) + 0.2 * values["vib_hf"]
         assert values["vib_rms"] == pytest.approx(overall, abs=0.016)
 
 

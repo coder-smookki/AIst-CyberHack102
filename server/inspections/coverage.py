@@ -5,6 +5,7 @@
 сбрасывается. Дефектный признак, увиденный уверенно хотя бы с одной стороны, запоминается и не снимается
 кадрами, где он не виден.
 """
+
 import math
 from threading import Lock
 
@@ -70,11 +71,21 @@ class CoverageTracker:
                 continue
             classes = [str(cls) for cls in node.get("classes") or []]
             self._nodes[code] = {
-                "name": node.get("name") or code, "classes": classes, "trackable": bool(classes),
+                "name": node.get("name") or code,
+                "classes": classes,
+                "trackable": bool(classes),
                 "by_camera": any(cls not in self._signs for cls in classes),
-                "seen": 0, "close": 0, "glimpses": 0, "best_conf": 0.0, "best_area": 0.0,
-                "inspected": False, "manual": False, "defect_classes": {},
-                "last_frame": 0, "last_conf": 0.0, "last_area": 0.0,
+                "seen": 0,
+                "close": 0,
+                "glimpses": 0,
+                "best_conf": 0.0,
+                "best_area": 0.0,
+                "inspected": False,
+                "manual": False,
+                "defect_classes": {},
+                "last_frame": 0,
+                "last_conf": 0.0,
+                "last_area": 0.0,
             }
             for cls in classes:
                 self._by_class.setdefault(cls, []).append(code)
@@ -131,8 +142,9 @@ class CoverageTracker:
                 own = [sightings[cls] for cls in node["classes"] if cls in sightings]
                 if own:
                     self._note_node(node, own, max(peaks[cls] for cls in node["classes"] if cls in peaks))
-                node["defect_classes"] = {cls: self._visual[cls] for cls in node["classes"]
-                                          if cls in self._signs and cls in self._visual}
+                node["defect_classes"] = {
+                    cls: self._visual[cls] for cls in node["classes"] if cls in self._signs and cls in self._visual
+                }
             return self._state()
 
     def mark_checked(self, code: str) -> dict:
@@ -209,8 +221,12 @@ class CoverageTracker:
 
     def _counted_now(self, node: dict) -> bool:
         """Проверяет, что узел есть в последнем кадре и этот кадр ему засчитан."""
-        return (self._frames > 0 and node["last_frame"] == self._frames
-                and node["last_conf"] >= MIN_CONFIDENCE and node["last_area"] >= MIN_AREA)
+        return (
+            self._frames > 0
+            and node["last_frame"] == self._frames
+            and node["last_conf"] >= MIN_CONFIDENCE
+            and node["last_area"] >= MIN_AREA
+        )
 
     def _hint_node(self, pending: list[str]) -> str | None:
         """Выбирает узел для подсказки: тот, что сейчас засчитывается в кадре, иначе первый по приоритету.
@@ -249,16 +265,26 @@ class CoverageTracker:
         nodes = {}
         for code, node in self._nodes.items():
             nodes[code] = {
-                "name": node["name"], "seen": node["seen"], "close": node["close"],
-                "best_conf": round(node["best_conf"], 3), "best_area": round(node["best_area"] * 100, 1),
-                "inspected": node["inspected"], "manual": node["manual"], "trackable": node["trackable"],
+                "name": node["name"],
+                "seen": node["seen"],
+                "close": node["close"],
+                "best_conf": round(node["best_conf"], 3),
+                "best_area": round(node["best_area"] * 100, 1),
+                "inspected": node["inspected"],
+                "manual": node["manual"],
+                "trackable": node["trackable"],
                 "by_camera": node["by_camera"],
                 "defect_classes": {cls: round(conf, 3) for cls, conf in node["defect_classes"].items()},
             }
         return {
             "percent": round(100 * inspected / len(tracked)) if tracked else 0,
-            "inspected": inspected, "total": len(tracked), "frames": self._frames, "nodes": nodes,
+            "inspected": inspected,
+            "total": len(tracked),
+            "frames": self._frames,
+            "nodes": nodes,
             "visual": {cls: round(conf, 3) for cls, conf in self._visual.items()},
-            "hint": self._hint(hint_node), "hint_node": hint_node, "next_node": pending[0] if pending else None,
+            "hint": self._hint(hint_node),
+            "hint_node": hint_node,
+            "next_node": pending[0] if pending else None,
             "pending": pending,
         }

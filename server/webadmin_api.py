@@ -6,6 +6,7 @@
 моделей не меняются. Резервная копия - копия базы SQLite штатным механизмом резервного копирования в папку
 backups рядом с файлом базы (по умолчанию data/runtime/backups). Сервер не обращается к внешним адресам.
 """
+
 import json
 import os
 import platform
@@ -36,10 +37,29 @@ SYSTEM = require_permission("system.manage")
 USERS = require_permission("users.manage")
 BACKUP_PREFIX = "kst-"
 SEVERITY_LEVEL = {1: "info", 2: "warn", 3: "bad"}
-NOTE_EVENTS = {"rejected": ("warn", "Находка отклонена"), "state": ("info", "Состояние замечания изменено"),
-               "comment": ("info", "Комментарий к замечанию")}
-MODEL_FIELDS = ("file", "role", "family", "classes", "defect_classes", "imgsz", "conf_check", "conf_defect", "size_mb",
-                "weights_licence", "code_licence", "trained_from", "data", "measured", "thresholds", "every_n")
+NOTE_EVENTS = {
+    "rejected": ("warn", "Находка отклонена"),
+    "state": ("info", "Состояние замечания изменено"),
+    "comment": ("info", "Комментарий к замечанию"),
+}
+MODEL_FIELDS = (
+    "file",
+    "role",
+    "family",
+    "classes",
+    "defect_classes",
+    "imgsz",
+    "conf_check",
+    "conf_defect",
+    "size_mb",
+    "weights_licence",
+    "code_licence",
+    "trained_from",
+    "data",
+    "measured",
+    "thresholds",
+    "every_n",
+)
 
 router = APIRouter(prefix="/webadmin", tags=["webadmin"], dependencies=[Depends(current_user)])
 
@@ -81,8 +101,13 @@ def _load() -> dict:
         one, five, fifteen = os.getloadavg()
     except (AttributeError, OSError):
         return {"cores": cores, "load_1": None, "load_5": None, "load_15": None, "percent": None}
-    return {"cores": cores, "load_1": round(one, 2), "load_5": round(five, 2), "load_15": round(fifteen, 2),
-            "percent": round(min(100.0, one / cores * 100), 1)}
+    return {
+        "cores": cores,
+        "load_1": round(one, 2),
+        "load_5": round(five, 2),
+        "load_15": round(fifteen, 2),
+        "percent": round(min(100.0, one / cores * 100), 1),
+    }
 
 
 @router.get("/metrics", dependencies=[Depends(SYSTEM)])
@@ -96,13 +121,19 @@ def metrics(request: Request) -> dict:
         disk = {"total_bytes": usage.total, "used_bytes": usage.used, "free_bytes": usage.free}
     except OSError:
         disk = None
-    return {"time": _stamp(now()), "started_at": _stamp(started),
-            "uptime_s": int((now() - started).total_seconds()) if started else None,
-            "cpu": _load(), "memory": {"total_bytes": _memory_total(), "process_peak_bytes": _process_peak_memory()},
-            "disk": disk, "database": {"file": os.path.basename(path),
-                                       "size_bytes": os.path.getsize(path) if os.path.exists(path) else None},
-            "host": platform.node(), "platform": f"{platform.system()} {platform.release()}",
-            "python": platform.python_version(), "pid": os.getpid()}
+    return {
+        "time": _stamp(now()),
+        "started_at": _stamp(started),
+        "uptime_s": int((now() - started).total_seconds()) if started else None,
+        "cpu": _load(),
+        "memory": {"total_bytes": _memory_total(), "process_peak_bytes": _process_peak_memory()},
+        "disk": disk,
+        "database": {"file": os.path.basename(path), "size_bytes": os.path.getsize(path) if os.path.exists(path) else None},
+        "host": platform.node(),
+        "platform": f"{platform.system()} {platform.release()}",
+        "python": platform.python_version(),
+        "pid": os.getpid(),
+    }
 
 
 def _manifest() -> list[dict]:
@@ -126,8 +157,9 @@ def models(request: Request) -> dict:
     for entry in _manifest():
         path = MODELS_FILE.parent / entry["file"]
         view = {key: entry[key] for key in MODEL_FIELDS if key in entry}
-        view.update(present=path.is_file(), size_bytes=path.stat().st_size if path.is_file() else None,
-                    loaded=entry["file"] in loaded)
+        view.update(
+            present=path.is_file(), size_bytes=path.stat().st_size if path.is_file() else None, loaded=entry["file"] in loaded
+        )
         items.append(view)
     return {"manifest": MODELS_FILE.name, "detector": state, "models": items, "fingerprint": fingerprint.current()}
 
@@ -152,49 +184,98 @@ async def benchmark(request: Request) -> dict:
     except recognition.DetectorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     total = round((time.perf_counter() - started) * 1000, 1)
-    return {"ms": found.get("ms"), "total_ms": total, "boxes": len(found.get("boxes") or []),
-            "w": found.get("w"), "h": found.get("h"), "at": _stamp(now())}
+    return {
+        "ms": found.get("ms"),
+        "total_ms": total,
+        "boxes": len(found.get("boxes") or []),
+        "w": found.get("w"),
+        "h": found.get("h"),
+        "at": _stamp(now()),
+    }
 
 
 @router.get("/events", dependencies=[Depends(SYSTEM)])
-def events(request: Request, session: Annotated[Session, Depends(get_session)],
-           limit: Annotated[int, Query(ge=1, le=500)] = 100) -> list[dict]:
+def events(
+    request: Request, session: Annotated[Session, Depends(get_session)], limit: Annotated[int, Query(ge=1, le=500)] = 100
+) -> list[dict]:
     """Журнал событий сервера, сначала новые: запуск, осмотры, находки, решения по ним и записи звука."""
     rows = []
     started = getattr(request.app.state, "started_at", None)
     if started:
-        rows.append({"at": started, "level": "info", "kind": "server", "title": "Сервер запущен",
-                     "text": f"База {os.path.basename(config.db_path())}"})
-    inspections = session.scalars(select(Inspection).options(joinedload(Inspection.user))
-                                  .order_by(Inspection.started_at.desc()).limit(limit))
+        rows.append(
+            {
+                "at": started,
+                "level": "info",
+                "kind": "server",
+                "title": "Сервер запущен",
+                "text": f"База {os.path.basename(config.db_path())}",
+            }
+        )
+    inspections = session.scalars(
+        select(Inspection).options(joinedload(Inspection.user)).order_by(Inspection.started_at.desc()).limit(limit)
+    )
     item: Any
     for item in inspections:
         who = item.user.name if item.user else "сотрудник"
-        rows.append({"at": item.started_at, "level": "info", "kind": "inspection",
-                     "title": f"Начат осмотр № {item.id} · {item.equipment_id}", "text": who})
+        rows.append(
+            {
+                "at": item.started_at,
+                "level": "info",
+                "kind": "inspection",
+                "title": f"Начат осмотр № {item.id} · {item.equipment_id}",
+                "text": who,
+            }
+        )
         if item.finished_at:
-            rows.append({"at": item.finished_at, "level": "ok", "kind": "inspection",
-                         "title": f"Завершён осмотр № {item.id} · {item.equipment_id}", "text": who})
+            rows.append(
+                {
+                    "at": item.finished_at,
+                    "level": "ok",
+                    "kind": "inspection",
+                    "title": f"Завершён осмотр № {item.id} · {item.equipment_id}",
+                    "text": who,
+                }
+            )
     findings = session.scalars(select(Finding).order_by(Finding.created_at.desc()).limit(limit))
     for item in findings:
-        rows.append({"at": item.created_at, "level": SEVERITY_LEVEL.get(item.severity or 1, "info"), "kind": "finding",
-                     "title": f"Находка № {item.id} · {item.equipment_id}", "text": item.title})
+        rows.append(
+            {
+                "at": item.created_at,
+                "level": SEVERITY_LEVEL.get(item.severity or 1, "info"),
+                "kind": "finding",
+                "title": f"Находка № {item.id} · {item.equipment_id}",
+                "text": item.title,
+            }
+        )
     noted = session.scalars(select(Finding).where(Finding.notes.is_not(None)).order_by(Finding.id.desc()).limit(limit))
     for item in noted:
         for note in item.notes or []:
             level, title = NOTE_EVENTS.get(note.get("kind"), NOTE_EVENTS["comment"])
             if note.get("at"):
-                rows.append({"at": datetime.fromisoformat(note["at"]), "level": level, "kind": "finding",
-                             "title": f"{title} · № {item.id} · {item.equipment_id}",
-                             "text": f"{note.get('user_name') or 'сотрудник'}: {note.get('text') or ''}"})
-    sounds = session.scalars(select(SoundRecord).options(joinedload(SoundRecord.user))
-                             .order_by(SoundRecord.created_at.desc()).limit(limit))
+                rows.append(
+                    {
+                        "at": datetime.fromisoformat(note["at"]),
+                        "level": level,
+                        "kind": "finding",
+                        "title": f"{title} · № {item.id} · {item.equipment_id}",
+                        "text": f"{note.get('user_name') or 'сотрудник'}: {note.get('text') or ''}",
+                    }
+                )
+    sounds = session.scalars(
+        select(SoundRecord).options(joinedload(SoundRecord.user)).order_by(SoundRecord.created_at.desc()).limit(limit)
+    )
     for item in sounds:
         found = len((item.summary or {}).get("candidates") or [])
-        rows.append({"at": item.created_at, "level": "warn" if found else "info", "kind": "sound",
-                     "title": f"Запись звука · осмотр № {item.inspection_id} · {item.equipment_id}",
-                     "text": f"{item.user.name if item.user else 'сотрудник'}: уровень {(item.summary or {}).get('level_dbfs')} дБ, "
-                             f"признаков-кандидатов: {found}"})
+        rows.append(
+            {
+                "at": item.created_at,
+                "level": "warn" if found else "info",
+                "kind": "sound",
+                "title": f"Запись звука · осмотр № {item.inspection_id} · {item.equipment_id}",
+                "text": f"{item.user.name if item.user else 'сотрудник'}: уровень {(item.summary or {}).get('level_dbfs')} дБ, "
+                f"признаков-кандидатов: {found}",
+            }
+        )
     rows.sort(key=lambda row: row["at"], reverse=True)
     return [{**row, "at": _stamp(row["at"])} for row in rows[:limit]]
 
@@ -207,16 +288,22 @@ def _backup_dir() -> Path:
 def _backup_view(path: Path) -> dict:
     """Описание файла резервной копии: имя, размер и время создания."""
     stat = path.stat()
-    return {"file": path.name, "size_bytes": stat.st_size,
-            "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds")}
+    return {
+        "file": path.name,
+        "size_bytes": stat.st_size,
+        "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(timespec="seconds"),
+    }
 
 
 @router.get("/backups", dependencies=[Depends(SYSTEM)])
 def list_backups() -> dict:
     """Резервные копии базы, сначала свежие."""
     folder = _backup_dir()
-    files = sorted(folder.glob(f"{BACKUP_PREFIX}*.db"), key=lambda path: path.stat().st_mtime, reverse=True) \
-        if folder.is_dir() else []
+    files = (
+        sorted(folder.glob(f"{BACKUP_PREFIX}*.db"), key=lambda path: path.stat().st_mtime, reverse=True)
+        if folder.is_dir()
+        else []
+    )
     return {"folder": str(folder), "backups": [_backup_view(path) for path in files]}
 
 
@@ -244,8 +331,13 @@ def _ip(request: Request) -> str:
 
 
 @router.post("/users/{user_id}/block")
-def block_with_reason(user_id: int, body: BlockBody, request: Request, actor: Annotated[User, Depends(USERS)],
-                      session: Annotated[Session, Depends(get_session)]) -> dict:
+def block_with_reason(
+    user_id: int,
+    body: BlockBody,
+    request: Request,
+    actor: Annotated[User, Depends(USERS)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Блокирует учётную запись с причиной: закрывает все сеансы и пишет причину в журнал безопасности."""
     user = session.get(User, user_id)
     if user is None:
@@ -268,11 +360,19 @@ def block_with_reason(user_id: int, body: BlockBody, request: Request, actor: An
 @router.get("/users/{user_id}/block", dependencies=[Depends(USERS)])
 def block_reason(user_id: int, session: Annotated[Session, Depends(get_session)]) -> dict:
     """Последняя блокировка учётной записи: когда, кто и по какой причине; без блокировки - пустые поля."""
-    row = session.scalar(select(SecurityEvent).options(joinedload(SecurityEvent.actor))
-                         .where(SecurityEvent.target_user_id == user_id, SecurityEvent.event == "user_blocked")
-                         .order_by(SecurityEvent.at.desc(), SecurityEvent.id.desc()).limit(1))
+    row = session.scalar(
+        select(SecurityEvent)
+        .options(joinedload(SecurityEvent.actor))
+        .where(SecurityEvent.target_user_id == user_id, SecurityEvent.event == "user_blocked")
+        .order_by(SecurityEvent.at.desc(), SecurityEvent.id.desc())
+        .limit(1)
+    )
     if row is None:
         return {"at": None, "actor": None, "reason": None, "comment": None}
     details = row.details or {}
-    return {"at": _stamp(row.at), "actor": row.actor.name if row.actor else None,
-            "reason": details.get("reason"), "comment": details.get("comment")}
+    return {
+        "at": _stamp(row.at),
+        "actor": row.actor.name if row.actor else None,
+        "reason": details.get("reason"),
+        "comment": details.get("comment"),
+    }

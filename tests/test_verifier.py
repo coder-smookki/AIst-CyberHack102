@@ -1,4 +1,5 @@
 """Проверки второго этапа (классификатора вырезок) без загрузки сетей и тестовых наборов."""
+
 import os
 import sys
 
@@ -13,8 +14,12 @@ import verifier
 def test_box_labels_follow_protocol_matching():
     """Верна только рамка нужного класса с IoU не меньше 0.5; повтор той же цели считается лишним."""
     truth = [("corrosion", (0, 0, 10, 10))]
-    predicted = [("corrosion", (0, 0, 10, 9), 0.4), ("corrosion", (0, 0, 10, 10), 0.9),
-                 ("leak", (0, 0, 10, 10), 0.8), ("corrosion", (50, 50, 60, 60), 0.7)]
+    predicted = [
+        ("corrosion", (0, 0, 10, 9), 0.4),
+        ("corrosion", (0, 0, 10, 10), 0.9),
+        ("leak", (0, 0, 10, 10), 0.8),
+        ("corrosion", (50, 50, 60, 60), 0.7),
+    ]
     assert verifier.box_labels(predicted, truth) == [False, True, False, False]
 
 
@@ -36,8 +41,15 @@ def test_candidates_respect_gate_and_order():
 
 def test_rescore_replaces_scores_and_drops_boxes_below_gate():
     """Новая уверенность переносится на свою рамку, рамки без строки в meta и примеры разметки пропадают."""
-    records = [{"file": "a", "truth": [], "labelled": None, "group": None,
-                "predicted": [("leak", (0, 0, 5, 5), 0.3), ("corrosion", (1, 1, 4, 4), 0.06)]}]
+    records = [
+        {
+            "file": "a",
+            "truth": [],
+            "labelled": None,
+            "group": None,
+            "predicted": [("leak", (0, 0, 5, 5), 0.3), ("corrosion", (1, 1, 4, 4), 0.06)],
+        }
+    ]
     meta = np.zeros((2, 10), np.float32)
     meta[0, :6] = [0, 0, 1, 0.3, 0, 0]
     meta[1, :6] = [0, -1, 1, 1.0, 1, 1]
@@ -52,8 +64,13 @@ def test_fusion_and_classifier_inference():
     low, high = verifier.fused_score(np.array([0.2, 0.2]), np.array([-2.0, 2.0]), fusion)
     assert high > low
     assert verifier.fused_score(np.array([0.5]), np.array([0.0]), fusion)[0] == 0.5
-    params = {"kind": "mlp", "w0": np.eye(2, dtype=np.float32), "b0": np.array([0.0, -1.0], np.float32),
-              "w1": np.array([[1.0], [2.0]], np.float32), "b1": np.array([0.5], np.float32)}
+    params = {
+        "kind": "mlp",
+        "w0": np.eye(2, dtype=np.float32),
+        "b0": np.array([0.0, -1.0], np.float32),
+        "w1": np.array([[1.0], [2.0]], np.float32),
+        "b1": np.array([0.5], np.float32),
+    }
     assert np.allclose(verifier.classifier_logit(params, np.array([[1.0, 3.0]], np.float32)), [1.0 + 4.0 + 0.5])
 
 
@@ -69,10 +86,16 @@ def test_fit_fusion_learns_useful_verdict():
 
 def test_operating_point_keeps_recall_of_detector():
     """Выбранный порог - наибольший, при котором полнота и доля найденных дефектов не ниже заданных."""
-    records = [{"file": "a", "labelled": None, "group": None, "truth": [("leak", (0, 0, 10, 10))],
-                "predicted": [("leak", (0, 0, 10, 10), 0.6), ("leak", (20, 20, 30, 30), 0.8)]},
-               {"file": "b", "labelled": None, "group": None, "truth": [],
-                "predicted": [("leak", (0, 0, 10, 10), 0.3)]}]
+    records = [
+        {
+            "file": "a",
+            "labelled": None,
+            "group": None,
+            "truth": [("leak", (0, 0, 10, 10))],
+            "predicted": [("leak", (0, 0, 10, 10), 0.6), ("leak", (20, 20, 30, 30), 0.8)],
+        },
+        {"file": "b", "labelled": None, "group": None, "truth": [], "predicted": [("leak", (0, 0, 10, 10), 0.3)]},
+    ]
     level = verifier.operating_point(records, recall=1.0, found=1.0, grid=50)
     assert 0.3 < level <= 0.6
 
@@ -80,17 +103,28 @@ def test_operating_point_keeps_recall_of_detector():
 def test_presence_labels_split_defect_background_and_ambiguous():
     """Рамка на своём дефекте (даже с неточной границей) - 1, на фоне - 0, слабое перекрытие - -1."""
     truth = [("corrosion", (0, 0, 100, 100))]
-    predicted = [("corrosion", (0, 0, 100, 100), 0.9), ("corrosion", (10, 10, 40, 40), 0.5),
-                 ("corrosion", (200, 200, 260, 260), 0.4), ("leak", (0, 0, 100, 100), 0.3),
-                 ("corrosion", (65, 65, 165, 165), 0.2)]
+    predicted = [
+        ("corrosion", (0, 0, 100, 100), 0.9),
+        ("corrosion", (10, 10, 40, 40), 0.5),
+        ("corrosion", (200, 200, 260, 260), 0.4),
+        ("leak", (0, 0, 100, 100), 0.3),
+        ("corrosion", (65, 65, 165, 165), 0.2),
+    ]
     assert verifier.presence_labels(predicted, truth) == [1, 1, 0, 0, -1]
     assert verifier.overlap((0, 0, 10, 10), (5, 5, 10, 10)) == 1.0
 
 
 def test_meta_presence_marks_truth_rows_as_defect():
     """Строки размеченных рамок (source 1) всегда получают метку 1, строки детектора - по presence_labels."""
-    records = [{"file": "a", "labelled": None, "group": None, "truth": [("leak", (0, 0, 10, 10))],
-                "predicted": [("leak", (50, 50, 60, 60), 0.7)]}]
+    records = [
+        {
+            "file": "a",
+            "labelled": None,
+            "group": None,
+            "truth": [("leak", (0, 0, 10, 10))],
+            "predicted": [("leak", (50, 50, 60, 60), 0.7)],
+        }
+    ]
     meta = np.zeros((2, 10), np.float32)
     meta[0, :6] = [0, 0, 1, 0.7, 0, 0]
     meta[1, :6] = [0, -1, 1, 1.0, 1, 1]
@@ -99,8 +133,15 @@ def test_meta_presence_marks_truth_rows_as_defect():
 
 def test_veto_rule_keeps_detector_score_and_drops_low_verdict():
     """Правило veto оставляет уверенность детектора и убирает рамки с низкой оценкой классификатора."""
-    records = [{"file": "a", "labelled": None, "group": None, "truth": [],
-                "predicted": [("leak", (0, 0, 5, 5), 0.3), ("corrosion", (1, 1, 4, 4), 0.2)]}]
+    records = [
+        {
+            "file": "a",
+            "labelled": None,
+            "group": None,
+            "truth": [],
+            "predicted": [("leak", (0, 0, 5, 5), 0.3), ("corrosion", (1, 1, 4, 4), 0.2)],
+        }
+    ]
     meta = np.zeros((2, 10), np.float32)
     meta[0, :6] = [0, 0, 1, 0.3, 0, 0]
     meta[1, :6] = [0, 1, 0, 0.2, 0, 0]
@@ -120,9 +161,16 @@ def test_rank_auc_handles_ties_and_single_class():
 def test_model_round_trip(tmp_path, monkeypatch):
     """save_model и load_model сохраняют правило, пороги и веса классификатора."""
     monkeypatch.setattr(verifier, "OUT", str(tmp_path))
-    model = {"params": {"kind": "lr", "w0": np.ones((3, 1), np.float32), "b0": np.zeros(1, np.float32)},
-             "mean": np.zeros(2), "std": np.ones(2), "fusion": np.array([1.0, 0.2, -0.5]), "rule": "veto",
-             "threshold": 0.15, "verdict_level": 0.0959, "base_level": 0.15}
+    model = {
+        "params": {"kind": "lr", "w0": np.ones((3, 1), np.float32), "b0": np.zeros(1, np.float32)},
+        "mean": np.zeros(2),
+        "std": np.ones(2),
+        "fusion": np.array([1.0, 0.2, -0.5]),
+        "rule": "veto",
+        "threshold": 0.15,
+        "verdict_level": 0.0959,
+        "base_level": 0.15,
+    }
     verifier.save_model(model)
     loaded = verifier.load_model()
     assert loaded["rule"] == "veto" and loaded["params"]["kind"] == "lr"

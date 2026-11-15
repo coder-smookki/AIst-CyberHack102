@@ -3,6 +3,7 @@
 
 Сервер собирается целиком, детектор подменён, стоимость хэша пароля снижена, чтобы проверки шли быстро.
 """
+
 import hashlib
 import shutil
 import sqlite3
@@ -24,8 +25,13 @@ from server.permissions import GROUPS, PERMISSIONS, SYSTEM_ROLES
 SECRET = "r" * 48
 PASSWORD = "demo12345"
 FRESH = "Pump2026secure"
-EMAILS = {"engineer": "engineer@kst.demo", "master": "master@kst.demo", "operator": "operator@kst.demo",
-          "admin": "admin@kst.demo", "security": "security@kst.demo"}
+EMAILS = {
+    "engineer": "engineer@kst.demo",
+    "master": "master@kst.demo",
+    "operator": "operator@kst.demo",
+    "admin": "admin@kst.demo",
+    "security": "security@kst.demo",
+}
 EVERYONE = set(EMAILS)
 
 
@@ -112,8 +118,9 @@ def activate(client, email, temporary, password=FRESH):
     """Входит с временным паролем, меняет его и возвращает заголовок авторизации."""
     tokens = sign_in(client, email, temporary)
     assert tokens["must_change_password"] is True
-    changed = client.post("/auth/password", headers=bearer(tokens),
-                          json={"current_password": temporary, "new_password": password})
+    changed = client.post(
+        "/auth/password", headers=bearer(tokens), json={"current_password": temporary, "new_password": password}
+    )
     assert changed.status_code == 200, changed.text
     return bearer(tokens)
 
@@ -151,18 +158,26 @@ def test_system_roles_and_catalogue(client):
     roles = {role["code"]: role for role in client.get("/admin/roles", headers=security).json()}
     assert set(roles) == {"security_admin", "admin", "master", "engineer", "operator"}
     assert {code: role["title"] for code, role in roles.items()} == {
-        "security_admin": "Администратор ИБ", "admin": "Администратор системы", "master": "Мастер",
-        "engineer": "Инженер", "operator": "Оператор"}
+        "security_admin": "Администратор ИБ",
+        "admin": "Администратор системы",
+        "master": "Мастер",
+        "engineer": "Инженер",
+        "operator": "Оператор",
+    }
     assert all(role["is_system"] and role["members"] == 1 for role in roles.values())
     assert set(roles["engineer"]["permissions"]) < set(roles["master"]["permissions"])
     assert {"findings.confirm", "equipment.mode", "maintenance.plan", "reports.all", "tasks.assign"} <= set(
-        roles["master"]["permissions"])
+        roles["master"]["permissions"]
+    )
     assert "inspect.run" not in roles["operator"]["permissions"] and "fault.report" in roles["operator"]["permissions"]
     assert not {"users.manage", "roles.manage", "inspect.run", "findings.confirm"} & set(roles["admin"]["permissions"])
     assert not any(code.startswith(("equipment.", "telemetry.", "inspect.")) for code in roles["security_admin"]["permissions"])
     groups = client.get("/admin/permissions", headers=security).json()
-    assert [group["title"] for group in groups] == [title for _, title in GROUPS] == [
-        "Осмотр", "Находки", "Оборудование", "Отчёты", "Ассистент", "Система", "Учётные записи"]
+    assert (
+        [group["title"] for group in groups]
+        == [title for _, title in GROUPS]
+        == ["Осмотр", "Находки", "Оборудование", "Отчёты", "Ассистент", "Система", "Учётные записи"]
+    )
     listed = [entry["code"] for group in groups for entry in group["permissions"]]
     assert sorted(listed) == sorted(PERMISSIONS) and len(listed) == len(set(listed))
     me = sign_in(client, EMAILS["operator"])
@@ -210,8 +225,9 @@ def test_camera_stream_needs_inspection_permission(client):
 def test_custom_role_changes_access_immediately(client):
     """Своя роль по образцу другой; правка её прав действует на уже выданный токен без повторного входа."""
     security = bearer(sign_in(client, EMAILS["security"]))
-    created = client.post("/admin/roles", headers=security, json={
-        "code": "senior_operator", "title": "Старший оператор", "copy_from": "operator"})
+    created = client.post(
+        "/admin/roles", headers=security, json={"code": "senior_operator", "title": "Старший оператор", "copy_from": "operator"}
+    )
     assert created.status_code == 201, created.text
     role = created.json()
     assert role["permissions"] == [code for code in PERMISSIONS if code in SYSTEM_ROLES["operator"][2]]
@@ -223,8 +239,9 @@ def test_custom_role_changes_access_immediately(client):
     moved = client.post(f"/admin/users/{user['id']}/role", headers=security, json={"role": "senior_operator"})
     assert moved.status_code == 200 and moved.json()["role_title"] == "Старший оператор"
     assert client.get("/auth/me", headers=head).json()["role_title"] == "старший оператор"
-    grant = client.patch("/admin/roles/senior_operator", headers=security,
-                         json={"permissions": role["permissions"] + ["inspect.run"]})
+    grant = client.patch(
+        "/admin/roles/senior_operator", headers=security, json={"permissions": role["permissions"] + ["inspect.run"]}
+    )
     assert grant.status_code == 200 and "inspect.run" in grant.json()["permissions"]
     assert grant.json()["members"] == 1
     assert client.post("/inspections", headers=head, json={"equipment_id": "AMS-1"}).status_code == 201
@@ -238,8 +255,12 @@ def test_custom_role_changes_access_immediately(client):
     assert client.patch("/admin/roles/engineer", headers=security, json={"permissions": ["no.such"]}).status_code == 422
     assert client.post("/admin/roles", headers=security, json={"code": "senior_operator", "title": "Повтор"}).status_code == 409
     assert client.post("/admin/roles", headers=security, json={"code": "Плохой код", "title": "-"}).status_code == 422
-    assert client.post("/admin/roles", headers=security,
-                       json={"code": "ghost", "title": "Призрак", "copy_from": "nobody"}).status_code == 404
+    assert (
+        client.post(
+            "/admin/roles", headers=security, json={"code": "ghost", "title": "Призрак", "copy_from": "nobody"}
+        ).status_code
+        == 404
+    )
     assert client.post(f"/admin/users/{user['id']}/role", headers=security, json={"role": "nobody"}).status_code == 422
 
 
@@ -249,8 +270,7 @@ def test_role_deletion_rules(client):
     for code in SYSTEM_ROLES:
         refused = client.delete(f"/admin/roles/{code}", headers=security)
         assert refused.status_code == 409 and refused.json()["detail"] == "Системную роль удалить нельзя"
-    client.post("/admin/roles", headers=security, json={"code": "trainee", "title": "Стажёр",
-                                                         "permissions": ["equipment.view"]})
+    client.post("/admin/roles", headers=security, json={"code": "trainee", "title": "Стажёр", "permissions": ["equipment.view"]})
     user, _ = create_user(client, security, "trainee@kst.demo", "trainee")
     busy = client.delete("/admin/roles/trainee", headers=security)
     assert busy.status_code == 409 and "сначала смените им роль" in busy.json()["detail"]
@@ -307,9 +327,11 @@ def test_blocked_user_and_sessions(client):
     listed = client.get("/admin/users", headers=security, params={"status": "blocked"}).json()
     assert [entry["email"] for entry in listed] == [EMAILS["engineer"]]
     assert [entry["email"] for entry in client.get("/admin/users", headers=security, params={"q": "смирнов"}).json()] == [
-        EMAILS["engineer"]]
+        EMAILS["engineer"]
+    ]
     assert {entry["role"] for entry in client.get("/admin/users", headers=security, params={"role": "master"}).json()} == {
-        "master"}
+        "master"
+    }
     attempts = events(client, security, event="login_blocked")
     assert attempts[0]["target_user"]["email"] == EMAILS["engineer"]
     assert client.post(f"/admin/users/{engineer_id}/unblock", headers=security).json()["status"] == "active"
@@ -329,8 +351,7 @@ def test_temporary_password_flow(client):
     tokens = sign_in(client, EMAILS["engineer"], temporary)
     head = bearer(tokens)
     assert tokens["must_change_password"] is True and tokens["user"]["must_change_password"] is True
-    for method, path in (("GET", "/equipment"), ("POST", "/inspections"), ("GET", "/notifications"),
-                         ("GET", "/tasks/my")):
+    for method, path in (("GET", "/equipment"), ("POST", "/inspections"), ("GET", "/notifications"), ("GET", "/tasks/my")):
         gated = client.request(method, path, headers=head, json={"equipment_id": "AMS-1"})
         assert gated.status_code == 403 and gated.json()["detail"] == "Требуется сменить временный пароль", path
     assert client.get("/auth/me", headers=head).json()["must_change_password"] is True
@@ -338,8 +359,12 @@ def test_temporary_password_flow(client):
         assert socket.receive_json()["detail"] == "Требуется сменить временный пароль"
     wrong = client.post("/auth/password", headers=head, json={"current_password": "мимо", "new_password": FRESH})
     assert wrong.status_code == 400
-    weak = {"short1": "не короче 10", "onlyletterslong": "и буквы, и цифры", "1234567890123": "и буквы, и цифры",
-            temporary: "отличаться от текущего"}
+    weak = {
+        "short1": "не короче 10",
+        "onlyletterslong": "и буквы, и цифры",
+        "1234567890123": "и буквы, и цифры",
+        temporary: "отличаться от текущего",
+    }
     for candidate, reason in weak.items():
         refused = client.post("/auth/password", headers=head, json={"current_password": temporary, "new_password": candidate})
         assert refused.status_code == 422 and reason in refused.json()["detail"], candidate
@@ -364,15 +389,32 @@ def test_policy_enforced(client):
     """Политика из базы: длина пароля, порог блокировки входа, срок сеанса и запрет входа по биометрии."""
     security = bearer(sign_in(client, EMAILS["security"]))
     policy = client.get("/admin/policy", headers=security).json()
-    assert {key: policy[key] for key in ("min_password_length", "require_letters_digits", "lockout_attempts",
-                                         "lockout_minutes", "session_hours", "biometrics_allowed")} == {
-        "min_password_length": 10, "require_letters_digits": True, "lockout_attempts": 10, "lockout_minutes": 5,
-        "session_hours": 720, "biometrics_allowed": True}
+    assert {
+        key: policy[key]
+        for key in (
+            "min_password_length",
+            "require_letters_digits",
+            "lockout_attempts",
+            "lockout_minutes",
+            "session_hours",
+            "biometrics_allowed",
+        )
+    } == {
+        "min_password_length": 10,
+        "require_letters_digits": True,
+        "lockout_attempts": 10,
+        "lockout_minutes": 5,
+        "session_hours": 720,
+        "biometrics_allowed": True,
+    }
     assert client.patch("/admin/policy", headers=security, json={"lockout_attempts": 1}).status_code == 422
     master = bearer(sign_in(client, EMAILS["master"]))
     assert client.patch("/admin/policy", headers=master, json={"min_password_length": 6}).status_code == 403
-    updated = client.patch("/admin/policy", headers=security, json={
-        "min_password_length": 16, "lockout_attempts": 3, "lockout_minutes": 1, "biometrics_allowed": False})
+    updated = client.patch(
+        "/admin/policy",
+        headers=security,
+        json={"min_password_length": 16, "lockout_attempts": 3, "lockout_minutes": 1, "biometrics_allowed": False},
+    )
     assert updated.status_code == 200 and updated.json()["updated_by_id"] is not None
     engineer = sign_in(client, EMAILS["engineer"])
     assert engineer["biometrics_allowed"] is False
@@ -425,9 +467,20 @@ def test_security_log(client):
     client.post("/auth/password", headers=bearer(engineer), json={"current_password": PASSWORD, "new_password": FRESH})
     log = events(client, security)
     seen = {entry["event"] for entry in log}
-    assert {"login_success", "login_failure", "user_created", "user_role_changed", "user_blocked", "user_unblocked",
-            "password_reset", "role_created", "role_updated", "role_deleted", "policy_changed",
-            "password_changed"} <= seen
+    assert {
+        "login_success",
+        "login_failure",
+        "user_created",
+        "user_role_changed",
+        "user_blocked",
+        "user_unblocked",
+        "password_reset",
+        "role_created",
+        "role_updated",
+        "role_deleted",
+        "policy_changed",
+        "password_changed",
+    } <= seen
     assert [entry["at"] for entry in log] == sorted((entry["at"] for entry in log), reverse=True)
     changed = events(client, security, event="user_role_changed")[0]
     assert changed["title"] == "Изменена роль сотрудника" and changed["actor"]["email"] == EMAILS["security"]
@@ -450,12 +503,20 @@ def test_security_log(client):
 def test_user_creation_validation(client):
     """Новая учётная запись: проверка почты и роли, повтор почты - 409, временный пароль не хранится открыто."""
     security = bearer(sign_in(client, EMAILS["security"]))
-    assert client.post("/admin/users", headers=security,
-                       json={"email": "без-собаки", "name": "Х", "role": "engineer"}).status_code == 422
-    assert client.post("/admin/users", headers=security,
-                       json={"email": "x@kst.demo", "name": "Х", "role": "boss"}).status_code == 422
-    assert client.post("/admin/users", headers=security,
-                       json={"email": EMAILS["master"].upper(), "name": "Х", "role": "engineer"}).status_code == 409
+    assert (
+        client.post("/admin/users", headers=security, json={"email": "без-собаки", "name": "Х", "role": "engineer"}).status_code
+        == 422
+    )
+    assert (
+        client.post("/admin/users", headers=security, json={"email": "x@kst.demo", "name": "Х", "role": "boss"}).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/admin/users", headers=security, json={"email": EMAILS["master"].upper(), "name": "Х", "role": "engineer"}
+        ).status_code
+        == 409
+    )
     user, temporary = create_user(client, security, " New.Person@KST.demo ", "engineer", "  Пётр   Петров ")
     assert user["email"] == "new.person@kst.demo" and user["name"] == "Пётр Петров" and user["must_change_password"]
     with db.SessionLocal() as session:
@@ -480,15 +541,26 @@ def test_fault_report_task_notification_flow(client):
     engineer_id = client.get("/auth/me", headers=headers["engineer"]).json()["id"]
     operator_id = client.get("/auth/me", headers=headers["operator"]).json()["id"]
     assert [entry["title"] for entry in client.get("/fault-reports/signs", headers=headers["operator"]).json()] == [
-        "Шум", "Вибрация", "Течь", "Запах гари", "Нагрев", "Другое"]
+        "Шум",
+        "Вибрация",
+        "Течь",
+        "Запах гари",
+        "Нагрев",
+        "Другое",
+    ]
     unknown = client.post("/fault-reports", headers=headers["operator"], json={"equipment_id": "AMS-1", "signs": ["скрип"]})
     assert unknown.status_code == 422 and "запах гари" in unknown.json()["detail"]
     vague = client.post("/fault-reports", headers=headers["operator"], json={"equipment_id": "AMS-1", "signs": ["другое"]})
     assert vague.status_code == 422
-    assert client.post("/fault-reports", headers=headers["operator"],
-                       json={"equipment_id": "НЕТ", "signs": ["шум"]}).status_code == 404
-    sent = client.post("/fault-reports", headers=headers["operator"], json={
-        "equipment_id": "AMS-1", "signs": ["Шум", "vibration", "шум"], "comment": "Гул со стороны редуктора"})
+    assert (
+        client.post("/fault-reports", headers=headers["operator"], json={"equipment_id": "НЕТ", "signs": ["шум"]}).status_code
+        == 404
+    )
+    sent = client.post(
+        "/fault-reports",
+        headers=headers["operator"],
+        json={"equipment_id": "AMS-1", "signs": ["Шум", "vibration", "шум"], "comment": "Гул со стороны редуктора"},
+    )
     assert sent.status_code == 201, sent.text
     report = sent.json()
     assert [sign["code"] for sign in report["signs"]] == ["noise", "vibration"] and report["status"] == "new"
@@ -497,17 +569,36 @@ def test_fault_report_task_notification_flow(client):
     assert feed[0]["kind"] == "fault_report_new" and feed[0]["fault_report_id"] == report["id"]
     assert "шум, вибрация" in feed[0]["text"]
     assert client.get("/notifications", headers=headers["engineer"]).json() == []
-    assert [entry["id"] for entry in client.get("/fault-reports", headers=headers["master"],
-                                                params={"status": "new"}).json()] == [report["id"]]
-    assert client.post("/tasks", headers=headers["master"], json={
-        "equipment_id": "AMS-1", "assignee_id": operator_id, "reason": "Проверить"}).status_code == 422
-    assert client.post("/tasks", headers=headers["master"], json={
-        "equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "Проверить",
-        "fault_report_id": report["id"]}).status_code == 422
+    assert [
+        entry["id"] for entry in client.get("/fault-reports", headers=headers["master"], params={"status": "new"}).json()
+    ] == [report["id"]]
+    assert (
+        client.post(
+            "/tasks", headers=headers["master"], json={"equipment_id": "AMS-1", "assignee_id": operator_id, "reason": "Проверить"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/tasks",
+            headers=headers["master"],
+            json={"equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "Проверить", "fault_report_id": report["id"]},
+        ).status_code
+        == 422
+    )
     due = (date.today() + timedelta(days=1)).isoformat()
-    created = client.post("/tasks", headers=headers["master"], json={
-        "equipment_id": "AMS-1", "assignee_id": engineer_id, "reason": "Шум и вибрация по сообщению оператора",
-        "fault_report_id": report["id"], "priority": "high", "due_date": due})
+    created = client.post(
+        "/tasks",
+        headers=headers["master"],
+        json={
+            "equipment_id": "AMS-1",
+            "assignee_id": engineer_id,
+            "reason": "Шум и вибрация по сообщению оператора",
+            "fault_report_id": report["id"],
+            "priority": "high",
+            "due_date": due,
+        },
+    )
     assert created.status_code == 201, created.text
     task = created.json()
     assert task["status"] == "open" and task["priority_title"] == "Высокая" and task["due_date"] == due
@@ -543,22 +634,31 @@ def test_task_cancel_and_report_reject(client):
     """Отмена задания возвращает сообщение в новые; отклонённое сообщение видно оператору с пояснением."""
     headers = headers_for(client)
     engineer_id = client.get("/auth/me", headers=headers["engineer"]).json()["id"]
-    first = client.post("/fault-reports", headers=headers["operator"],
-                        json={"equipment_id": "AMS-2", "signs": ["течь"]}).json()
-    task = client.post("/tasks", headers=headers["master"], json={
-        "equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "Течь", "fault_report_id": first["id"]}).json()
+    first = client.post("/fault-reports", headers=headers["operator"], json={"equipment_id": "AMS-2", "signs": ["течь"]}).json()
+    task = client.post(
+        "/tasks",
+        headers=headers["master"],
+        json={"equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "Течь", "fault_report_id": first["id"]},
+    ).json()
     cancelled = client.post(f"/tasks/{task['id']}/cancel", headers=headers["master"], json={"comment": "Ошибочно"})
     assert cancelled.status_code == 200 and cancelled.json()["status"] == "cancelled"
     assert client.post(f"/tasks/{task['id']}/cancel", headers=headers["master"], json={}).status_code == 409
     assert client.get(f"/fault-reports/{first['id']}", headers=headers["master"]).json()["status"] == "new"
     kinds = [entry["kind"] for entry in client.get("/notifications", headers=headers["engineer"]).json()]
     assert "task_cancelled" in kinds
-    rejected = client.post(f"/fault-reports/{first['id']}/reject", headers=headers["master"],
-                           json={"comment": "Течь устранена при ТО"})
+    rejected = client.post(
+        f"/fault-reports/{first['id']}/reject", headers=headers["master"], json={"comment": "Течь устранена при ТО"}
+    )
     assert rejected.status_code == 200 and rejected.json()["status_title"] == "Отклонено"
     assert client.post(f"/fault-reports/{first['id']}/reject", headers=headers["master"], json={}).status_code == 409
-    assert client.post("/tasks", headers=headers["master"], json={
-        "equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "-", "fault_report_id": first["id"]}).status_code == 409
+    assert (
+        client.post(
+            "/tasks",
+            headers=headers["master"],
+            json={"equipment_id": "AMS-2", "assignee_id": engineer_id, "reason": "-", "fault_report_id": first["id"]},
+        ).status_code
+        == 409
+    )
     feed = client.get("/notifications", headers=headers["operator"]).json()
     assert feed[0]["status"] == "rejected" and "Течь устранена при ТО" in feed[0]["text"]
     assert client.get(f"/fault-reports/{first['id']}", headers=headers["engineer"]).status_code == 403
@@ -582,10 +682,14 @@ def test_old_database_is_migrated_in_place(tmp_path, monkeypatch):
     stored = auth.hash_password("старый-пароль-1")
     with sqlite3.connect(path) as connection:
         connection.executescript(OLD_SCHEMA)
-        connection.executemany("INSERT INTO users VALUES (?, ?, ?, ?, ?)", [
-            (1, "engineer@kst.demo", "Алексей Смирнов", "engineer", stored),
-            (2, "master@kst.demo", "Марина Орлова", "master", stored),
-            (7, "admin@kst.demo", "Игорь Власов", "admin", stored)])
+        connection.executemany(
+            "INSERT INTO users VALUES (?, ?, ?, ?, ?)",
+            [
+                (1, "engineer@kst.demo", "Алексей Смирнов", "engineer", stored),
+                (2, "master@kst.demo", "Марина Орлова", "master", stored),
+                (7, "admin@kst.demo", "Игорь Власов", "admin", stored),
+            ],
+        )
         connection.execute("INSERT INTO refresh_tokens VALUES (1, 7, 'h', 'f', 'Телефон', '2026-11-01 10:00:00', 0)")
     forget_caches()
     try:

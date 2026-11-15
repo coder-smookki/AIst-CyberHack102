@@ -9,6 +9,7 @@
 пересчитывает диагноз агрегата. Следующий кадр телефон отправляет только после ответа на предыдущий, поэтому
 очередь кадров не копится. Сервер работает в локальной сети цеха и не обращается к внешним адресам.
 """
+
 import asyncio
 import logging
 import time
@@ -126,8 +127,9 @@ def _active_inspection(session: Session, inspection_id: int, equipment_id: str, 
 
 def _diagnosis_signature(result: dict) -> tuple:
     """Отпечаток диагноза для сравнения кадров: общий статус и набор сработавших правил по узлам."""
-    return result["status"], tuple(sorted((found["rule_id"], found["node_id"], found["status"], found["severity"])
-                                          for found in result["findings"]))
+    return result["status"], tuple(
+        sorted((found["rule_id"], found["node_id"], found["status"], found["severity"]) for found in result["findings"])
+    )
 
 
 def _live_view(session: Session, inspection: Inspection, coverage: dict) -> tuple[dict, tuple]:
@@ -253,9 +255,15 @@ def log_frame(inspection_id: int, boxes: list[dict], ms, coverage: dict | None) 
         else:
             parts.append(name)
     covered = f"{coverage.get('inspected', 0)}/{coverage.get('total', 0)}" if coverage else "-"
-    logger.info("осмотр %s: кадр %s мс; узлы: %s; дефекты: %s; тип: %s; обход %s", inspection_id, ms,
-                ", ".join(sorted(set(parts))) or "-", ", ".join(defects) or "-", ", ".join(sorted(set(hints))) or "-",
-                covered)
+    logger.info(
+        "осмотр %s: кадр %s мс; узлы: %s; дефекты: %s; тип: %s; обход %s",
+        inspection_id,
+        ms,
+        ", ".join(sorted(set(parts))) or "-",
+        ", ".join(defects) or "-",
+        ", ".join(sorted(set(hints))) or "-",
+        covered,
+    )
 
 
 def inspect_apply(detector, token: str | None, inspection_id: int, found: dict | None, previous: tuple | None) -> dict:
@@ -274,14 +282,25 @@ def inspect_apply(detector, token: str | None, inspection_id: int, found: dict |
             raise SocketClosed(CLOSE_FINISHED if error.status_code == 409 else CLOSE_NOT_FOUND, str(error.detail)) from None
     reply: dict[str, Any] = {"type": "frame" if found else "state", "inspection_id": inspection_id}
     if found:
-        reply.update(w=found["w"], h=found["h"], ms=found["ms"],
-                     boxes=_with_status(found["boxes"], recognition.defect_classes(detector), tracker.node_for))
+        reply.update(
+            w=found["w"],
+            h=found["h"],
+            ms=found["ms"],
+            boxes=_with_status(found["boxes"], recognition.defect_classes(detector), tracker.node_for),
+        )
         log_frame(inspection_id, reply["boxes"], found["ms"], coverage)
     else:
         reply["boxes"] = []
-    reply.update(coverage=coverage, diagnosis_changed=signature != previous, status=view["status"],
-                 status_title=view["status_title"], status_note=view["status_note"], findings=view["findings"],
-                 nodes=view["nodes"], signature=signature)
+    reply.update(
+        coverage=coverage,
+        diagnosis_changed=signature != previous,
+        status=view["status"],
+        status_title=view["status_title"],
+        status_note=view["status_note"],
+        findings=view["findings"],
+        nodes=view["nodes"],
+        signature=signature,
+    )
     return reply
 
 
@@ -373,8 +392,14 @@ def create_app(detector=None) -> FastAPI:
     app.add_middleware(webcache.ConditionalGet)
     origins = config.cors_origin_regex()
     if origins is not None:
-        app.add_middleware(CORSMiddleware, allow_origin_regex=origins, allow_methods=["GET", "POST"],
-                           allow_headers=["Authorization", "Content-Type"], allow_credentials=False, max_age=600)
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origin_regex=origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type"],
+            allow_credentials=False,
+            max_age=600,
+        )
     app.state.detector = detector
     app.include_router(auth.router)
     app.include_router(equipment.router)
@@ -405,13 +430,21 @@ def create_app(detector=None) -> FastAPI:
             units, database = None, "error"
         info = getattr(detector, "info", None)
         state = info() if callable(info) else {"ready": True, "loaded": True, "models": [], "missing": [], "note": None}
-        return {"ok": database == "ok", "service": TITLE, "time": now().isoformat(timespec="seconds"),
-                "database": database, "equipment": units, "detector": state,
-                "channels": channels.channels(detector, database), "models_fingerprint": fingerprint.short()}
+        return {
+            "ok": database == "ok",
+            "service": TITLE,
+            "time": now().isoformat(timespec="seconds"),
+            "database": database,
+            "equipment": units,
+            "detector": state,
+            "channels": channels.channels(detector, database),
+            "models_fingerprint": fingerprint.short(),
+        }
 
     @app.post("/recognize/nameplate", dependencies=[Depends(require_permission("equipment.view"))])
-    async def recognize_nameplate(frame: Annotated[UploadFile, File()],
-                                  session: Annotated[Session, Depends(get_session)]) -> dict:
+    async def recognize_nameplate(
+        frame: Annotated[UploadFile, File()], session: Annotated[Session, Depends(get_session)]
+    ) -> dict:
         """Читает заводской шильдик со стоп-кадра камеры и находит оборудование по серийному номеру или модели.
 
         Если однозначного совпадения нет, в candidates перечислены агрегаты той же модели: выбирает инженер.
@@ -448,17 +481,25 @@ def create_app(detector=None) -> FastAPI:
             message = "Однозначно определить агрегат не удалось - выберите его из списка"
         else:
             message = "Оборудование по шильдику не найдено - снимите табличку ближе или введите номер вручную"
-        return {"found": matched is not None, "match": matched, "candidates": candidates,
-                "fields": {"serial": found["fields"].get("serial"), "model": found["fields"].get("model")},
-                "lines": found["lines"], "message": message,
-                "identified_by": ("qr" if code else "nameplate") if matched else None, "qr": code}
+        return {
+            "found": matched is not None,
+            "match": matched,
+            "candidates": candidates,
+            "fields": {"serial": found["fields"].get("serial"), "model": found["fields"].get("model")},
+            "lines": found["lines"],
+            "message": message,
+            "identified_by": ("qr" if code else "nameplate") if matched else None,
+            "qr": code,
+        }
 
     @app.post("/recognize/gauge")
-    async def recognize_gauge(frame: Annotated[UploadFile, File()],
-                              equipment_id: Annotated[str, Form(min_length=1, max_length=32)],
-                              user: Annotated[User, Depends(require_permission(INSPECT))],
-                              session: Annotated[Session, Depends(get_session)],
-                              inspection_id: Annotated[int | None, Form(ge=1)] = None) -> dict:
+    async def recognize_gauge(
+        frame: Annotated[UploadFile, File()],
+        equipment_id: Annotated[str, Form(min_length=1, max_length=32)],
+        user: Annotated[User, Depends(require_permission(INSPECT))],
+        session: Annotated[Session, Depends(get_session)],
+        inspection_id: Annotated[int | None, Form(ge=1)] = None,
+    ) -> dict:
         """Читает стрелочный манометр по вырезанному кадру прибора и сравнивает с электронным датчиком.
 
         Шкала берётся из карточки оборудования. Расхождение больше 15 % - признак правила R05. С номером
@@ -479,12 +520,23 @@ def create_app(detector=None) -> FastAPI:
         difference = None
         if value is not None and sensor is not None:
             difference = round(gauge_difference_percent(value, sensor), 1)
-        answer = {"equipment_id": item.id, "ok": reading["ok"], "value": value, "unit": scale.get("unit"),
-                  "reason": reading["reason"], "angle_deg": reading["angle_deg"], "parameter": parameter,
-                  "sensor_value": sensor, "sensor_at": at, "sensor_reason": sensor_reason,
-                  "difference_percent": difference, "limit_percent": GAUGE_LIMIT_PERCENT,
-                  "exceeds": None if difference is None else difference > GAUGE_LIMIT_PERCENT,
-                  "inspection_id": inspection_id, "finding": None}
+        answer = {
+            "equipment_id": item.id,
+            "ok": reading["ok"],
+            "value": value,
+            "unit": scale.get("unit"),
+            "reason": reading["reason"],
+            "angle_deg": reading["angle_deg"],
+            "parameter": parameter,
+            "sensor_value": sensor,
+            "sensor_at": at,
+            "sensor_reason": sensor_reason,
+            "difference_percent": difference,
+            "limit_percent": GAUGE_LIMIT_PERCENT,
+            "exceeds": None if difference is None else difference > GAUGE_LIMIT_PERCENT,
+            "inspection_id": inspection_id,
+            "finding": None,
+        }
         if inspection is not None and value is not None:
             note_gauge_reading(session, inspection, value)
             result = current_diagnosis(session, inspection)
@@ -504,6 +556,7 @@ def create_app(detector=None) -> FastAPI:
         if not token:
             await _close(socket, CLOSE_UNAUTHORIZED, NO_TOKEN)
             return
+
         async def on_text(text: str) -> None:
             """Отвечает на текстовую команду: ping - проверка связи, остальное - ошибка формата."""
             await socket.send_json({"type": "pong"} if text == "ping" else _error(415, NO_FRAME))

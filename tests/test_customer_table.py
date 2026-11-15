@@ -4,6 +4,7 @@
 по сработавшим правилам выводится диагноз в формулировке заказчика и сравнивается с его колонкой диагноза.
 Без файлов заказчика (data/customer не входит в репозиторий) проверка пропускается.
 """
+
 import pytest
 
 from server.rules import CUSTOMER_THRESHOLDS, NORMAL_LABEL, diagnose, load_rules

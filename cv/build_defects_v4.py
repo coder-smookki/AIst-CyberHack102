@@ -28,6 +28,7 @@
     повторы внутри обучающей части (новый кадр против уже взятых, в том числе кадров третьей сборки)
     отсекаются по целому кадру при расстоянии до INTRA_BITS бит.
 """
+
 import argparse
 import csv
 import glob
@@ -53,32 +54,95 @@ DROP_BITS = 10
 REVIEW_BITS = 16
 INTRA_BITS = 8
 MAX_SIDE = 1024
-RUST_NAMES = ("Corrosion", "Corrosion-detection", "Crevice", "Galvanic", "High-corrosion", "Low-corrosion",
-              "Medium-corrosion", "Oxidation-Corrosion", "Rust", "cacat_korosi", "corroded-part", "corrosion",
-              "moderate-corrosion", "rust", "severe-corrosion", "mild-corrosion", "iron rust", "copper corrosion")
+RUST_NAMES = (
+    "Corrosion",
+    "Corrosion-detection",
+    "Crevice",
+    "Galvanic",
+    "High-corrosion",
+    "Low-corrosion",
+    "Medium-corrosion",
+    "Oxidation-Corrosion",
+    "Rust",
+    "cacat_korosi",
+    "corroded-part",
+    "corrosion",
+    "moderate-corrosion",
+    "rust",
+    "severe-corrosion",
+    "mild-corrosion",
+    "iron rust",
+    "copper corrosion",
+)
 
 SOURCES_V4 = [
-    {"key": "rust5k", "folder": "rf-rust-5k/raw", "map": {name: "corrosion" for name in RUST_NAMES},
-     "skip_if": {"0", "clean", "non-corrosion"}, "min_area": {"corrosion": 0.002}, "max_cover": 0.9,
-     "cap": 900, "licence": "CC BY 4.0 (Roboflow rust-r6xzj/rust-dataset-uk2zn v1)"},
-    {"key": "rust10k", "folder": "rf-rust-10k/raw", "map": {name: "corrosion" for name in RUST_NAMES},
-     "skip_if": {"car"}, "min_area": {"corrosion": 0.004}, "max_cover": 0.9, "no_mosaic": True,
-     "cap": 300, "licence": "CC BY 4.0 (Roboflow rust-detection/rust-detection-38s6e v1)"},
-    {"key": "leakage", "folder": "rf-leakage/raw", "map": {"leakage": "leak"}, "only_if": {"leakage"},
-     "min_area": {"leak": 0.001}, "cap": 200,
-     "licence": "CC BY 4.0 (Roboflow pros-workspace-60obk/leakage-wwjrq v12)"},
-    {"key": "leakwc", "folder": "rf-leakage-wc/raw", "map": {"leakage": "leak"}, "min_area": {"leak": 0.0005},
-     "cap": 500, "licence": "CC BY 4.0 (Roboflow welcoder/leakage-ry64a v199)"},
-    {"key": "spill", "folder": "rf-leakage-kf/raw", "map": {"Spill Detection - v2 2024-01-24 3-05pm": "leak"},
-     "cap": 150, "licence": "CC BY 4.0 (Roboflow kuanhan-fu-mri8i/leakage-fw7iy v1)"},
-    {"key": "elhazdw", "folder": "rf-electrical-hazard-dw/raw",
-     "map": {"burned socket": "terminal_box_burnt", "damage wire": "damage"}, "only_if": {"burned socket"},
-     "cap": 200, "licence": "CC BY 4.0 (Roboflow damagewire/electrical-hazard v2)"},
+    {
+        "key": "rust5k",
+        "folder": "rf-rust-5k/raw",
+        "map": {name: "corrosion" for name in RUST_NAMES},
+        "skip_if": {"0", "clean", "non-corrosion"},
+        "min_area": {"corrosion": 0.002},
+        "max_cover": 0.9,
+        "cap": 900,
+        "licence": "CC BY 4.0 (Roboflow rust-r6xzj/rust-dataset-uk2zn v1)",
+    },
+    {
+        "key": "rust10k",
+        "folder": "rf-rust-10k/raw",
+        "map": {name: "corrosion" for name in RUST_NAMES},
+        "skip_if": {"car"},
+        "min_area": {"corrosion": 0.004},
+        "max_cover": 0.9,
+        "no_mosaic": True,
+        "cap": 300,
+        "licence": "CC BY 4.0 (Roboflow rust-detection/rust-detection-38s6e v1)",
+    },
+    {
+        "key": "leakage",
+        "folder": "rf-leakage/raw",
+        "map": {"leakage": "leak"},
+        "only_if": {"leakage"},
+        "min_area": {"leak": 0.001},
+        "cap": 200,
+        "licence": "CC BY 4.0 (Roboflow pros-workspace-60obk/leakage-wwjrq v12)",
+    },
+    {
+        "key": "leakwc",
+        "folder": "rf-leakage-wc/raw",
+        "map": {"leakage": "leak"},
+        "min_area": {"leak": 0.0005},
+        "cap": 500,
+        "licence": "CC BY 4.0 (Roboflow welcoder/leakage-ry64a v199)",
+    },
+    {
+        "key": "spill",
+        "folder": "rf-leakage-kf/raw",
+        "map": {"Spill Detection - v2 2024-01-24 3-05pm": "leak"},
+        "cap": 150,
+        "licence": "CC BY 4.0 (Roboflow kuanhan-fu-mri8i/leakage-fw7iy v1)",
+    },
+    {
+        "key": "elhazdw",
+        "folder": "rf-electrical-hazard-dw/raw",
+        "map": {"burned socket": "terminal_box_burnt", "damage wire": "damage"},
+        "only_if": {"burned socket"},
+        "cap": 200,
+        "licence": "CC BY 4.0 (Roboflow damagewire/electrical-hazard v2)",
+    },
 ]
-SAFENET = {"key": "safenet2", "folder": "safenet-coating/unpacked", "cap": 1200, "crack_area": 0.004,
-           "licence": "GPL (Figshare 28190198)"}
-NEGATIVES = {"key": "powernormal", "folder": "kg-power-equipment-fault/raw", "cap": 300,
-             "licence": "CC0 (Kaggle zayn1999/electrical-power-equipment-fault-image-dataset)"}
+SAFENET = {
+    "key": "safenet2",
+    "folder": "safenet-coating/unpacked",
+    "cap": 1200,
+    "crack_area": 0.004,
+    "licence": "GPL (Figshare 28190198)",
+}
+NEGATIVES = {
+    "key": "powernormal",
+    "folder": "kg-power-equipment-fault/raw",
+    "cap": 300,
+    "licence": "CC0 (Kaggle zayn1999/electrical-power-equipment-fault-image-dataset)",
+}
 EXTRA_FILE = os.path.join(OPEN, "defects_v4_extra.json")
 MANUAL_DROP = {"data/open/rf-rust-5k/raw/train/images/000353_jpg.rf.fdaab4fc17c66c5e8950d5119bc4d44e.jpg"}
 
@@ -149,8 +213,10 @@ def union_share(boxes: list[tuple]) -> float:
     """Возвращает долю кадра, закрытую объединением рамок (по сетке 100 на 100)."""
     grid = np.zeros((100, 100), bool)
     for _, x1, y1, x2, y2 in boxes:
-        grid[int(y1 * 100):max(int(y1 * 100) + 1, int(np.ceil(y2 * 100))),
-             int(x1 * 100):max(int(x1 * 100) + 1, int(np.ceil(x2 * 100)))] = True
+        grid[
+            int(y1 * 100) : max(int(y1 * 100) + 1, int(np.ceil(y2 * 100))),
+            int(x1 * 100) : max(int(x1 * 100) + 1, int(np.ceil(x2 * 100))),
+        ] = True
     return float(grid.mean())
 
 
@@ -162,8 +228,8 @@ def is_mosaic(gray: np.ndarray, jump: float = 28.0) -> bool:
     """
     image = gray.astype(np.int16)
     height, width = image.shape
-    rows = np.median(np.abs(np.diff(image, axis=0)), axis=1)[int(height * 0.15):int(height * 0.85)]
-    cols = np.median(np.abs(np.diff(image, axis=1)), axis=0)[int(width * 0.15):int(width * 0.85)]
+    rows = np.median(np.abs(np.diff(image, axis=0)), axis=1)[int(height * 0.15) : int(height * 0.85)]
+    cols = np.median(np.abs(np.diff(image, axis=1)), axis=0)[int(width * 0.15) : int(width * 0.85)]
     return bool(rows.size and cols.size and rows.max() > jump and cols.max() > jump)
 
 
@@ -215,8 +281,11 @@ def safenet_items(used: set, banned: set, per_photo: int = 2) -> list[tuple]:
         if {row[0] for row in rows} & {"flaking", "blistering"}:
             continue
         boxes = [("corrosion", *row[1:]) for row in rows if row[0] == "corrosion"]
-        boxes += [("damage", *row[1:]) for row in rows
-                  if row[0] == "crack" and (row[3] - row[1]) * (row[4] - row[2]) >= SAFENET["crack_area"]]
+        boxes += [
+            ("damage", *row[1:])
+            for row in rows
+            if row[0] == "crack" and (row[3] - row[1]) * (row[4] - row[2]) >= SAFENET["crack_area"]
+        ]
         if boxes:
             items.append((path, boxes))
             per[original] = per.get(original, 0) + 1
@@ -312,9 +381,16 @@ class Builder4:
         self.index.add(name, gray)
         self.writer.add("train", name, image, boxes, source["key"])
         self.taken.append((name, image, boxes))
-        self.manifest.append({"file": f"images/train/{name}.jpg", "split": "train", "source": source["key"],
-                              "origin": os.path.relpath(path, ROOT), "licence": source["licence"],
-                              "classes": ";".join(sorted({box[0] for box in boxes}))})
+        self.manifest.append(
+            {
+                "file": f"images/train/{name}.jpg",
+                "split": "train",
+                "source": source["key"],
+                "origin": os.path.relpath(path, ROOT),
+                "licence": source["licence"],
+                "classes": ";".join(sorted({box[0] for box in boxes})),
+            }
+        )
         return True
 
     def add_items(self, source: dict, items: list[tuple]) -> int:
@@ -325,7 +401,7 @@ class Builder4:
             if written >= source["cap"]:
                 break
             classes = {box[0] for box in boxes}
-            if classes and all(per_class.get(name, 0) >= limits.get(name, 10 ** 9) for name in classes):
+            if classes and all(per_class.get(name, 0) >= limits.get(name, 10**9) for name in classes):
                 continue
             if self.put(source, index, path, boxes):
                 written += 1
@@ -428,13 +504,19 @@ def append(out: str, labels: str) -> None:
     with open(f"{out}/manifest.csv", "a", encoding="utf-8", newline="") as handle:
         csv.DictWriter(handle, fieldnames=["file", "split", "source", "origin", "licence", "classes"]).writerows(builder.manifest)
     log = json.load(open(f"{out}/dedup.json", encoding="utf-8"))
-    log["append"] = {"dropped": builder.dropped, "review": builder.review, "intra_duplicates": builder.intra,
-                     "rejected": builder.rejected, "taken": len(builder.taken)}
+    log["append"] = {
+        "dropped": builder.dropped,
+        "review": builder.review,
+        "intra_duplicates": builder.intra,
+        "rejected": builder.rejected,
+        "taken": len(builder.taken),
+    }
     json.dump(log, open(f"{out}/dedup.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     summary = json.load(open(f"{out}/summary.json", encoding="utf-8"))
     summary["append"] = {"by_source": builder.writer.counts, "screen_copies": screens, "oversampled_copies": added}
-    summary["splits"] = {split: count_split(out, split)
-                         for split in ("train", "train_screen", "train_extra", "val", "holdout", "holdout_screen")}
+    summary["splits"] = {
+        split: count_split(out, split) for split in ("train", "train_screen", "train_extra", "val", "holdout", "holdout_screen")
+    }
     json.dump(summary, open(f"{out}/summary.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(summary["append"], ensure_ascii=False), len(builder.dropped), "выброшено")
 
@@ -493,19 +575,39 @@ def main() -> None:
         table = csv.DictWriter(handle, fieldnames=["file", "split", "source", "origin", "licence", "classes"])
         table.writeheader()
         table.writerows(v3_rows + builder.manifest)
-    json.dump({"dropped": builder.dropped, "review": builder.review, "intra_duplicates": builder.intra,
-               "rejected": builder.rejected, "drop_bits": DROP_BITS, "review_bits": REVIEW_BITS,
-               "intra_bits": INTRA_BITS, "protected_images": len(guard.names)},
-              open(f"{args.out}/dedup.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump(
+        {
+            "dropped": builder.dropped,
+            "review": builder.review,
+            "intra_duplicates": builder.intra,
+            "rejected": builder.rejected,
+            "drop_bits": DROP_BITS,
+            "review_bits": REVIEW_BITS,
+            "intra_bits": INTRA_BITS,
+            "protected_images": len(guard.names),
+        },
+        open(f"{args.out}/dedup.json", "w", encoding="utf-8"),
+        ensure_ascii=False,
+        indent=1,
+    )
     v3_summary = json.load(open(os.path.join(V3, "summary.json"), encoding="utf-8"))
-    summary = {"v3_linked_files": linked, "v3_by_source": v3_summary["by_source"], "new_by_source": builder.writer.counts,
-               "new_sources": taken, "new_screen_copies": screens, "new_oversampled_copies": added,
-               "splits": {split: count_split(args.out, split)
-                          for split in ("train", "train_screen", "val", "holdout", "holdout_screen")}}
+    summary = {
+        "v3_linked_files": linked,
+        "v3_by_source": v3_summary["by_source"],
+        "new_by_source": builder.writer.counts,
+        "new_sources": taken,
+        "new_screen_copies": screens,
+        "new_oversampled_copies": added,
+        "splits": {
+            split: count_split(args.out, split) for split in ("train", "train_screen", "val", "holdout", "holdout_screen")
+        },
+    }
     json.dump(summary, open(f"{args.out}/summary.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(summary["splits"], ensure_ascii=False))
-    print(f"выброшено повторов тестовых снимков {len(builder.dropped)}, на просмотр {len(builder.review)}, "
-          f"повторов внутри train {sum(len(v) for v in builder.intra.values())}")
+    print(
+        f"выброшено повторов тестовых снимков {len(builder.dropped)}, на просмотр {len(builder.review)}, "
+        f"повторов внутри train {sum(len(v) for v in builder.intra.values())}"
+    )
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 """Тесты правил диагностики, уставок заказчика, оценки ресурса и прогноза времени до уставки."""
+
 import ast
 import copy
 import io
@@ -155,10 +156,7 @@ def _slope(values: list) -> float | None:
 def _series(start: float, step: float, count: int = 12, noise=None) -> list:
     """Строит почасовой ряд: линейный рост с необязательной добавкой шума."""
     begin = datetime(2026, 11, 25, 0, 0)
-    return [
-        (begin + timedelta(hours=index), start + step * index + (noise[index] if noise else 0.0))
-        for index in range(count)
-    ]
+    return [(begin + timedelta(hours=index), start + step * index + (noise[index] if noise else 0.0)) for index in range(count)]
 
 
 def test_vibration_label_samples():
@@ -202,12 +200,8 @@ def test_customer_files_match_all_rows():
     vibration = _customer_rows(VIBRATION_FILE)
     temperature = _customer_rows(TEMPERATURE_FILE)
     assert len(vibration) == 500 and len(temperature) == 500
-    wrong = [
-        row for row in vibration if vibration_label({"vib_1x": row[3], "vib_2x": row[4], "vib_hf": row[5]}) != row[6]
-    ]
-    wrong += [
-        row for row in temperature if temperature_label({"temp_bearing": row[2], "temp_winding": row[3]}) != row[4]
-    ]
+    wrong = [row for row in vibration if vibration_label({"vib_1x": row[3], "vib_2x": row[4], "vib_hf": row[5]}) != row[6]]
+    wrong += [row for row in temperature if temperature_label({"temp_bearing": row[2], "temp_winding": row[3]}) != row[4]]
     assert wrong == []
     labels = {row[6] for row in vibration} | {row[4] for row in temperature}
     known = {NORMAL_LABEL} | {row[key] for row in CUSTOMER_THRESHOLDS for key in ("warn_label", "alarm_label")}
@@ -662,10 +656,7 @@ def test_customer_timeline_replay():
     vibration = _customer_rows(VIBRATION_FILE)
     temperature = _customer_rows(TEMPERATURE_FILE)
     pump = _pump()
-    labels = {
-        row["code"]: (rule_id, row)
-        for rule_id, row in zip(("S01", "S02", "S03", "S04", "S05"), CUSTOMER_THRESHOLDS)
-    }
+    labels = {row["code"]: (rule_id, row) for rule_id, row in zip(("S01", "S02", "S03", "S04", "S05"), CUSTOMER_THRESHOLDS)}
     columns = {
         "vib_rms": [row[2] for row in vibration],
         "vib_1x": [row[3] for row in vibration],

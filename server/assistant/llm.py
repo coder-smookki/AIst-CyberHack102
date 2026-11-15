@@ -6,6 +6,7 @@ KST_LLM_MODEL. При любой ошибке, превышении времен
 фактах, возвращается None - и помощник отдаёт ответ, собранный поиском. Запросы уходят только на
 локальный адрес, системные настройки прокси не используются.
 """
+
 import ipaddress
 import logging
 import os
@@ -92,7 +93,10 @@ def rephrase(question: str, facts: list[str]) -> str | None:
         return None
     endpoint, model = target
     payload = {
-        "model": model, "stream": False, "think": False, "options": {"temperature": 0},
+        "model": model,
+        "stream": False,
+        "think": False,
+        "options": {"temperature": 0},
         "messages": [
             {"role": "system", "content": INSTRUCTION},
             {"role": "user", "content": f"Вопрос: {question}\n\nФакты:\n" + "\n".join(facts)},

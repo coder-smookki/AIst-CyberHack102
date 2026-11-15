@@ -2,6 +2,7 @@
 
 Детектор, распознаватель текста и чтение манометра подменяются, поэтому проверки идут без файлов моделей.
 """
+
 import io
 import json
 from pathlib import Path
@@ -78,8 +79,9 @@ def server(tmp_path_factory):
         seeding._demo_hash.cache_clear()
         with TestClient(create_app(detector)) as client:
             with db.SessionLocal() as session:
-                session.add(User(email="second@kst.demo", name="Пётр Иванов", role="engineer",
-                                 password_hash=auth.hash_password(PASSWORD)))
+                session.add(
+                    User(email="second@kst.demo", name="Пётр Иванов", role="engineer", password_hash=auth.hash_password(PASSWORD))
+                )
                 session.commit()
             yield client, detector
         service._live.clear()
@@ -130,8 +132,14 @@ def test_docs_are_local_and_panel_is_served(server):
 def test_routes_require_login(server):
     """Данные оборудования, телеметрия, осмотры, помощник и распознавание закрыты без токена."""
     client, _ = server
-    for method, url in (("get", "/equipment"), ("get", "/equipment/N-101/telemetry"), ("get", "/inspections"),
-                        ("post", "/assistant/ask"), ("post", "/recognize/nameplate"), ("post", "/recognize/gauge")):
+    for method, url in (
+        ("get", "/equipment"),
+        ("get", "/equipment/N-101/telemetry"),
+        ("get", "/inspections"),
+        ("post", "/assistant/ask"),
+        ("post", "/recognize/nameplate"),
+        ("post", "/recognize/gauge"),
+    ):
         assert getattr(client, method)(url).status_code == 401, url
 
 
@@ -234,21 +242,29 @@ def test_inspection_end_to_end(server, monkeypatch):
 
     gauge = {"ok": True, "value": 6.2, "reason": None, "angle_deg": 32.4, "contrast": 90.0}
     monkeypatch.setattr(recognition, "read_gauge", lambda frame, scale: dict(gauge))
-    read = client.post("/recognize/gauge", headers=engineer, files={"frame": ("gauge.jpg", jpeg(), "image/jpeg")},
-                       data={"equipment_id": "N-101", "inspection_id": str(inspection_id)})
+    read = client.post(
+        "/recognize/gauge",
+        headers=engineer,
+        files={"frame": ("gauge.jpg", jpeg(), "image/jpeg")},
+        data={"equipment_id": "N-101", "inspection_id": str(inspection_id)},
+    )
     assert read.status_code == 200, read.text
     read = read.json()
     assert read["value"] == 6.2 and read["sensor_value"] == levels["press_out"]["value"]
     assert read["difference_percent"] == round(abs(6.2 - read["sensor_value"]) / 6.2 * 100, 1)
     assert read["exceeds"] is True and read["finding"]["rule_id"] == "R05"
     gauge.update(ok=False, value=None, reason="Манометр не прочитан: циферблат не найден")
-    unsure = client.post("/recognize/gauge", headers=engineer, files={"frame": ("gauge.jpg", jpeg(), "image/jpeg")},
-                         data={"equipment_id": "N-101"}).json()
+    unsure = client.post(
+        "/recognize/gauge", headers=engineer, files={"frame": ("gauge.jpg", jpeg(), "image/jpeg")}, data={"equipment_id": "N-101"}
+    ).json()
     assert unsure["ok"] is False and unsure["value"] is None and unsure["exceeds"] is None and unsure["finding"] is None
 
-    added = client.post(f"/inspections/{inspection_id}/findings", headers=engineer,
-                        data={"kind": "defect", "node": "seal", "sign": "leak", "comment": "Капает под валом"},
-                        files={"frame": ("leak.jpg", jpeg(), "image/jpeg")})
+    added = client.post(
+        f"/inspections/{inspection_id}/findings",
+        headers=engineer,
+        data={"kind": "defect", "node": "seal", "sign": "leak", "comment": "Капает под валом"},
+        files={"frame": ("leak.jpg", jpeg(), "image/jpeg")},
+    )
     assert added.status_code == 201, added.text
     assert added.json()["rule_id"] == "R01" and added.json()["has_photo"] is True
 
@@ -273,8 +289,9 @@ def test_inspection_end_to_end(server, monkeypatch):
     xlsx = client.get(f"/inspections/{inspection_id}/report.xlsx", headers=engineer)
     assert xlsx.status_code == 200 and xlsx.content.startswith(b"PK")
 
-    reply = client.post("/assistant/ask", headers=engineer,
-                        json={"question": "Какие открытые замечания по уплотнению?", "equipment_id": "N-101"})
+    reply = client.post(
+        "/assistant/ask", headers=engineer, json={"question": "Какие открытые замечания по уплотнению?", "equipment_id": "N-101"}
+    )
     assert reply.status_code == 200, reply.text
     reply = reply.json()
     assert reply["mode"] == "search" and reply["answer"]
@@ -340,11 +357,13 @@ def test_unit_without_telemetry_and_gauge(server):
     assert client.get("/equipment/AMS-1/route", headers=headers).status_code == 200
     resource = client.get("/equipment/AMS-1/resource", headers=headers).json()
     assert resource["telemetry"] is False and resource["nodes"]
-    gauge = client.post("/recognize/gauge", headers=headers, files={"frame": ("g.jpg", jpeg(), "image/jpeg")},
-                        data={"equipment_id": "AMS-1"})
+    gauge = client.post(
+        "/recognize/gauge", headers=headers, files={"frame": ("g.jpg", jpeg(), "image/jpeg")}, data={"equipment_id": "AMS-1"}
+    )
     assert gauge.status_code == 422
-    missing = client.post("/recognize/gauge", headers=headers, files={"frame": ("g.jpg", jpeg(), "image/jpeg")},
-                          data={"equipment_id": "X-999"})
+    missing = client.post(
+        "/recognize/gauge", headers=headers, files={"frame": ("g.jpg", jpeg(), "image/jpeg")}, data={"equipment_id": "X-999"}
+    )
     assert missing.status_code == 404
 
 
@@ -392,9 +411,15 @@ class FakeResult:
     def __init__(self, rows, names):
         """Запоминает строки (x1, y1, x2, y2, номер класса, уверенность) и названия классов."""
         self.names = names
-        self.boxes = type("Boxes", (), {
-            "xyxy": np.array([row[:4] for row in rows], dtype=float).reshape(-1, 4),
-            "cls": np.array([row[4] for row in rows]), "conf": np.array([row[5] for row in rows])})()
+        self.boxes = type(
+            "Boxes",
+            (),
+            {
+                "xyxy": np.array([row[:4] for row in rows], dtype=float).reshape(-1, 4),
+                "cls": np.array([row[4] for row in rows]),
+                "conf": np.array([row[5] for row in rows]),
+            },
+        )()
 
 
 def write_manifest(folder: Path, document) -> None:
@@ -406,8 +431,14 @@ def write_manifest(folder: Path, document) -> None:
 def test_detector_merges_models_from_manifest(tmp_path):
     """По models.json загружаются все модели, рамки одного класса объединяются, дефектные классы берутся из описания."""
     folder = tmp_path / "models"
-    write_manifest(folder, [{"file": "stand.onnx", "defect_classes": ["leak"]},
-                            {"file": "defects.onnx", "defect_classes": ["damage"]}, {"file": "../escape.onnx"}])
+    write_manifest(
+        folder,
+        [
+            {"file": "stand.onnx", "defect_classes": ["leak"]},
+            {"file": "defects.onnx", "defect_classes": ["damage"]},
+            {"file": "../escape.onnx"},
+        ],
+    )
     for name in ("stand.onnx", "defects.onnx"):
         (folder / name).write_bytes(b"x")
     outputs = {
@@ -450,23 +481,32 @@ def test_detector_falls_back_to_default_model(tmp_path):
 def test_detector_applies_thresholds_from_manifest(tmp_path):
     """Порог модели и пороги классов из models.json: модель запускается с наименьшим порогом, рамки ниже своего отсекаются."""
     folder = tmp_path / "models"
-    write_manifest(folder, [{"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.6, "gauge": "high"}},
-                            {"file": "defects.onnx", "conf_check": 0.15, "thresholds": {"damage": 0.3, "leak": 1.5}}])
+    write_manifest(
+        folder,
+        [
+            {"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.6, "gauge": "high"}},
+            {"file": "defects.onnx", "conf_check": 0.15, "thresholds": {"damage": 0.3, "leak": 1.5}},
+        ],
+    )
     for name in ("stand.onnx", "defects.onnx"):
         (folder / name).write_bytes(b"x")
     names = {0: "leak", 1: "motor", 2: "gauge", 3: "damage", 4: "corrosion"}
     outputs = {
         "stand.onnx": FakeResult([(0, 0, 50, 50, 0, 0.55), (60, 60, 160, 160, 1, 0.3), (200, 0, 260, 60, 2, 0.24)], names),
-        "defects.onnx": FakeResult([(300, 0, 360, 60, 0, 0.16), (0, 300, 60, 360, 3, 0.29), (400, 400, 450, 450, 4, 0.15)], names),
+        "defects.onnx": FakeResult(
+            [(300, 0, 360, 60, 0, 0.16), (0, 300, 60, 360, 3, 0.29), (400, 400, 450, 450, 4, 0.15)], names
+        ),
     }
     asked = {}
 
     def loader(path):
         """Подменная загрузка: запоминает порог, с которым запущена модель."""
+
         def model(frame, conf):
             """Возвращает заготовленный ответ модели."""
             asked[path.name] = conf
             return [outputs[path.name]]
+
         return model
 
     detector = recognition.Detector(folder, loader)
@@ -480,6 +520,7 @@ def test_detector_applies_thresholds_from_manifest(tmp_path):
 
 def test_detect_frame_keeps_default_floor_for_other_detectors():
     """Детектор без порогов из описания получает прежний общий порог 0,25."""
+
     class Plain:
         """Подменный детектор с готовыми рамками."""
 

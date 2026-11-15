@@ -1,4 +1,5 @@
 """Прогноз времени до уставки по линейному тренду последних часов."""
+
 from datetime import datetime
 
 from .thresholds import as_number
@@ -8,9 +9,7 @@ MIN_R_SQUARED = 0.5
 HORIZON_WINDOWS = 10.0
 
 
-def hours_to_threshold(
-    points: list[tuple[datetime, float]], threshold: float, direction: str | None = None
-) -> float | None:
+def hours_to_threshold(points: list[tuple[datetime, float]], threshold: float, direction: str | None = None) -> float | None:
     """Оценивает, через сколько часов после последней точки линейный тренд окна достигнет уставки.
 
     Прямая подбирается методом наименьших квадратов по всем точкам окна. Возвращает None, когда

@@ -8,6 +8,7 @@
 хотя бы один дефект, те же показатели после имитации съёмки с монитора, доля найденных дефектных
 снимков и доля ложных тревог на тестовом наборе data/web_testset. Обучение на этих снимках не ведётся.
 """
+
 import csv
 import glob
 import json
@@ -23,8 +24,13 @@ from evaluate import iou, load_names, read_truth
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DEFECTS = ("corrosion", "leak", "terminal_box_burnt", "damage", "coupling_no_guard")
-WEB_EXPECTED = {"corrosion": "corrosion", "leak": "leak", "burnt_electrical": "terminal_box_burnt",
-                "insulation_damage": "damage", "crack": "damage"}
+WEB_EXPECTED = {
+    "corrosion": "corrosion",
+    "leak": "leak",
+    "burnt_electrical": "terminal_box_burnt",
+    "insulation_damage": "damage",
+    "crack": "damage",
+}
 WEB_CLEAN = ("equipment_ok", "gauge", "nameplate")
 LEVELS = (0.25, 0.5)
 
@@ -90,7 +96,9 @@ def labelled_split(models: list, root: str, split: str, names: list[str]) -> dic
             "box_recall": round(tp / (tp + fn), 3) if tp + fn else None,
             "image_defect_found": round(found / max(1, len(cache)), 3),
             "image_right_class_found": round(right / max(1, len(cache)), 3),
-            "images_without_any_detection": missed, "classes": stats}
+            "images_without_any_detection": missed,
+            "classes": stats,
+        }
     return report
 
 
@@ -124,7 +132,8 @@ def web_split(models: list) -> dict | None:
             "image_recall_right_class": round(sum(row["right_class"] for row in defective) / max(1, total), 3),
             "clean_images": alarms,
             "false_alarm_rate": round(sum(row["any_defect"] for row in clean) / max(1, alarms), 3),
-            "groups": groups}
+            "groups": groups,
+        }
     return report
 
 
@@ -132,23 +141,31 @@ def main() -> None:
     """Загружает модели, считает все показатели и сохраняет отчёт."""
     title, root, out, weights = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4:]
     from libreyolo import LibreYOLO
+
     models = [LibreYOLO(path) for path in weights]
     names = load_names(os.path.join(root, "data.yaml"))
     started = time.time()
-    report = {"name": title, "weights": weights,
-              "holdout": labelled_split(models, root, "holdout", names),
-              "holdout_screen": labelled_split(models, root, "holdout_screen", names),
-              "web_testset": web_split(models)}
+    report = {
+        "name": title,
+        "weights": weights,
+        "holdout": labelled_split(models, root, "holdout", names),
+        "holdout_screen": labelled_split(models, root, "holdout_screen", names),
+        "web_testset": web_split(models),
+    }
     report["seconds"] = round(time.time() - started, 1)
     json.dump(report, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     for part in ("holdout", "holdout_screen"):
         row = report[part]["conf_0.25"]
-        print(f"{title} {part}: кадров {report[part]['images']}, точность рамок {row['box_precision']}, "
-              f"полнота рамок {row['box_recall']}, дефект найден на {row['image_defect_found']} снимков")
+        print(
+            f"{title} {part}: кадров {report[part]['images']}, точность рамок {row['box_precision']}, "
+            f"полнота рамок {row['box_recall']}, дефект найден на {row['image_defect_found']} снимков"
+        )
     if report["web_testset"]:
         row = report["web_testset"]["conf_0.25"]
-        print(f"{title} web: дефектных {row['defective_images']}, найдено {row['image_recall_any_defect']}, "
-              f"верный класс {row['image_recall_right_class']}, ложных тревог {row['false_alarm_rate']} из {row['clean_images']}")
+        print(
+            f"{title} web: дефектных {row['defective_images']}, найдено {row['image_recall_any_defect']}, "
+            f"верный класс {row['image_recall_right_class']}, ложных тревог {row['false_alarm_rate']} из {row['clean_images']}"
+        )
 
 
 if __name__ == "__main__":

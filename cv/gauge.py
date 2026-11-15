@@ -3,6 +3,7 @@
 Запуск:
     python cv/gauge.py <изображение> [минимум=0] [максимум=10] [развёртка_шкалы_в_градусах=270]
 """
+
 import math
 import sys
 
@@ -79,7 +80,9 @@ def rectify(image: np.ndarray) -> np.ndarray | None:
     scale = np.diag([2 * RADIUS / d1, 2 * RADIUS / d2])
     m = rot.T @ scale @ rot
     shift = np.array([SIZE / 2, SIZE / 2]) - m @ np.array([cx, cy])
-    return cv2.warpAffine(gray, np.hstack([m, shift[:, None]]), (SIZE, SIZE), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    return cv2.warpAffine(
+        gray, np.hstack([m, shift[:, None]]), (SIZE, SIZE), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE
+    )
 
 
 def needle_axis(dial: np.ndarray, coarse_deg: float, sign: float) -> float:
@@ -124,7 +127,7 @@ def needle_angle(dial: np.ndarray, sweep_deg: float) -> tuple[float, float]:
     c = SIZE / 2
     blurred = cv2.GaussianBlur(dial, (3, 3), 0)
     polar = cv2.warpPolar(blurred, (int(RADIUS), 720), (c, c), RADIUS, cv2.WARP_POLAR_LINEAR).astype(np.float32)
-    band = polar[:, int(BAND[0] * RADIUS):int(BAND[1] * RADIUS)]
+    band = polar[:, int(BAND[0] * RADIUS) : int(BAND[1] * RADIUS)]
     ring = np.median(band, axis=0, keepdims=True)
     angles = (np.arange(720) * 0.5 + 90.0 + 180.0) % 360.0 - 180.0
     allowed = np.abs(angles) <= sweep_deg / 2 + 6.0
@@ -150,7 +153,12 @@ def read_gauge(image: np.ndarray, vmin: float = 0.0, vmax: float = 10.0, sweep_d
     angle, contrast = needle_angle(dial, sweep_deg)
     angle = max(-sweep_deg / 2, min(sweep_deg / 2, angle))
     value = vmin + (angle + sweep_deg / 2) / sweep_deg * (vmax - vmin)
-    return {"value": round(value, 2), "angle_deg": round(angle, 1), "contrast": round(contrast, 1), "ok": contrast >= MIN_CONTRAST}
+    return {
+        "value": round(value, 2),
+        "angle_deg": round(angle, 1),
+        "contrast": round(contrast, 1),
+        "ok": contrast >= MIN_CONTRAST,
+    }
 
 
 if __name__ == "__main__":

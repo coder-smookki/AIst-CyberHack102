@@ -19,6 +19,7 @@
 отложенными снимками заказчика, их копиями, data/web_testset и тестом parts_real; до 10 бит кадр выбрасывается.
 Повторы внутри train и между train и test отсекаются по хешу целого кадра (до 8 бит).
 """
+
 import argparse
 import csv
 import glob
@@ -38,8 +39,20 @@ from build_defects_v4 import Index, class_names, parse_rows
 OPEN = os.path.join(ROOT, "data", "open")
 EQUIPMENT_CLASSES = ("pump_unit", "control_cabinet", "transformer", "motor", "valve", "compressor")
 UNIT_PARTS = ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box", "terminal_box_burnt")
-PART_NAMES = ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box",
-              "terminal_box_burnt", "nameplate", "gauge", "leak", "corrosion", "valve")
+PART_NAMES = (
+    "motor",
+    "pump_casing",
+    "flange",
+    "coupling_guard",
+    "coupling_no_guard",
+    "terminal_box",
+    "terminal_box_burnt",
+    "nameplate",
+    "gauge",
+    "leak",
+    "corrosion",
+    "valve",
+)
 DROP_BITS = 10
 INTRA_BITS = 8
 VAL_EVERY = 8
@@ -47,34 +60,113 @@ MAX_SIDE = 960
 
 PANEL = {f"Electric_panel-t{number}": "control_cabinet" for number in range(1, 13)}
 SOURCES = [
-    {"key": "elpanel", "folder": "rf-electric-panel/raw", "map": PANEL, "cap": 700, "test_cap": 80,
-     "licence": "MIT (Roboflow objectdetectionseperatemodels/electric-panel)"},
-    {"key": "substation", "folder": "rf-substation-equip/raw", "min_area": 0.01, "cap": 300, "test_cap": 50,
-     "map": {"Main transformer-": "transformer", "main_power_transformer": "transformer", "Switch cabinet-": "control_cabinet"},
-     "licence": "CC BY 4.0 (Roboflow substation-equipment-florence2-datasets/substation-equipment-det-2)"},
-    {"key": "valve", "folder": "rf-valve-kmd/raw", "map": {"opened valve": "valve", "closed valve": "valve"},
-     "min_area": 0.002, "cap": 300, "test_cap": 40, "licence": "CC BY 4.0 (Roboflow kmd-0u5yp/valve-mo95u)"},
-    {"key": "compressor", "folder": "rf-compressor-lms/raw", "map": {"compressor": "compressor"}, "cap": 300,
-     "test_cap": 40, "licence": "CC BY 4.0 (Roboflow lms-ynahk/compressor-c238z)"},
+    {
+        "key": "elpanel",
+        "folder": "rf-electric-panel/raw",
+        "map": PANEL,
+        "cap": 700,
+        "test_cap": 80,
+        "licence": "MIT (Roboflow objectdetectionseperatemodels/electric-panel)",
+    },
+    {
+        "key": "substation",
+        "folder": "rf-substation-equip/raw",
+        "min_area": 0.01,
+        "cap": 300,
+        "test_cap": 50,
+        "map": {
+            "Main transformer-": "transformer",
+            "main_power_transformer": "transformer",
+            "Switch cabinet-": "control_cabinet",
+        },
+        "licence": "CC BY 4.0 (Roboflow substation-equipment-florence2-datasets/substation-equipment-det-2)",
+    },
+    {
+        "key": "valve",
+        "folder": "rf-valve-kmd/raw",
+        "map": {"opened valve": "valve", "closed valve": "valve"},
+        "min_area": 0.002,
+        "cap": 300,
+        "test_cap": 40,
+        "licence": "CC BY 4.0 (Roboflow kmd-0u5yp/valve-mo95u)",
+    },
+    {
+        "key": "compressor",
+        "folder": "rf-compressor-lms/raw",
+        "map": {"compressor": "compressor"},
+        "cap": 300,
+        "test_cap": 40,
+        "licence": "CC BY 4.0 (Roboflow lms-ynahk/compressor-c238z)",
+    },
 ]
 EXTRA_FILE = os.path.join(OPEN, "equipment_sources.json")
 NEGATIVES = [
-    {"key": "neg_home", "train": "hf-manometer-sae26/yolo/train/images/*", "test": "hf-manometer-sae26/yolo/valid/images/*",
-     "empty_only": True, "cap": 260, "test_cap": 80, "licence": "Apache-2.0 (HF blackbeedrones/manometer-sae26, кадры без рамок)"},
-    {"key": "neg_floor", "train": "rf-leakage-kf/raw/train/images/*", "test": "rf-leakage-kf/raw/valid/images/*",
-     "cap": 200, "test_cap": 50, "licence": "CC BY 4.0 (Roboflow kuanhan-fu-mri8i/leakage-fw7iy)"},
-    {"key": "neg_socket", "train": "rf-electrical-hazards/train/images/*", "test": "rf-electrical-hazards/valid/images/*",
-     "cap": 120, "test_cap": 40, "licence": "Public Domain (Roboflow electrical-hazard-zcack/electrical-hazards)"},
-    {"key": "neg_gauge", "train": "rf-gauge-analog/raw/train/images/*", "test": "rf-gauge-analog/raw/test/images/*",
-     "cap": 120, "test_cap": 40, "licence": "MIT (Roboflow khang-nguyen-4jqxa/gauge-analog)"},
-    {"key": "neg_rust", "train": "rf-rust-5k/raw/train/images/*", "test": "rf-rust-5k/raw/valid/images/*",
-     "cap": 100, "test_cap": 40, "licence": "CC BY 4.0 (Roboflow rust-r6xzj/rust-dataset-uk2zn)"},
-    {"key": "neg_street", "train": "kg-gas-pipelines/raw/valid/*.jpg", "test": "kg-gas-pipelines/raw/test/*.jpg",
-     "cap": 100, "test_cap": 40, "licence": "MIT (Kaggle sardaanaeginova/gas-pipelines)"},
-    {"key": "neg_plate", "train": "rf-nameplate-y8frp/raw/train/images/*", "test": "rf-nameplate-y8frp/raw/test/images/*",
-     "cap": 60, "test_cap": 20, "licence": "Public Domain (Roboflow yolov5-ajg4i/nameplate-y8frp)"},
-    {"key": "neg_indoor", "train": "indoor-negatives/images/*", "test": None, "test_every": 4,
-     "cap": 400, "test_cap": 100, "licence": "Wikimedia Commons, лицензия каждого снимка в indoor-negatives/manifest.csv"},
+    {
+        "key": "neg_home",
+        "train": "hf-manometer-sae26/yolo/train/images/*",
+        "test": "hf-manometer-sae26/yolo/valid/images/*",
+        "empty_only": True,
+        "cap": 260,
+        "test_cap": 80,
+        "licence": "Apache-2.0 (HF blackbeedrones/manometer-sae26, кадры без рамок)",
+    },
+    {
+        "key": "neg_floor",
+        "train": "rf-leakage-kf/raw/train/images/*",
+        "test": "rf-leakage-kf/raw/valid/images/*",
+        "cap": 200,
+        "test_cap": 50,
+        "licence": "CC BY 4.0 (Roboflow kuanhan-fu-mri8i/leakage-fw7iy)",
+    },
+    {
+        "key": "neg_socket",
+        "train": "rf-electrical-hazards/train/images/*",
+        "test": "rf-electrical-hazards/valid/images/*",
+        "cap": 120,
+        "test_cap": 40,
+        "licence": "Public Domain (Roboflow electrical-hazard-zcack/electrical-hazards)",
+    },
+    {
+        "key": "neg_gauge",
+        "train": "rf-gauge-analog/raw/train/images/*",
+        "test": "rf-gauge-analog/raw/test/images/*",
+        "cap": 120,
+        "test_cap": 40,
+        "licence": "MIT (Roboflow khang-nguyen-4jqxa/gauge-analog)",
+    },
+    {
+        "key": "neg_rust",
+        "train": "rf-rust-5k/raw/train/images/*",
+        "test": "rf-rust-5k/raw/valid/images/*",
+        "cap": 100,
+        "test_cap": 40,
+        "licence": "CC BY 4.0 (Roboflow rust-r6xzj/rust-dataset-uk2zn)",
+    },
+    {
+        "key": "neg_street",
+        "train": "kg-gas-pipelines/raw/valid/*.jpg",
+        "test": "kg-gas-pipelines/raw/test/*.jpg",
+        "cap": 100,
+        "test_cap": 40,
+        "licence": "MIT (Kaggle sardaanaeginova/gas-pipelines)",
+    },
+    {
+        "key": "neg_plate",
+        "train": "rf-nameplate-y8frp/raw/train/images/*",
+        "test": "rf-nameplate-y8frp/raw/test/images/*",
+        "cap": 60,
+        "test_cap": 20,
+        "licence": "Public Domain (Roboflow yolov5-ajg4i/nameplate-y8frp)",
+    },
+    {
+        "key": "neg_indoor",
+        "train": "indoor-negatives/images/*",
+        "test": None,
+        "test_every": 4,
+        "cap": 400,
+        "test_cap": 100,
+        "licence": "Wikimedia Commons, лицензия каждого снимка в indoor-negatives/manifest.csv",
+    },
 ]
 CLEAN_TEST = os.path.join(OPEN, "clean-indoor", "images")
 
@@ -100,16 +192,23 @@ def real_part_boxes(rows: list[tuple]) -> list[tuple]:
     """Переводит разметку parts_real: двигатель и агрегат, если на снимке есть и двигатель, и корпус насоса."""
     out = [("motor", *row[1:]) for row in rows if row[0] == "motor"]
     if any(row[0] == "pump_casing" for row in rows) and any(row[0] == "motor" for row in rows):
-        out.append(("pump_unit", *union_box(rows, ("motor", "pump_casing", "flange", "coupling_guard",
-                                                   "coupling_no_guard", "terminal_box"))))
+        out.append(
+            (
+                "pump_unit",
+                *union_box(rows, ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box")),
+            )
+        )
     out += [("valve", *row[1:]) for row in rows if row[0] == "valve"]
     return out
 
 
 def map_source(source: dict, rows: list[tuple]) -> list[tuple] | None:
     """Сопоставляет классы источника Roboflow классам типа оборудования; None, если подходящих рамок нет."""
-    boxes = [(source["map"][name], *box) for name, *box in rows
-             if name in source["map"] and (box[2] - box[0]) * (box[3] - box[1]) >= source.get("min_area", 0.0)]
+    boxes = [
+        (source["map"][name], *box)
+        for name, *box in rows
+        if name in source["map"] and (box[2] - box[0]) * (box[3] - box[1]) >= source.get("min_area", 0.0)
+    ]
     return boxes or None
 
 
@@ -148,11 +247,19 @@ class EquipmentWriter:
         with open(os.path.join(self.out, "labels", split, name + ".txt"), "w") as handle:
             for cls, x1, y1, x2, y2 in boxes:
                 x1, y1, x2, y2 = (min(1.0, max(0.0, v)) for v in (x1, y1, x2, y2))
-                handle.write(f"{EQUIPMENT_CLASSES.index(cls)} {(x1 + x2) / 2:.5f} {(y1 + y2) / 2:.5f} "
-                             f"{x2 - x1:.5f} {y2 - y1:.5f}\n")
-        self.manifest.append({"file": f"images/{split}/{name}.jpg", "split": split, "source": source,
-                              "origin": os.path.relpath(path, ROOT), "licence": licence,
-                              "classes": ";".join(sorted({box[0] for box in boxes}))})
+                handle.write(
+                    f"{EQUIPMENT_CLASSES.index(cls)} {(x1 + x2) / 2:.5f} {(y1 + y2) / 2:.5f} " f"{x2 - x1:.5f} {y2 - y1:.5f}\n"
+                )
+        self.manifest.append(
+            {
+                "file": f"images/{split}/{name}.jpg",
+                "split": split,
+                "source": source,
+                "origin": os.path.relpath(path, ROOT),
+                "licence": licence,
+                "classes": ";".join(sorted({box[0] for box in boxes})),
+            }
+        )
         return True
 
 
@@ -179,13 +286,22 @@ def add_stand(writer: EquipmentWriter) -> None:
 def add_parts_real(writer: EquipmentWriter) -> None:
     """Добавляет реальные снимки parts_real: train -> train, test -> test (только снимки с двигателем или агрегатом)."""
     folder = os.path.join(OPEN, "parts_real")
-    licences = {row["file"]: row.get("licence", "") for row in csv.DictReader(open(os.path.join(folder, "manifest.csv"), encoding="utf-8"))}
+    licences = {
+        row["file"]: row.get("licence", "")
+        for row in csv.DictReader(open(os.path.join(folder, "manifest.csv"), encoding="utf-8"))
+    }
     for split in ("train", "test"):
         for index, (path, rows) in enumerate(yolo_items(folder, split, list(PART_NAMES))):
             boxes = real_part_boxes(rows)
             if boxes:
-                writer.put(split, f"pr_{split[:2]}{index:04d}", path, boxes, "parts_real",
-                           licences.get(f"images/{split}/{os.path.basename(path)}", "см. parts_real/manifest.csv"))
+                writer.put(
+                    split,
+                    f"pr_{split[:2]}{index:04d}",
+                    path,
+                    boxes,
+                    "parts_real",
+                    licences.get(f"images/{split}/{os.path.basename(path)}", "см. parts_real/manifest.csv"),
+                )
 
 
 def add_source(writer: EquipmentWriter, source: dict, rng: random.Random) -> dict:
@@ -199,8 +315,11 @@ def add_source(writer: EquipmentWriter, source: dict, rng: random.Random) -> dic
         folder = os.path.join(base, "images", "val" if part == "valid" else part) if flat else os.path.join(base, part, "images")
         for path in sorted(glob.glob(os.path.join(folder, "*"))):
             stem = os.path.splitext(os.path.basename(path))[0]
-            label = (os.path.join(base, "labels", "val" if part == "valid" else part, stem + ".txt") if flat
-                     else os.path.join(base, part, "labels", stem + ".txt"))
+            label = (
+                os.path.join(base, "labels", "val" if part == "valid" else part, stem + ".txt")
+                if flat
+                else os.path.join(base, part, "labels", stem + ".txt")
+            )
             boxes = map_source(source, parse_rows(open(label).read().splitlines() if os.path.exists(label) else [], names))
             if boxes:
                 items.append((path, boxes))
@@ -214,8 +333,9 @@ def add_source(writer: EquipmentWriter, source: dict, rng: random.Random) -> dic
                 split = "test"
                 if taken["test"] >= source.get("test_cap", 60):
                     break
-            taken[split] += writer.put(split, f"{source['key']}_{part[:2]}{index:05d}", path, boxes, source["key"],
-                                       source["licence"])
+            taken[split] += writer.put(
+                split, f"{source['key']}_{part[:2]}{index:05d}", path, boxes, source["key"], source["licence"]
+            )
     return taken
 
 
@@ -243,10 +363,12 @@ def add_negatives(out: str, seed: int) -> dict:
     writer = EquipmentWriter(out, guard, rng)
     taken = {}
     for source in NEGATIVES:
-        pools = {"train": sorted(glob.glob(os.path.join(OPEN, source["train"]))),
-                 "negtest": sorted(glob.glob(os.path.join(OPEN, source["test"]))) if source.get("test") else []}
+        pools = {
+            "train": sorted(glob.glob(os.path.join(OPEN, source["train"]))),
+            "negtest": sorted(glob.glob(os.path.join(OPEN, source["test"]))) if source.get("test") else [],
+        }
         if source.get("test_every"):
-            pools["negtest"] = pools["train"][::source["test_every"]]
+            pools["negtest"] = pools["train"][:: source["test_every"]]
             pools["train"] = [path for path in pools["train"] if path not in set(pools["negtest"])]
         counts = {}
         for split, pool in pools.items():
@@ -257,8 +379,14 @@ def add_negatives(out: str, seed: int) -> dict:
             for index, path in enumerate(pool):
                 if done >= limit:
                     break
-                done += writer.put("test" if split == "negtest" else "train", f"{source['key']}_{split[:2]}{index:05d}",
-                                   path, [], source["key"], source["licence"])
+                done += writer.put(
+                    "test" if split == "negtest" else "train",
+                    f"{source['key']}_{split[:2]}{index:05d}",
+                    path,
+                    [],
+                    source["key"],
+                    source["licence"],
+                )
             counts[split] = done
         taken[source["key"]] = counts
         print(source["key"], counts, flush=True)
@@ -310,8 +438,12 @@ def main() -> None:
         table = csv.DictWriter(handle, fieldnames=["file", "split", "source", "origin", "licence", "classes"])
         table.writeheader()
         table.writerows(writer.manifest)
-    json.dump({"dropped": writer.dropped, "twins": writer.twins, "drop_bits": DROP_BITS, "intra_bits": INTRA_BITS},
-              open(os.path.join(args.out, "dedup.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump(
+        {"dropped": writer.dropped, "twins": writer.twins, "drop_bits": DROP_BITS, "intra_bits": INTRA_BITS},
+        open(os.path.join(args.out, "dedup.json"), "w", encoding="utf-8"),
+        ensure_ascii=False,
+        indent=1,
+    )
     summary = {"sources": taken, "splits": {split: equipment_counts(args.out, split) for split in ("train", "val", "test")}}
     json.dump(summary, open(os.path.join(args.out, "summary.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(summary["splits"], ensure_ascii=False))

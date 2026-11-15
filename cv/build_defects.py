@@ -14,6 +14,7 @@
     кадры макета из Blender: дефекты макета и чистые кадры как отрицательные примеры.
 Снимки Zenodo, попавшие в тестовый набор data/web_testset, из обучения исключаются по manifest.csv.
 """
+
 import argparse
 import csv
 import glob
@@ -90,8 +91,9 @@ class Writer:
                 handle.write(f"{self.classes.index(cls)} {(x1 + x2) / 2:.5f} {(y1 + y2) / 2:.5f} {x2 - x1:.5f} {y2 - y1:.5f}\n")
                 row["boxes"][cls] = row["boxes"].get(cls, 0) + 1
 
-    def add_screen(self, split: str, name: str, image: np.ndarray, boxes: list[tuple], backgrounds: list[str],
-                   source: str) -> None:
+    def add_screen(
+        self, split: str, name: str, image: np.ndarray, boxes: list[tuple], backgrounds: list[str], source: str
+    ) -> None:
         """Сохраняет кадр, имитирующий съёмку изображения с монитора, с пересчитанными рамками."""
         indexed = [(self.classes.index(cls), x1, y1, x2, y2) for cls, x1, y1, x2, y2 in boxes]
         frame, labels = make_frame(image, indexed, backgrounds, scale_range=(0.6, 1.3), center_range=(0.38, 0.62))
@@ -138,8 +140,9 @@ def bridge_files() -> tuple[list[tuple], list[str]]:
     """Делит снимки corrosion-bi3q3 на пригодные (есть рамка коррозии от 1% кадра) и фоновые без коррозии."""
     usable, plain = [], []
     folder = os.path.join(ROOT, "data", "open", "corrosion-bi3q3", "train")
-    names = [line.strip()[2:] for line in open(os.path.join(folder, "..", "data.yaml"), encoding="utf-8")
-             if line.startswith("- ")]
+    names = [
+        line.strip()[2:] for line in open(os.path.join(folder, "..", "data.yaml"), encoding="utf-8") if line.startswith("- ")
+    ]
     for path in sorted(glob.glob(os.path.join(folder, "images", "*.jpg"))):
         label = os.path.join(folder, "labels", os.path.basename(path)[:-4] + ".txt")
         rows = [line.split() for line in open(label)] if os.path.exists(label) else []
@@ -154,8 +157,11 @@ def bridge_files() -> tuple[list[tuple], list[str]]:
 def add_stand(writer: Writer, count: int) -> None:
     """Добавляет кадры макета: рамки дефектов макета сохраняются, исправные узлы становятся фоном."""
     folder = os.path.join(ROOT, "data", "blender", "ds")
-    names = [line.split(":")[1].strip() for line in open(os.path.join(folder, "data.yaml"), encoding="utf-8")
-             if line.strip().split(":")[0].isdigit()]
+    names = [
+        line.split(":")[1].strip()
+        for line in open(os.path.join(folder, "data.yaml"), encoding="utf-8")
+        if line.strip().split(":")[0].isdigit()
+    ]
     files = sorted(glob.glob(os.path.join(folder, "images", "train", "*.jpg")))
     for path in random.sample(files, min(count, len(files))):
         label = os.path.join(folder, "labels", "train", os.path.basename(path)[:-4] + ".txt")

@@ -13,6 +13,7 @@
 на каждом шаге замедляет обучение в разы.
 Код и стартовые веса LibreYOLO9 распространяются по лицензии MIT, RF-DETR и D-FINE по Apache-2.0.
 """
+
 import argparse
 import json
 import os
@@ -38,8 +39,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def train_options(args: argparse.Namespace) -> dict:
     """Собирает параметры обучения для библиотеки из параметров запуска."""
-    options = {"data": args.data, "epochs": args.epochs, "imgsz": args.imgsz, "batch": args.batch,
-               "device": args.device, "workers": 4, "project": "runs", "name": args.name, "exist_ok": True}
+    options = {
+        "data": args.data,
+        "epochs": args.epochs,
+        "imgsz": args.imgsz,
+        "batch": args.batch,
+        "device": args.device,
+        "workers": 4,
+        "project": "runs",
+        "name": args.name,
+        "exist_ok": True,
+    }
     if args.plain_epochs is not None:
         options["no_aug_epochs"] = min(args.plain_epochs, max(0, args.epochs - 1))
     if args.warmup is not None:
@@ -55,6 +65,7 @@ def train_options(args: argparse.Namespace) -> dict:
 def main() -> None:
     """Запускает обучение, печатает путь к лучшим весам и сохраняет длительность рядом с ними."""
     from libreyolo import LibreYOLO
+
     args = parse_args()
     started = time.time()
     model = LibreYOLO(args.weights)
@@ -62,8 +73,11 @@ def main() -> None:
     minutes = round((time.time() - started) / 60, 1)
     folder = os.path.join("runs", args.name)
     os.makedirs(folder, exist_ok=True)
-    json.dump({"weights": args.weights, "data": args.data, "epochs": args.epochs, "train_minutes": minutes},
-              open(os.path.join(folder, "timing.json"), "w", encoding="utf-8"), ensure_ascii=False)
+    json.dump(
+        {"weights": args.weights, "data": args.data, "epochs": args.epochs, "train_minutes": minutes},
+        open(os.path.join(folder, "timing.json"), "w", encoding="utf-8"),
+        ensure_ascii=False,
+    )
     print(f"готово за {minutes} мин: {folder}/weights/best.pt")
 
 

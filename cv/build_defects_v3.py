@@ -19,6 +19,7 @@ damage. Новых классов нет: ни для отсутствующег
     пары от 11 до 16 бит записываются в dedup.json для просмотра глазами;
     копии обучающих снимков заказчика в проверочную часть больше не кладутся, так как они завышали mAP.
 """
+
 import argparse
 import csv
 import glob
@@ -40,38 +41,144 @@ DROP_BITS = 10
 REVIEW_BITS = 16
 
 SOURCES = [
-    {"key": "safenet", "folder": "safenet-coating/unpacked", "kind": "yolo_flat_splits",
-     "map": {0: "corrosion", 1: "damage"}, "skip_if": {2, 3}, "min_area": {"damage": 0.004},
-     "train": 700, "val": 100, "licence": "GPL (Figshare)"},
-    {"key": "shipcorr", "folder": "kg-ship-corrosion/corrosion detect", "kind": "yolo_single",
-     "map": {1: "corrosion"}, "train": 240, "val": 28, "licence": "MIT (Kaggle)"},
-    {"key": "substation", "folder": "rf-substation-defects", "kind": "roboflow",
-     "map": {20: "corrosion", 27: "leak", 28: "leak", 29: "leak"}, "negative_only": {26},
-     "train": 600, "val": 80, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "indleak", "folder": "rf-industrial-leak", "kind": "roboflow",
-     "map": {3: "leak", 4: "leak", 5: "leak"}, "skip_if": {0, 1, 2, 6, 7},
-     "train": 450, "val": 60, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "oilleak", "folder": "rf-oil-leak", "kind": "roboflow", "map": {0: "leak"},
-     "train": 80, "val": 15, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "elhaz", "folder": "rf-electrical-hazards", "kind": "roboflow",
-     "map": {1: "terminal_box_burnt", 2: "damage"}, "skip_if": {3}, "dedup_bits": 8,
-     "train": 400, "val": 50, "licence": "Public Domain (Roboflow)"},
-    {"key": "adapters", "folder": "rf-burnt-adapters", "kind": "roboflow", "map": {0: "terminal_box_burnt"},
-     "train": 60, "val": 0, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "pipedef", "folder": "rf-pipe-defects", "kind": "roboflow", "map": {0: "damage", 1: "damage", 2: "damage"},
-     "train": 100, "val": 10, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "pipecorr", "folder": "rf-pipe-corrosion", "kind": "roboflow", "map": {0: "corrosion"}, "skip_if": {1},
-     "train": 150, "val": 20, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "rusty3", "folder": "rf-rusty3", "kind": "roboflow", "map": {0: "corrosion"},
-     "train": 120, "val": 15, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "insul", "folder": "rf-pipe-insulation-damage", "kind": "roboflow", "map": {1: "damage"},
-     "min_area": {"damage": 0.001}, "train": 150, "val": 20, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "plate", "folder": "rf-nameplate", "kind": "roboflow", "map": {}, "negative": True,
-     "train": 150, "val": 25, "licence": "CC BY 4.0 (Roboflow)"},
-    {"key": "gauge", "folder": "kg-analog-gauge", "kind": "roboflow", "map": {}, "negative": True,
-     "train": 80, "val": 15, "licence": "CC BY 4.0 (Kaggle)"},
-    {"key": "motor", "folder": "rf-motor-housing", "kind": "roboflow", "map": {}, "negative": True, "skip_if": {1},
-     "train": 50, "val": 10, "licence": "CC BY 4.0 (Roboflow)"},
+    {
+        "key": "safenet",
+        "folder": "safenet-coating/unpacked",
+        "kind": "yolo_flat_splits",
+        "map": {0: "corrosion", 1: "damage"},
+        "skip_if": {2, 3},
+        "min_area": {"damage": 0.004},
+        "train": 700,
+        "val": 100,
+        "licence": "GPL (Figshare)",
+    },
+    {
+        "key": "shipcorr",
+        "folder": "kg-ship-corrosion/corrosion detect",
+        "kind": "yolo_single",
+        "map": {1: "corrosion"},
+        "train": 240,
+        "val": 28,
+        "licence": "MIT (Kaggle)",
+    },
+    {
+        "key": "substation",
+        "folder": "rf-substation-defects",
+        "kind": "roboflow",
+        "map": {20: "corrosion", 27: "leak", 28: "leak", 29: "leak"},
+        "negative_only": {26},
+        "train": 600,
+        "val": 80,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "indleak",
+        "folder": "rf-industrial-leak",
+        "kind": "roboflow",
+        "map": {3: "leak", 4: "leak", 5: "leak"},
+        "skip_if": {0, 1, 2, 6, 7},
+        "train": 450,
+        "val": 60,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "oilleak",
+        "folder": "rf-oil-leak",
+        "kind": "roboflow",
+        "map": {0: "leak"},
+        "train": 80,
+        "val": 15,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "elhaz",
+        "folder": "rf-electrical-hazards",
+        "kind": "roboflow",
+        "map": {1: "terminal_box_burnt", 2: "damage"},
+        "skip_if": {3},
+        "dedup_bits": 8,
+        "train": 400,
+        "val": 50,
+        "licence": "Public Domain (Roboflow)",
+    },
+    {
+        "key": "adapters",
+        "folder": "rf-burnt-adapters",
+        "kind": "roboflow",
+        "map": {0: "terminal_box_burnt"},
+        "train": 60,
+        "val": 0,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "pipedef",
+        "folder": "rf-pipe-defects",
+        "kind": "roboflow",
+        "map": {0: "damage", 1: "damage", 2: "damage"},
+        "train": 100,
+        "val": 10,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "pipecorr",
+        "folder": "rf-pipe-corrosion",
+        "kind": "roboflow",
+        "map": {0: "corrosion"},
+        "skip_if": {1},
+        "train": 150,
+        "val": 20,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "rusty3",
+        "folder": "rf-rusty3",
+        "kind": "roboflow",
+        "map": {0: "corrosion"},
+        "train": 120,
+        "val": 15,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "insul",
+        "folder": "rf-pipe-insulation-damage",
+        "kind": "roboflow",
+        "map": {1: "damage"},
+        "min_area": {"damage": 0.001},
+        "train": 150,
+        "val": 20,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "plate",
+        "folder": "rf-nameplate",
+        "kind": "roboflow",
+        "map": {},
+        "negative": True,
+        "train": 150,
+        "val": 25,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
+    {
+        "key": "gauge",
+        "folder": "kg-analog-gauge",
+        "kind": "roboflow",
+        "map": {},
+        "negative": True,
+        "train": 80,
+        "val": 15,
+        "licence": "CC BY 4.0 (Kaggle)",
+    },
+    {
+        "key": "motor",
+        "folder": "rf-motor-housing",
+        "kind": "roboflow",
+        "map": {},
+        "negative": True,
+        "skip_if": {1},
+        "train": 50,
+        "val": 10,
+        "licence": "CC BY 4.0 (Roboflow)",
+    },
 ]
 
 
@@ -95,8 +202,15 @@ def views(image: np.ndarray, turns: bool) -> list[np.ndarray]:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
     height, width = gray.shape
     h, w = int(height * 0.7), int(width * 0.7)
-    out = [gray, gray[(height - h) // 2:(height + h) // 2, (width - w) // 2:(width + w) // 2],
-           gray[:h, :w], gray[:h, width - w:], gray[height - h:, :w], gray[height - h:, width - w:], gray[:, ::-1]]
+    out = [
+        gray,
+        gray[(height - h) // 2 : (height + h) // 2, (width - w) // 2 : (width + w) // 2],
+        gray[:h, :w],
+        gray[:h, width - w :],
+        gray[height - h :, :w],
+        gray[height - h :, width - w :],
+        gray[:, ::-1],
+    ]
     if turns:
         out += [np.rot90(gray, 1), np.rot90(gray, 2), np.rot90(gray, 3)]
     return out
@@ -211,12 +325,16 @@ def source_files(source: dict) -> dict:
     parts = {}
     if source["kind"] == "roboflow":
         for part in ("train", "valid", "test"):
-            parts[part] = [(p, os.path.join(base, part, "labels", os.path.splitext(os.path.basename(p))[0] + ".txt"))
-                           for p in sorted(glob.glob(os.path.join(base, part, "images", "*")))]
+            parts[part] = [
+                (p, os.path.join(base, part, "labels", os.path.splitext(os.path.basename(p))[0] + ".txt"))
+                for p in sorted(glob.glob(os.path.join(base, part, "images", "*")))
+            ]
     elif source["kind"] == "yolo_flat_splits":
         for part in ("train", "val", "test"):
-            parts[part] = [(p, os.path.join(base, "labels", part, os.path.splitext(os.path.basename(p))[0] + ".txt"))
-                           for p in sorted(glob.glob(os.path.join(base, "images", part, "*")))]
+            parts[part] = [
+                (p, os.path.join(base, "labels", part, os.path.splitext(os.path.basename(p))[0] + ".txt"))
+                for p in sorted(glob.glob(os.path.join(base, "images", part, "*")))
+            ]
     else:
         files = sorted(glob.glob(os.path.join(base, "images", "*")))
         parts["all"] = [(p, os.path.join(base, "labels", os.path.splitext(os.path.basename(p))[0] + ".txt")) for p in files]
@@ -305,15 +423,21 @@ class Builder:
             self.review.append({"frame": name, "origin": origin, "protected": who, "bits": distance})
         return True
 
-    def put(self, split: str, name: str, image: np.ndarray, boxes: list[tuple], source: str, origin: str,
-            licence: str) -> bool:
+    def put(self, split: str, name: str, image: np.ndarray, boxes: list[tuple], source: str, origin: str, licence: str) -> bool:
         """Сохраняет кадр после проверки на повторы и записывает строку описи."""
         if not self.clean(name, image, origin):
             return False
         self.writer.add(split, name, image, boxes, source)
-        self.manifest.append({"file": f"images/{split}/{name}.jpg", "split": split, "source": source,
-                              "origin": os.path.relpath(origin, ROOT), "licence": licence,
-                              "classes": ";".join(sorted({box[0] for box in boxes}))})
+        self.manifest.append(
+            {
+                "file": f"images/{split}/{name}.jpg",
+                "split": split,
+                "source": source,
+                "origin": os.path.relpath(origin, ROOT),
+                "licence": licence,
+                "classes": ";".join(sorted({box[0] for box in boxes})),
+            }
+        )
         return True
 
 
@@ -368,8 +492,16 @@ def sweep(builder: Builder, out: str) -> None:
             source = "ostrava" if name.startswith("o_") else "blender"
             if builder.clean(name, cv2.imread(path), source):
                 licence = "CC BY 4.0 (Zenodo 11235637)" if source == "ostrava" else "собственные рендеры"
-                builder.manifest.append({"file": f"images/{split}/{name}.jpg", "split": split, "source": source,
-                                         "origin": source, "licence": licence, "classes": ""})
+                builder.manifest.append(
+                    {
+                        "file": f"images/{split}/{name}.jpg",
+                        "split": split,
+                        "source": source,
+                        "origin": source,
+                        "licence": licence,
+                        "classes": "",
+                    }
+                )
             else:
                 os.remove(path)
                 os.remove(os.path.join(out, "labels", split, name + ".txt"))
@@ -460,11 +592,23 @@ def main() -> None:
         table = csv.DictWriter(handle, fieldnames=["file", "split", "source", "origin", "licence", "classes"])
         table.writeheader()
         table.writerows(builder.manifest)
-    json.dump({"dropped": builder.dropped, "review": builder.review, "drop_bits": DROP_BITS, "review_bits": REVIEW_BITS,
-               "protected_images": len(guard.names)},
-              open(f"{args.out}/dedup.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    summary = {"by_source": writer.counts, "oversampled_copies": added,
-               "splits": {split: count_split(args.out, split) for split in ("train", "val", "holdout", "holdout_screen")}}
+    json.dump(
+        {
+            "dropped": builder.dropped,
+            "review": builder.review,
+            "drop_bits": DROP_BITS,
+            "review_bits": REVIEW_BITS,
+            "protected_images": len(guard.names),
+        },
+        open(f"{args.out}/dedup.json", "w", encoding="utf-8"),
+        ensure_ascii=False,
+        indent=1,
+    )
+    summary = {
+        "by_source": writer.counts,
+        "oversampled_copies": added,
+        "splits": {split: count_split(args.out, split) for split in ("train", "val", "holdout", "holdout_screen")},
+    }
     json.dump(summary, open(f"{args.out}/summary.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(summary["splits"], ensure_ascii=False))
     print(f"выброшено повторов {len(builder.dropped)}, на просмотр {len(builder.review)}")

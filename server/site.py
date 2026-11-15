@@ -4,6 +4,7 @@
 Europe/Moscow; имя сервера - из KST_SERVER_NAME, а без неё - имя машины. Смена считается по местному
 времени объекта: дневная 08:00-20:00, ночная 20:00-08:00.
 """
+
 import os
 import socket
 from datetime import datetime, time, timedelta, timezone, tzinfo
@@ -53,8 +54,7 @@ def shift_of(moment: datetime) -> dict:
     if clock < DAY_START:
         day -= timedelta(days=1)
     start = datetime.combine(day, NIGHT_START)
-    return {"code": "night", "shift": "20:00-08:00", "title": "Ночная смена", "start": start,
-            "end": start + timedelta(hours=12)}
+    return {"code": "night", "shift": "20:00-08:00", "title": "Ночная смена", "start": start, "end": start + timedelta(hours=12)}
 
 
 def site_info(moment: datetime | None = None) -> dict:
@@ -67,10 +67,13 @@ def site_info(moment: datetime | None = None) -> dict:
     shift = shift_of(local)
     return {
         "name": (os.environ.get("KST_SITE_NAME") or "").strip() or DEFAULT_SITE_NAME,
-        "shift": shift["shift"], "shift_code": shift["code"], "shift_title": shift["title"],
+        "shift": shift["shift"],
+        "shift_code": shift["code"],
+        "shift_title": shift["title"],
         "shift_start": shift["start"].isoformat(timespec="minutes"),
         "shift_end": shift["end"].isoformat(timespec="minutes"),
-        "server_name": server_name(), "timezone": name,
+        "server_name": server_name(),
+        "timezone": name,
         "local_time": local.isoformat(timespec="seconds"),
     }
 

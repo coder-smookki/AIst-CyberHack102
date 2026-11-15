@@ -1,4 +1,5 @@
 """Проверки помощника: вопросы об оборудовании и истории, ссылки для приложения, переход на ответ поиска при сбое модели."""
+
 import json
 import re
 import shutil
@@ -23,10 +24,13 @@ SECRET = "k" * 48
 LLM_URL = "http://127.0.0.1:11434"
 N101, AMS1, AMS2 = "kstvizor://equipment/N-101", "kstvizor://equipment/AMS-1", "kstvizor://equipment/AMS-2"
 LINK_FORMS = re.compile(
-    r"kstvizor://(equipment/[^/]+(/history|/node/[^/]+|/chart/[^/]+)?|inspection/\d+|finding/\d+|rule/[A-Z]\d\d|document/[^/]+)")
+    r"kstvizor://(equipment/[^/]+(/history|/node/[^/]+|/chart/[^/]+)?|inspection/\d+|finding/\d+|rule/[A-Z]\d\d|document/[^/]+)"
+)
 LAST_INSPECTION = "Когда был последний осмотр Н-101?"
-MODEL_TEXT = ("Последний осмотр насоса Н-101 прошёл 27.10.2026 с 14:05 до 14:31, его выполнил инженер Алексей Смирнов. "
-              "Найдено 1 замечание \u2014 следы влаги у торцевого уплотнения.")
+MODEL_TEXT = (
+    "Последний осмотр насоса Н-101 прошёл 27.10.2026 с 14:05 до 14:31, его выполнил инженер Алексей Смирнов. "
+    "Найдено 1 замечание \u2014 следы влаги у торцевого уплотнения."
+)
 
 
 def forget_cached_hashes():
@@ -137,8 +141,9 @@ def finding_link(session, title):
 
 def inspection_links(session, equipment_id):
     """Возвращает ссылки на осмотры агрегата, сначала новые."""
-    found = session.scalars(select(Inspection.id).where(Inspection.equipment_id == equipment_id)
-                            .order_by(Inspection.started_at.desc()))
+    found = session.scalars(
+        select(Inspection.id).where(Inspection.equipment_id == equipment_id).order_by(Inspection.started_at.desc())
+    )
     return [f"kstvizor://inspection/{entry}" for entry in found]
 
 
@@ -147,8 +152,12 @@ def test_history_by_unit_name(session):
     reply = ask(session, "Покажи историю насоса Н-101")
     assert reply.intent == "history" and reply.found
     assert reply.facts[0] == "Насос Н-101 (N-101): в истории 2 осмотра и 5 записей о работах."
-    assert "27.10.2026 14:05 - осмотр, Алексей Смирнов (инженер): 1 замечание - Следы влаги у торцевого уплотнения" in reply.answer
-    assert "25.08.2026 15:40 - обслуживание, узел «Корпус насоса и рабочее колесо»: Очаг коррозии на корпусе зачищен" in reply.answer
+    assert (
+        "27.10.2026 14:05 - осмотр, Алексей Смирнов (инженер): 1 замечание - Следы влаги у торцевого уплотнения" in reply.answer
+    )
+    assert (
+        "25.08.2026 15:40 - обслуживание, узел «Корпус насоса и рабочее колесо»: Очаг коррозии на корпусе зачищен" in reply.answer
+    )
     assert "Наработка 18560 ч. Выполнил: Алексей Смирнов (инженер)." in reply.answer
     assert "Показаны последние 6 из 7 событий" in reply.answer
     assert "10.06.2022" not in reply.answer
@@ -165,7 +174,9 @@ def test_history_by_serial_number_fragment(session):
     assert targets(by_fragment)[0] == f"{N101}/history"
     exact = ask(session, "история агрегата 21031004-2")
     assert exact.facts[0] == "Агрегат насосный винтовой №2 (AMS-2): в истории 1 осмотр и 1 запись о работах."
-    assert "15.08.2024 12:00 - замена, узел «Торцевое уплотнение»: Заменено торцевое уплотнение. Наработка 3250 ч." in exact.answer
+    assert (
+        "15.08.2024 12:00 - замена, узел «Торцевое уплотнение»: Заменено торцевое уплотнение. Наработка 3250 ч." in exact.answer
+    )
     assert targets(exact) == [f"{AMS2}/history", *inspection_links(session, "AMS-2")]
     both = ask(session, "история по серийному номеру 21031004")
     assert targets(both)[0] == f"{AMS1}/history" and f"{AMS2}/history" in targets(both)
@@ -182,21 +193,31 @@ def test_history_by_location(session):
     assert "Агрегат насосный винтовой №1 (AMS-1): в истории 1 осмотр и 2 записи о работах." in shared.facts
     assert "Агрегат насосный винтовой №2 (AMS-2): в истории 1 осмотр и 1 запись о работах." in shared.facts
     assert "06.10.2026 10:20 - осмотр, Алексей Смирнов (инженер): замечаний нет." in shared.answer
-    assert targets(shared) == [f"{AMS1}/history", *inspection_links(session, "AMS-1"),
-                               f"{AMS2}/history", *inspection_links(session, "AMS-2")]
+    assert targets(shared) == [
+        f"{AMS1}/history",
+        *inspection_links(session, "AMS-1"),
+        f"{AMS2}/history",
+        *inspection_links(session, "AMS-2"),
+    ]
 
 
 def test_last_inspection(session):
     """Последний осмотр: время, исполнитель, итог и ссылки на осмотр, замечание и историю."""
     reply = ask(session, LAST_INSPECTION)
     assert reply.intent == "last_inspection"
-    assert reply.facts[0] == ("Насос Н-101 (N-101): последний осмотр 27.10.2026 14:05-14:31, "
-                              "выполнил Алексей Смирнов (инженер), осмотр завершён.")
+    assert reply.facts[0] == (
+        "Насос Н-101 (N-101): последний осмотр 27.10.2026 14:05-14:31, " "выполнил Алексей Смирнов (инженер), осмотр завершён."
+    )
     assert reply.facts[1] == "Записей осмотра: 2, из них с замечаниями - 1, без замечаний - 1."
-    assert "Следы влаги у торцевого уплотнения, узел «Торцевое уплотнение», правило R01: требует проверки, открыто" in reply.facts[2]
+    assert (
+        "Следы влаги у торцевого уплотнения, узел «Торцевое уплотнение», правило R01: требует проверки, открыто" in reply.facts[2]
+    )
     assert "18.08.2026" not in reply.answer
-    assert targets(reply) == [inspection_links(session, "N-101")[0],
-                              finding_link(session, "Следы влаги у торцевого уплотнения"), f"{N101}/history"]
+    assert targets(reply) == [
+        inspection_links(session, "N-101")[0],
+        finding_link(session, "Следы влаги у торцевого уплотнения"),
+        f"{N101}/history",
+    ]
 
 
 def test_last_inspection_reads_fresh_records(session):
@@ -226,9 +247,19 @@ def test_open_findings(session):
     everywhere = ask(session, "Какие дефекты ещё не устранены?")
     assert everywhere.facts[0] == "Всего незакрытых замечаний: 2, агрегатов с замечаниями: 2 из 5."
     assert "Агрегат насосный винтовой №1 (AMS-1): незакрытых замечаний нет." in everywhere.facts
-    assert "Коррозия рамы у анкерного болта, узел «Рама и анкерные болты», правило R02: требует проверки, в работе" in everywhere.answer
-    assert targets(everywhere) == [corrosion, moisture, AMS1, AMS2, N101, "kstvizor://equipment/SHU-3",
-                                   "kstvizor://equipment/TR-1"]
+    assert (
+        "Коррозия рамы у анкерного болта, узел «Рама и анкерные болты», правило R02: требует проверки, в работе"
+        in everywhere.answer
+    )
+    assert targets(everywhere) == [
+        corrosion,
+        moisture,
+        AMS1,
+        AMS2,
+        N101,
+        "kstvizor://equipment/SHU-3",
+        "kstvizor://equipment/TR-1",
+    ]
 
 
 def test_resolved_findings_on_request(session):
@@ -236,13 +267,17 @@ def test_resolved_findings_on_request(session):
     solved = finding_link(session, "Коррозия на корпусе насоса")
     reply = ask(session, "Какие замечания по Н-101 уже устранены?")
     assert reply.intent == "resolved_findings"
-    assert reply.facts == ["Насос Н-101 (N-101): последние устранённые замечания - 1.",
-                           "- Коррозия на корпусе насоса, узел «Корпус насоса и рабочее колесо»: признаки возможного дефекта, "
-                           "устранено, запись от 18.08.2026."]
+    assert reply.facts == [
+        "Насос Н-101 (N-101): последние устранённые замечания - 1.",
+        "- Коррозия на корпусе насоса, узел «Корпус насоса и рабочее колесо»: признаки возможного дефекта, "
+        "устранено, запись от 18.08.2026.",
+    ]
     assert targets(reply) == [solved, f"{N101}/history"]
     opened = ask(session, "Какие замечания по Н-101 ещё не устранены?")
     assert opened.intent == "open_findings" and solved not in targets(opened)
-    assert ask(session, "закрытые замечания по АМС-1").facts == ["Агрегат насосный винтовой №1 (AMS-1): устранённых замечаний нет."]
+    assert ask(session, "закрытые замечания по АМС-1").facts == [
+        "Агрегат насосный винтовой №1 (AMS-1): устранённых замечаний нет."
+    ]
 
 
 def test_findings_of_named_node(session):
@@ -251,8 +286,9 @@ def test_findings_of_named_node(session):
     solved = finding_link(session, "Коррозия на корпусе насоса")
     frame = ask(session, "Есть дефекты на раме?")
     assert frame.intent == "node_findings" and frame.found
-    assert frame.facts[0] == ("Агрегат насосный винтовой №2 (AMS-2), узел «Рама и анкерные болты»: "
-                              "незакрытых замечаний - 1, устранённых - 0.")
+    assert frame.facts[0] == (
+        "Агрегат насосный винтовой №2 (AMS-2), узел «Рама и анкерные болты»: " "незакрытых замечаний - 1, устранённых - 0."
+    )
     assert frame.facts[1].startswith("- Коррозия рамы у анкерного болта, правило R02: требует проверки, в работе")
     assert frame.facts[2] == "Агрегат насосный винтовой №1 (AMS-1), узел «Рама и анкерные болты»: замечаний в базе нет."
     assert "Следы влаги" not in frame.answer
@@ -260,7 +296,8 @@ def test_findings_of_named_node(session):
     casing = ask(session, "Были ли дефекты корпуса?")
     assert casing.facts == [
         "Насос Н-101 (N-101), узел «Корпус насоса и рабочее колесо»: незакрытых замечаний - 0, устранённых - 1.",
-        "- Коррозия на корпусе насоса: признаки возможного дефекта, устранено, запись от 18.08.2026."]
+        "- Коррозия на корпусе насоса: признаки возможного дефекта, устранено, запись от 18.08.2026.",
+    ]
     assert targets(casing) == [solved, f"{N101}/node/casing", f"{N101}/history"]
     coupling = ask(session, "Покажи замечания по муфте", "N-101")
     assert coupling.facts == ["Насос Н-101 (N-101), узел «Муфта и защита муфты»: замечаний в базе нет."]
@@ -273,8 +310,10 @@ def test_resolved_finding_leaves_the_list(session):
     finding.state = "resolved"
     session.commit()
     reply = ask(session, "открытые замечания по второму винтовому агрегату")
-    assert reply.facts == ["Агрегат насосный винтовой №2 (AMS-2): незакрытых замечаний нет.",
-                           "Устранённых замечаний в истории агрегата: 1."]
+    assert reply.facts == [
+        "Агрегат насосный винтовой №2 (AMS-2): незакрытых замечаний нет.",
+        "Устранённых замечаний в истории агрегата: 1.",
+    ]
     assert targets(reply) == [AMS2]
 
 
@@ -284,13 +323,22 @@ def test_node_state_from_sensors(session, telemetry):
     assert reply.intent == "node_state"
     assert reply.facts[0] == "Подшипники двигателя - Насос Н-101 (N-101)."
     assert reply.facts[1] == "Фактическое состояние по датчикам на 10.11.2026 17:00: отклонений по датчикам нет."
-    assert reply.facts[2] == ("Показания: ВЧ шум 0,15 g - норма; СКЗ виброскорости общее 1,07 мм/с - норма; "
-                              "Температура подшипника насоса 49,9 °C - норма.")
+    assert reply.facts[2] == (
+        "Показания: ВЧ шум 0,15 g - норма; СКЗ виброскорости общее 1,07 мм/с - норма; "
+        "Температура подшипника насоса 49,9 °C - норма."
+    )
     assert reply.facts[3].startswith("Норматив: 20000 ч. Источник: Документация производителя")
-    assert reply.facts[4].startswith("Расчётный ресурс: срок приближается: израсходовано 96 % (по наработке). Остаток около 801 ч")
+    assert reply.facts[4].startswith(
+        "Расчётный ресурс: срок приближается: израсходовано 96 % (по наработке). Остаток около 801 ч"
+    )
     assert reply.facts[-1] == "Решение принимает инженер."
-    assert targets(reply) == [f"{N101}/node/motor_bearings", f"{N101}/chart/vib_hf", f"{N101}/chart/vib_rms",
-                              f"{N101}/chart/temp_bearing", f"{N101}/history"]
+    assert targets(reply) == [
+        f"{N101}/node/motor_bearings",
+        f"{N101}/chart/vib_hf",
+        f"{N101}/chart/vib_rms",
+        f"{N101}/chart/temp_bearing",
+        f"{N101}/history",
+    ]
     assert reply.links[1] == {"title": "График: ВЧ шум", "deeplink": f"{N101}/chart/vib_hf", "kind": "chart"}
 
 
@@ -335,7 +383,9 @@ def test_maintenance_due_with_run_hours_counter(session, telemetry):
     assert reply.facts[0] == "Насос Н-101 (N-101): наработка 19199 ч, расчёт на 10.11.2026."
     assert reply.facts[1] == "- ТО-1: интервал 4000 ч, после последнего обслуживания 3999 ч, осталось 1 ч - срок приближается."
     assert reply.facts[2].startswith("  Состав работ: Визуальный контроль уплотнений")
-    assert "- Ревизия: интервал 16000 ч, после последнего обслуживания 13199 ч, осталось 2801 ч - срок приближается." in reply.facts
+    assert (
+        "- Ревизия: интервал 16000 ч, после последнего обслуживания 13199 ч, осталось 2801 ч - срок приближается." in reply.facts
+    )
     assert targets(reply) == [N101, f"{N101}/node/motor_bearings", f"{N101}/node/seal", f"{N101}/node/gauge", f"{N101}/history"]
     telemetry.select_scenario("maintenance_due")
     due = ask(session, "сколько осталось до техобслуживания Н-101")
@@ -349,7 +399,9 @@ def test_maintenance_due_without_schedule(session):
     assert reply.facts[0] == "Агрегат насосный винтовой №1 (AMS-1): наработка 9800 ч, расчёт на 14.11.2026."
     assert reply.facts[1] == "Регламент технического обслуживания в карточке агрегата не задан."
     assert any(line.startswith("- Ресурс узла «Термопреобразователь»: срок наступил") for line in reply.facts)
-    assert any(line.startswith("- Ресурс узла «Торцевое уплотнение»: срок приближается: израсходовано 95,3 %") for line in reply.facts)
+    assert any(
+        line.startswith("- Ресурс узла «Торцевое уплотнение»: срок приближается: израсходовано 95,3 %") for line in reply.facts
+    )
     assert reply.facts[-1].startswith("Последняя запись о работах: 02.09.2026 10:10 - обслуживание, узел «Рама и анкерные болты»")
     assert targets(reply) == [AMS1, f"{AMS1}/node/unit", f"{AMS1}/node/seal", f"{AMS1}/node/temp_sensor", f"{AMS1}/history"]
 
@@ -358,11 +410,18 @@ def test_document_location(session):
     """Где документ: название, файл и ссылка на документ; выбирается подходящий по словам вопроса."""
     reply = ask(session, "Где паспорт насоса Н-101?")
     assert reply.intent == "document"
-    assert reply.facts == ["Паспорт и инструкция по монтажу и эксплуатации - Насос Н-101 (N-101), файл "
-                           "«Документация/Паспорта Насосов/Паспорт и инструкция по монтажу и эксплуатации.pdf»."]
+    assert reply.facts == [
+        "Паспорт и инструкция по монтажу и эксплуатации - Насос Н-101 (N-101), файл "
+        "«Документация/Паспорта Насосов/Паспорт и инструкция по монтажу и эксплуатации.pdf»."
+    ]
     assert reply.links == [
-        {"title": "Паспорт и инструкция по монтажу и эксплуатации", "deeplink": "kstvizor://document/wilo-passport", "kind": "document"},
-        {"title": "Насос Н-101", "deeplink": N101, "kind": "equipment"}]
+        {
+            "title": "Паспорт и инструкция по монтажу и эксплуатации",
+            "deeplink": "kstvizor://document/wilo-passport",
+            "kind": "document",
+        },
+        {"title": "Насос Н-101", "deeplink": N101, "kind": "equipment"},
+    ]
     manual = ask(session, "где лежит руководство по монтажу?")
     assert targets(manual)[0] == "kstvizor://document/wilo-manual" and "kstvizor://document/wilo-passport" not in targets(manual)
     second = ask(session, "паспорт второго винтового агрегата")
@@ -383,7 +442,9 @@ def test_rule_meaning(session):
         "Рекомендация: Проверить смазку подшипникового узла, запланировать замену подшипника.",
         "Узел: Подшипники двигателя. При срабатывании: признаки возможного дефекта, критичность 2 из 3.",
     ]
-    assert reply.links == [{"title": "Правило R08: Проблема смазки или износ подшипников", "deeplink": "kstvizor://rule/R08", "kind": "rule"}]
+    assert reply.links == [
+        {"title": "Правило R08: Проблема смазки или износ подшипников", "deeplink": "kstvizor://rule/R08", "kind": "rule"}
+    ]
     by_number = ask(session, "о чём правило №6")
     assert "Эксплуатация запрещена." in by_number.answer and targets(by_number) == ["kstvizor://rule/R06"]
     cyrillic = ask(session, "правило Р-5")
@@ -417,10 +478,18 @@ def test_units_needing_attention(session):
     assert "- Незакрытое замечание: Следы влаги у торцевого уплотнения" in reply.answer
     assert "- Ресурс узла «Термопреобразователь»: срок наступил" in reply.answer
     assert targets(reply) == [
-        AMS2, N101, AMS1,
-        finding_link(session, "Коррозия рамы у анкерного болта"), f"{AMS2}/node/seal", f"{AMS2}/node/unit",
-        finding_link(session, "Следы влаги у торцевого уплотнения"), f"{N101}/node/motor_bearings",
-        f"{AMS1}/node/temp_sensor", f"{AMS1}/node/unit", f"{AMS1}/node/seal"]
+        AMS2,
+        N101,
+        AMS1,
+        finding_link(session, "Коррозия рамы у анкерного болта"),
+        f"{AMS2}/node/seal",
+        f"{AMS2}/node/unit",
+        finding_link(session, "Следы влаги у торцевого уплотнения"),
+        f"{N101}/node/motor_bearings",
+        f"{AMS1}/node/temp_sensor",
+        f"{AMS1}/node/unit",
+        f"{AMS1}/node/seal",
+    ]
     one = ask(session, "Есть ли проблемы у AMS-1?")
     assert one.facts[0] == "Агрегат насосный винтовой №1 (AMS-1), Узел откачки, площадка 1, в работе - 3 причины:"
     assert targets(one)[0] == AMS1 and all("AMS-2" not in line and "N-101" not in line for line in one.facts)
@@ -430,8 +499,10 @@ def test_equipment_card(session):
     """Вопрос об агрегате без уточнений даёт карточку: модель, номер, место, режим и последний осмотр."""
     reply = ask(session, "Где находится второй винтовой агрегат?")
     assert reply.intent == "equipment"
-    assert reply.facts[0] == ("Агрегат насосный винтовой №2 (AMS-2): модель PCP60S12/3 01 Ex B1 HNBR DTS, "
-                              "серийный номер 21031004-2, производитель AMS.")
+    assert reply.facts[0] == (
+        "Агрегат насосный винтовой №2 (AMS-2): модель PCP60S12/3 01 Ex B1 HNBR DTS, "
+        "серийный номер 21031004-2, производитель AMS."
+    )
     assert reply.facts[1] == "Место установки: Узел откачки, площадка 1. Режим: остановлен. Наработка: 10650 ч."
     assert reply.facts[2] == "Последний осмотр: 15.09.2026 11:00."
     assert targets(reply)[0] == AMS2 and targets(reply)[-1] == f"{AMS2}/history"
@@ -450,11 +521,17 @@ def test_equipment_list_and_modes(session):
     assert "- Агрегат насосный винтовой №1 (AMS-1): Узел откачки, площадка 1, в работе, наработка 9800 ч." in listing.facts
     assert targets(listing)[:3] == [AMS1, AMS2, N101] and len(targets(listing)) == 5
     stopped = ask(session, "Какие агрегаты остановлены?", "N-101")
-    assert stopped.facts == ["Остановлено 1 из 5 единиц оборудования.",
-                             "- Агрегат насосный винтовой №2 (AMS-2): Узел откачки, площадка 1, остановлен, наработка 10650 ч."]
+    assert stopped.facts == [
+        "Остановлено 1 из 5 единиц оборудования.",
+        "- Агрегат насосный винтовой №2 (AMS-2): Узел откачки, площадка 1, остановлен, наработка 10650 ч.",
+    ]
     assert targets(stopped) == [AMS2]
-    assert targets(ask(session, "что сейчас в работе?")) == [AMS1, N101, "kstvizor://equipment/SHU-3",
-                                                             "kstvizor://equipment/TR-1"]
+    assert targets(ask(session, "что сейчас в работе?")) == [
+        AMS1,
+        N101,
+        "kstvizor://equipment/SHU-3",
+        "kstvizor://equipment/TR-1",
+    ]
     maker = ask(session, "Какой производитель у Н-101?")
     assert maker.intent == "equipment" and "производитель KST DEMO PUMPS." in maker.facts[0]
 
@@ -464,8 +541,10 @@ def test_unknown_unit(session):
     reply = ask(session, "История насоса Н-999")
     assert reply.intent == "unknown_equipment" and not reply.found
     assert reply.facts[0] == "Не нашёл в базе оборудование или запись с обозначением «Н-999»."
-    assert reply.facts[1] == ("В базе есть: Агрегат насосный винтовой №1 (AMS-1), Агрегат насосный винтовой №2 (AMS-2), "
-                              "Насос Н-101 (N-101), Шкаф управления ШУ-3 (SHU-3), Силовой трансформатор ТМ-400/10 (TR-1).")
+    assert reply.facts[1] == (
+        "В базе есть: Агрегат насосный винтовой №1 (AMS-1), Агрегат насосный винтовой №2 (AMS-2), "
+        "Насос Н-101 (N-101), Шкаф управления ШУ-3 (SHU-3), Силовой трансформатор ТМ-400/10 (TR-1)."
+    )
     assert "осмотр" not in reply.answer
     assert targets(reply)[:3] == [AMS1, AMS2, N101]
     with_context = ask(session, "история Н-999", "N-101")
@@ -487,16 +566,19 @@ def test_unknown_question_suggests_examples(session):
         assert not ask(session, empty).found
 
 
-@pytest.mark.parametrize("question, intent, first_link", [
-    ("истроия насоса н101", "history", f"{N101}/history"),
-    ("об истории насосов Н-101", "history", f"{N101}/history"),
-    ("подшипнеки n-101", "node_state", f"{N101}/node/motor_bearings"),
-    ("в каком сотоянии подшипниками Н-101", "node_state", f"{N101}/node/motor_bearings"),
-    ("кокое оборудование требует внемания", "attention", AMS2),
-    ("когда слидующее обслуживане АМС-1", "maintenance_due", AMS1),
-    ("ПАСПОРТОМ НАСОСА H-101", "document", "kstvizor://document/wilo-passport"),
-    ("последним осмотром первого винтового агрегата", "last_inspection", "kstvizor://inspection/3"),
-])
+@pytest.mark.parametrize(
+    "question, intent, first_link",
+    [
+        ("истроия насоса н101", "history", f"{N101}/history"),
+        ("об истории насосов Н-101", "history", f"{N101}/history"),
+        ("подшипнеки n-101", "node_state", f"{N101}/node/motor_bearings"),
+        ("в каком сотоянии подшипниками Н-101", "node_state", f"{N101}/node/motor_bearings"),
+        ("кокое оборудование требует внемания", "attention", AMS2),
+        ("когда слидующее обслуживане АМС-1", "maintenance_due", AMS1),
+        ("ПАСПОРТОМ НАСОСА H-101", "document", "kstvizor://document/wilo-passport"),
+        ("последним осмотром первого винтового агрегата", "last_inspection", "kstvizor://inspection/3"),
+    ],
+)
 def test_typos_and_word_endings(session, question, intent, first_link):
     """Опечатки, другие окончания, регистр и латинские буквы в обозначении не мешают понять вопрос."""
     reply = ask(session, question)
@@ -562,15 +644,23 @@ def test_sensor_readings(session, telemetry):
     reply = ask(session, "Какая температура подшипника на Н-101?")
     assert reply.intent == "parameter"
     assert reply.facts[0] == "Насос Н-101 (N-101), показания датчиков на 10.11.2026 17:00:"
-    assert reply.facts[1] == ("- Температура подшипника насоса 49,9 °C - норма (предупреждение выше 75 °C, "
-                              "тревога выше 90 °C). Источник: база заказчика.")
+    assert reply.facts[1] == (
+        "- Температура подшипника насоса 49,9 °C - норма (предупреждение выше 75 °C, "
+        "тревога выше 90 °C). Источник: база заказчика."
+    )
     assert reply.facts[2] == "Диагноз заказчика в его базе на этот час: по вибрации - «Норма»; по температуре - «Норма»."
     assert targets(reply) == [N101, f"{N101}/chart/temp_bearing"]
     inlet = ask(session, "давление на входе", "N-101")
-    assert "Давление на входе 1,51 бар - норма (предупреждение ниже 1 бар, тревога ниже 0,5 бар). Источник: модельный ряд." in inlet.answer
+    assert (
+        "Давление на входе 1,51 бар - норма (предупреждение ниже 1 бар, тревога ниже 0,5 бар). Источник: модельный ряд."
+        in inlet.answer
+    )
     assert targets(inlet) == [N101, f"{N101}/chart/press_in"]
     vibration = ask(session, "покажи вибрацию")
-    assert targets(vibration) == [N101, *(f"{N101}/chart/{code}" for code in ("vib_rms", "vib_1x", "vib_2x", "vib_hf", "vib_axial"))]
+    assert targets(vibration) == [
+        N101,
+        *(f"{N101}/chart/{code}" for code in ("vib_rms", "vib_1x", "vib_2x", "vib_hf", "vib_axial")),
+    ]
 
 
 def test_sensor_readings_without_telemetry(session):
@@ -586,17 +676,34 @@ def test_free_search_over_records(session):
     assert reply.intent == "search"
     assert reply.facts[0] == "Найдено записей: 4."
     assert reply.facts[1].startswith("- Замечание: Коррозия рамы у анкерного болта")
-    assert "- Запись о работах: 25.08.2026 15:40 - обслуживание, узел «Корпус насоса и рабочее колесо»: Очаг коррозии" in reply.answer
-    assert targets(reply) == [finding_link(session, "Коррозия рамы у анкерного болта"),
-                              finding_link(session, "Коррозия на корпусе насоса"), f"{N101}/history", "kstvizor://rule/R02"]
+    assert (
+        "- Запись о работах: 25.08.2026 15:40 - обслуживание, узел «Корпус насоса и рабочее колесо»: Очаг коррозии"
+        in reply.answer
+    )
+    assert targets(reply) == [
+        finding_link(session, "Коррозия рамы у анкерного болта"),
+        finding_link(session, "Коррозия на корпусе насоса"),
+        f"{N101}/history",
+        "kstvizor://rule/R02",
+    ]
     assert [link["kind"] for link in reply.links] == ["finding", "finding", "history", "rule"]
 
 
 def test_links_are_well_formed(session):
     """Все ссылки имеют один из восьми видов адресов приложения, а в ответах нет длинных тире."""
-    questions = ("Покажи историю насоса Н-101", LAST_INSPECTION, "Какие открытые замечания?", "состояние муфты Н-101",
-                 "Когда следующее ТО?", "где инструкция по эксплуатации", "какие правила есть про муфту",
-                 "Какое оборудование требует внимания?", "покажи вибрацию", "Где была коррозия?", "Что за насос N-101?")
+    questions = (
+        "Покажи историю насоса Н-101",
+        LAST_INSPECTION,
+        "Какие открытые замечания?",
+        "состояние муфты Н-101",
+        "Когда следующее ТО?",
+        "где инструкция по эксплуатации",
+        "какие правила есть про муфту",
+        "Какое оборудование требует внимания?",
+        "покажи вибрацию",
+        "Где была коррозия?",
+        "Что за насос N-101?",
+    )
     kinds = set()
     for question in questions:
         reply = ask(session, question)
@@ -619,9 +726,13 @@ def test_api_answer_shape(client, session):
     assert set(body) == {"answer", "links", "mode"} and body["mode"] == "search"
     assert body["answer"].startswith("Агрегат насосный винтовой №2 (AMS-2): незакрытых замечаний - 1.")
     assert body["links"] == [
-        {"title": "Коррозия рамы у анкерного болта", "deeplink": finding_link(session, "Коррозия рамы у анкерного болта"),
-         "kind": "finding"},
-        {"title": "Агрегат насосный винтовой №2", "deeplink": AMS2, "kind": "equipment"}]
+        {
+            "title": "Коррозия рамы у анкерного болта",
+            "deeplink": finding_link(session, "Коррозия рамы у анкерного болта"),
+            "kind": "finding",
+        },
+        {"title": "Агрегат насосный винтовой №2", "deeplink": AMS2, "kind": "equipment"},
+    ]
     blank_context = client.post("/assistant/ask", json={"question": "Покажи историю насоса Н-101", "equipment_id": ""})
     assert blank_context.status_code == 200 and blank_context.json()["links"][0]["deeplink"] == f"{N101}/history"
 
@@ -664,19 +775,33 @@ def raise_timeout(request):
     raise httpx.ReadTimeout("слишком долго", request=request)
 
 
-@pytest.mark.parametrize("handler", [
-    raise_connect_error,
-    raise_timeout,
-    lambda request: httpx.Response(500, text="internal error"),
-    lambda request: httpx.Response(200, text="не JSON"),
-    lambda request: httpx.Response(200, json={"response": "другой вид ответа"}),
-    lambda request: httpx.Response(200, json={"message": {"content": "   "}}),
-    lambda request: httpx.Response(200, json={"message": {"content": None}}),
-    lambda request: httpx.Response(200, json={"message": {"content": "<think>27.10.2026</think>"}}),
-    lambda request: httpx.Response(200, json={"message": {"content": "Осмотр был 27.10.2026, следующий через 77 дней."}}),
-    lambda request: httpx.Response(200, json={"message": {"content": "Осмотр 27.10.2026. " * 400}}),
-], ids=["connect", "timeout", "http500", "not_json", "wrong_shape", "blank", "null", "only_thinking", "invented_number",
-        "too_long"])
+@pytest.mark.parametrize(
+    "handler",
+    [
+        raise_connect_error,
+        raise_timeout,
+        lambda request: httpx.Response(500, text="internal error"),
+        lambda request: httpx.Response(200, text="не JSON"),
+        lambda request: httpx.Response(200, json={"response": "другой вид ответа"}),
+        lambda request: httpx.Response(200, json={"message": {"content": "   "}}),
+        lambda request: httpx.Response(200, json={"message": {"content": None}}),
+        lambda request: httpx.Response(200, json={"message": {"content": "<think>27.10.2026</think>"}}),
+        lambda request: httpx.Response(200, json={"message": {"content": "Осмотр был 27.10.2026, следующий через 77 дней."}}),
+        lambda request: httpx.Response(200, json={"message": {"content": "Осмотр 27.10.2026. " * 400}}),
+    ],
+    ids=[
+        "connect",
+        "timeout",
+        "http500",
+        "not_json",
+        "wrong_shape",
+        "blank",
+        "null",
+        "only_thinking",
+        "invented_number",
+        "too_long",
+    ],
+)
 def test_model_failure_falls_back_to_search(client, session, model, handler):
     """Любой сбой модели, пустой, раздутый или недостоверный ответ - незаметный переход на ответ поиска."""
     plain = intents.answer(session, LAST_INSPECTION)
@@ -698,18 +823,21 @@ def test_model_is_not_asked_without_facts_or_outside_local_network(client, model
     assert model["requests"] == []
 
 
-@pytest.mark.parametrize("url, local", [
-    ("http://127.0.0.1:11434", True),
-    ("http://localhost:11434/api/chat", True),
-    ("http://[::1]:11434", True),
-    ("http://192.168.1.20:11434", True),
-    ("https://example.com", False),
-    ("http://8.8.8.8:11434", False),
-    ("http://localhost.example.com", False),
-    ("ftp://127.0.0.1", False),
-    ("127.0.0.1:11434", False),
-    ("", False),
-])
+@pytest.mark.parametrize(
+    "url, local",
+    [
+        ("http://127.0.0.1:11434", True),
+        ("http://localhost:11434/api/chat", True),
+        ("http://[::1]:11434", True),
+        ("http://192.168.1.20:11434", True),
+        ("https://example.com", False),
+        ("http://8.8.8.8:11434", False),
+        ("http://localhost.example.com", False),
+        ("ftp://127.0.0.1", False),
+        ("127.0.0.1:11434", False),
+        ("", False),
+    ],
+)
 def test_only_local_model_addresses_are_allowed(url, local):
     """Адрес модели принимается, только если он ведёт на этот компьютер или в локальную сеть."""
     assert llm.is_local(url) is local

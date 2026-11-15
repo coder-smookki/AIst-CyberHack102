@@ -1,4 +1,5 @@
 """Итог осмотра при неполном обходе: «Осмотр неполный» со списком неосмотренных узлов в сводке и отчётах."""
+
 import io
 
 from openpyxl import load_workbook
@@ -76,8 +77,9 @@ def test_fully_walked_inspection_is_not_incomplete(client):
     inspection_id = start(client, engineer)
     nodes = client.get("/equipment/N-101", headers=engineer).json()["nodes"]
     for node in nodes:
-        response = client.post(f"/inspections/{inspection_id}/findings", headers=engineer,
-                               data={"kind": "checked", "node": node["id"]})
+        response = client.post(
+            f"/inspections/{inspection_id}/findings", headers=engineer, data={"kind": "checked", "node": node["id"]}
+        )
         assert response.status_code == 201, response.text
     summary = _finish(client, engineer, inspection_id)["summary"]
     assert summary["uninspected"] == [] and summary["status"] == "ok"

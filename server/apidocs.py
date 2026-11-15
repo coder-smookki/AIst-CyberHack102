@@ -6,6 +6,7 @@
 Страница /docs использует файлы Swagger UI из папки apidocs_static (лицензия Apache-2.0 лежит рядом),
 внешних адресов на странице нет. Команда python -m server.apidocs записывает схему в server/openapi.json.
 """
+
 import json
 import re
 from pathlib import Path
@@ -35,7 +36,7 @@ DESCRIPTION = (
     "**Демонстрационный стенд.** Перед сервером стоит пароль площадки; приложение вместо него передаёт "
     "заголовок `X-KST-App`. В локальной сети цеха этот заголовок не нужен.\n\n"
     "**Правила работы.** Распознавание принимает только кадры камеры. Статусы и диагнозы - подсказка системы: "
-    "решение принимает инженер. Ответы об ошибках имеют вид `{\"detail\": \"текст по-русски\"}`."
+    'решение принимает инженер. Ответы об ошибках имеют вид `{"detail": "текст по-русски"}`.'
 )
 WS_TEXT = (
     "OpenAPI не описывает WebSocket, поэтому обмен приведён здесь. Токен доступа передаётся параметром `token`.\n\n"
@@ -43,7 +44,7 @@ WS_TEXT = (
     "на каждый кадр сервер отвечает JSON с рамками `boxes: [{cls, conf, x1, y1, x2, y2, status, node}]` и "
     "размером кадра. Текстовое сообщение `ping` - проверка связи.\n\n"
     "**`WS /ws/inspect/{inspection_id}?token=...`** - распознавание в идущем осмотре. После подключения сервер "
-    "присылает текущее состояние (`type: \"state\"`), затем на каждый кадр JPEG - сообщение `type: \"frame\"` с "
+    'присылает текущее состояние (`type: "state"`), затем на каждый кадр JPEG - сообщение `type: "frame"` с '
     "полями `boxes`, `coverage` (полнота обхода: процент, узлы, подсказка), `diagnosis_changed` и `findings`. "
     "Текстовые команды: `ping` и `state` (повторить состояние). Признаки дефектов с камеры становятся "
     "замечаниями только после подтверждения инженером.\n\n"
@@ -53,11 +54,16 @@ WS_TEXT = (
 TAGS = {
     "auth": ("Вход и сеанс", "Вход по почте и паролю, обновление токенов (в том числе по биометрии), выход, смена пароля."),
     "equipment": ("Оборудование", "Реестр оборудования, цифровая карточка, узлы, история осмотров и работ, режим агрегата."),
-    "telemetry": ("Телеметрия и диагностика", "Показания датчиков с уставками, ряды для графиков, прогноз, сценарии стенда, "
-                                              "диагноз по правилам, маршрут осмотра и оценки ресурса."),
+    "telemetry": (
+        "Телеметрия и диагностика",
+        "Показания датчиков с уставками, ряды для графиков, прогноз, сценарии стенда, "
+        "диагноз по правилам, маршрут осмотра и оценки ресурса.",
+    ),
     "rules": ("Правила диагностики", "Справочник правил и разбор одного правила для агрегата на текущий момент."),
-    "inspections": ("Осмотры, находки и звук", "Осмотр агрегата, записи и замечания, их подтверждение и отклонение, "
-                                               "записи звука, отчёты PDF и Excel."),
+    "inspections": (
+        "Осмотры, находки и звук",
+        "Осмотр агрегата, записи и замечания, их подтверждение и отклонение, " "записи звука, отчёты PDF и Excel.",
+    ),
     "site": ("Площадка", "Название объекта, текущая смена, имя сервера и часовой пояс."),
     "assistant": ("Помощник", "Вопросы об оборудовании и истории с ссылками для приложения."),
     "workflow": ("Задания и уведомления", "Сообщения оператора о неисправностях, задания на осмотр, лента уведомлений."),
@@ -67,8 +73,21 @@ TAGS = {
     "recognition": ("Распознавание", "Готовность сервера, чтение шильдика и стрелочного манометра по кадру камеры."),
     "ws": ("Распознавание в реальном времени (WebSocket)", WS_TEXT),
 }
-TAG_ORDER = ("auth", "equipment", "telemetry", "rules", "inspections", "recognition", "ws", "site", "workflow", "assistant",
-             "admin", "system", "webadmin")
+TAG_ORDER = (
+    "auth",
+    "equipment",
+    "telemetry",
+    "rules",
+    "inspections",
+    "recognition",
+    "ws",
+    "site",
+    "workflow",
+    "assistant",
+    "admin",
+    "system",
+    "webadmin",
+)
 
 
 class Doc(BaseModel):
@@ -492,7 +511,9 @@ RESPONSES: dict[tuple[str, str], Any] = {
 FILES = {
     ("get", "/inspections/{inspection_id}/report.pdf"): ("application/pdf", "Отчёт об осмотре в формате PDF"),
     ("get", "/inspections/{inspection_id}/report.xlsx"): (
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Отчёт об осмотре в формате Excel"),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Отчёт об осмотре в формате Excel",
+    ),
     ("get", "/inspections/findings/{finding_id}/photo"): ("image/jpeg", "Стоп-кадр камеры к замечанию"),
     ("get", "/inspections/sound/{record_id}/audio"): ("audio/wav", "Запись звука в формате WAV"),
 }
@@ -537,10 +558,18 @@ def build_schema(app: FastAPI) -> dict:
     components = schema.setdefault("components", {})
     schemas = components.setdefault("schemas", {})
     components["securitySchemes"] = {
-        "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT",
-                       "description": "Токен доступа из ответа POST /auth/login"},
-        "appKey": {"type": "apiKey", "in": "header", "name": "X-KST-App",
-                   "description": "Ключ приложения: нужен только на демонстрационном стенде вместо пароля площадки"},
+        "bearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Токен доступа из ответа POST /auth/login",
+        },
+        "appKey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "X-KST-App",
+            "description": "Ключ приложения: нужен только на демонстрационном стенде вместо пароля площадки",
+        },
     }
     for path, item in schema.get("paths", {}).items():
         for method in METHODS:
@@ -571,11 +600,21 @@ def build_schema(app: FastAPI) -> dict:
 def docs_page() -> HTMLResponse:
     """Страница Swagger UI на локальных файлах: без внешних адресов и проверки схемы сторонним сервисом."""
     return get_swagger_ui_html(
-        openapi_url="/openapi.json", title=f"{API_TITLE} - описание", swagger_js_url=f"{ASSETS_URL}/swagger-ui-bundle.js",
-        swagger_css_url=f"{ASSETS_URL}/swagger-ui.css", swagger_favicon_url=FAVICON_URL,
-        swagger_ui_parameters={"validatorUrl": None, "persistAuthorization": True, "docExpansion": "list",
-                               "defaultModelsExpandDepth": 0, "displayRequestDuration": True, "filter": True,
-                               "tryItOutEnabled": True})
+        openapi_url="/openapi.json",
+        title=f"{API_TITLE} - описание",
+        swagger_js_url=f"{ASSETS_URL}/swagger-ui-bundle.js",
+        swagger_css_url=f"{ASSETS_URL}/swagger-ui.css",
+        swagger_favicon_url=FAVICON_URL,
+        swagger_ui_parameters={
+            "validatorUrl": None,
+            "persistAuthorization": True,
+            "docExpansion": "list",
+            "defaultModelsExpandDepth": 0,
+            "displayRequestDuration": True,
+            "filter": True,
+            "tryItOutEnabled": True,
+        },
+    )
 
 
 def install(app: FastAPI) -> None:

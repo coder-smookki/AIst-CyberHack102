@@ -8,6 +8,7 @@
 
 Раздел /system - для администратора системы (право «Обслуживание системы»): состояние базы, моделей и телеметрии.
 """
+
 import os
 import re
 from datetime import datetime
@@ -99,20 +100,32 @@ def _active_sessions(session: Session, user_ids: list[int]) -> dict[int, int]:
     """Число открытых сеансов по каждому сотруднику."""
     if not user_ids:
         return {}
-    rows = session.execute(select(RefreshToken.user_id, func.count(func.distinct(RefreshToken.family)))
-                           .where(RefreshToken.user_id.in_(user_ids), RefreshToken.revoked.is_(False))
-                           .group_by(RefreshToken.user_id))
+    rows = session.execute(
+        select(RefreshToken.user_id, func.count(func.distinct(RefreshToken.family)))
+        .where(RefreshToken.user_id.in_(user_ids), RefreshToken.revoked.is_(False))
+        .group_by(RefreshToken.user_id)
+    )
     return dict(rows.all())
 
 
 def user_admin_view(user: User, sessions: int = 0) -> dict:
     """Описывает учётную запись для администратора ИБ: роль, состояние, временный пароль, сеансы; без хэша."""
     status = "active" if user.is_active else "blocked"
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role,
-            "role_title": user.role_info.title if user.role_info else user.role, "is_active": user.is_active,
-            "status": status, "status_title": STATUS_TITLES[status], "must_change_password": user.must_change_password,
-            "created_at": _stamp(user.created_at), "last_login_at": _stamp(user.last_login_at),
-            "password_changed_at": _stamp(user.password_changed_at), "active_sessions": sessions}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "role_title": user.role_info.title if user.role_info else user.role,
+        "is_active": user.is_active,
+        "status": status,
+        "status_title": STATUS_TITLES[status],
+        "must_change_password": user.must_change_password,
+        "created_at": _stamp(user.created_at),
+        "last_login_at": _stamp(user.last_login_at),
+        "password_changed_at": _stamp(user.password_changed_at),
+        "active_sessions": sessions,
+    }
 
 
 def _user_response(session: Session, user: User) -> dict:
@@ -138,9 +151,17 @@ def _get_role(session: Session, code: str, status: int = 404) -> Role:
 
 def role_view(role: Role, members: int = 0, active: int = 0) -> dict:
     """Описывает роль: название, описание, права с названиями, число сотрудников с этой ролью."""
-    return {"code": role.code, "title": role.title, "description": role.description or "", "is_system": role.is_system,
-            "permissions": ordered(role.permissions), "members": members, "active_members": active,
-            "created_at": _stamp(role.created_at), "updated_at": _stamp(role.updated_at)}
+    return {
+        "code": role.code,
+        "title": role.title,
+        "description": role.description or "",
+        "is_system": role.is_system,
+        "permissions": ordered(role.permissions),
+        "members": members,
+        "active_members": active,
+        "created_at": _stamp(role.created_at),
+        "updated_at": _stamp(role.updated_at),
+    }
 
 
 def _members(session: Session) -> dict[str, tuple[int, int]]:
@@ -183,8 +204,7 @@ def list_users(
     if status:
         query = query.where(User.is_active.is_(status == "active"))
     words = _fold(q or "").split()
-    users = [user for user in session.scalars(query)
-             if all(word in _fold(f"{user.name} {user.email}") for word in words)]
+    users = [user for user in session.scalars(query) if all(word in _fold(f"{user.name} {user.email}") for word in words)]
     sessions = _active_sessions(session, [user.id for user in users])
     return [user_admin_view(user, sessions.get(user.id, 0)) for user in users]
 
@@ -196,8 +216,12 @@ def get_user(user_id: int, session: Annotated[Session, Depends(get_session)]) ->
 
 
 @router.post("/users", status_code=201)
-def create_user(body: UserCreateBody, request: Request, actor: Annotated[User, Depends(USERS)],
-                session: Annotated[Session, Depends(get_session)]) -> dict:
+def create_user(
+    body: UserCreateBody,
+    request: Request,
+    actor: Annotated[User, Depends(USERS)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Заводит учётную запись с временным паролем; пароль возвращается один раз, при входе его нужно сменить."""
     email = body.email.strip().lower()
     name = " ".join(body.name.split())
@@ -209,19 +233,38 @@ def create_user(body: UserCreateBody, request: Request, actor: Annotated[User, D
     if session.scalar(select(User.id).where(User.email == email)) is not None:
         raise HTTPException(status_code=409, detail="Учётная запись с такой почтой уже есть")
     password = security.temporary_password(security.get_policy(session))
-    user = User(email=email, name=name, role=role.code, password_hash=hash_password(password), is_active=True,
-                must_change_password=True, created_at=now())
+    user = User(
+        email=email,
+        name=name,
+        role=role.code,
+        password_hash=hash_password(password),
+        is_active=True,
+        must_change_password=True,
+        created_at=now(),
+    )
     session.add(user)
     session.flush()
-    security.record(session, "user_created", actor=actor, target_user=user, target_role=role.code, ip=_ip(request),
-                    details={"email": email, "role": role.code})
+    security.record(
+        session,
+        "user_created",
+        actor=actor,
+        target_user=user,
+        target_role=role.code,
+        ip=_ip(request),
+        details={"email": email, "role": role.code},
+    )
     session.commit()
     return {"user": _user_response(session, user), "temporary_password": password}
 
 
 @router.post("/users/{user_id}/role")
-def change_role(user_id: int, body: RoleAssignBody, request: Request, actor: Annotated[User, Depends(USERS)],
-                session: Annotated[Session, Depends(get_session)]) -> dict:
+def change_role(
+    user_id: int,
+    body: RoleAssignBody,
+    request: Request,
+    actor: Annotated[User, Depends(USERS)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Меняет роль сотрудника; новые права действуют с его следующего запроса."""
     user = _get_user(session, user_id)
     role = _get_role(session, body.role.strip(), status=422)
@@ -230,16 +273,24 @@ def change_role(user_id: int, body: RoleAssignBody, request: Request, actor: Ann
         return _user_response(session, user)
     user.role = role.code
     security.ensure_guardians(session)
-    security.record(session, "user_role_changed", actor=actor, target_user=user, target_role=role.code, ip=_ip(request),
-                    details={"from": previous, "to": role.code})
+    security.record(
+        session,
+        "user_role_changed",
+        actor=actor,
+        target_user=user,
+        target_role=role.code,
+        ip=_ip(request),
+        details={"from": previous, "to": role.code},
+    )
     session.commit()
     session.refresh(user)
     return _user_response(session, user)
 
 
 @router.post("/users/{user_id}/block")
-def block_user(user_id: int, request: Request, actor: Annotated[User, Depends(USERS)],
-               session: Annotated[Session, Depends(get_session)]) -> dict:
+def block_user(
+    user_id: int, request: Request, actor: Annotated[User, Depends(USERS)], session: Annotated[Session, Depends(get_session)]
+) -> dict:
     """Блокирует учётную запись и сразу закрывает все её сеансы."""
     user = _get_user(session, user_id)
     if user.id == actor.id:
@@ -249,15 +300,15 @@ def block_user(user_id: int, request: Request, actor: Annotated[User, Depends(US
     user.is_active = False
     security.ensure_guardians(session)
     closed = security.revoke_sessions(session, user.id)
-    security.record(session, "user_blocked", actor=actor, target_user=user, ip=_ip(request),
-                    details={"sessions_closed": closed})
+    security.record(session, "user_blocked", actor=actor, target_user=user, ip=_ip(request), details={"sessions_closed": closed})
     session.commit()
     return _user_response(session, user)
 
 
 @router.post("/users/{user_id}/unblock")
-def unblock_user(user_id: int, request: Request, actor: Annotated[User, Depends(USERS)],
-                 session: Annotated[Session, Depends(get_session)]) -> dict:
+def unblock_user(
+    user_id: int, request: Request, actor: Annotated[User, Depends(USERS)], session: Annotated[Session, Depends(get_session)]
+) -> dict:
     """Снимает блокировку учётной записи."""
     user = _get_user(session, user_id)
     if not user.is_active:
@@ -268,16 +319,18 @@ def unblock_user(user_id: int, request: Request, actor: Annotated[User, Depends(
 
 
 @router.post("/users/{user_id}/reset-password")
-def reset_password(user_id: int, request: Request, actor: Annotated[User, Depends(USERS)],
-                   session: Annotated[Session, Depends(get_session)]) -> dict:
+def reset_password(
+    user_id: int, request: Request, actor: Annotated[User, Depends(USERS)], session: Annotated[Session, Depends(get_session)]
+) -> dict:
     """Выдаёт новый временный пароль (возвращается один раз) и закрывает все сеансы сотрудника."""
     user = _get_user(session, user_id)
     password = security.temporary_password(security.get_policy(session))
     user.password_hash = hash_password(password)
     user.must_change_password = True
     closed = security.revoke_sessions(session, user.id)
-    security.record(session, "password_reset", actor=actor, target_user=user, ip=_ip(request),
-                    details={"sessions_closed": closed})
+    security.record(
+        session, "password_reset", actor=actor, target_user=user, ip=_ip(request), details={"sessions_closed": closed}
+    )
     session.commit()
     return {"user": _user_response(session, user), "temporary_password": password}
 
@@ -289,42 +342,58 @@ def user_sessions(user_id: int, session: Annotated[Session, Depends(get_session)
     tokens = session.scalars(select(RefreshToken).where(RefreshToken.user_id == user.id).order_by(RefreshToken.id))
     families: dict[str, dict] = {}
     for token in tokens:
-        entry = families.setdefault(token.family, {"id": token.family, "device": token.device,
-                                                   "started_at": token.created_at, "last_seen_at": token.created_at,
-                                                   "active": False})
+        entry = families.setdefault(
+            token.family,
+            {
+                "id": token.family,
+                "device": token.device,
+                "started_at": token.created_at,
+                "last_seen_at": token.created_at,
+                "active": False,
+            },
+        )
         entry["last_seen_at"] = max(entry["last_seen_at"], token.created_at)
         entry["device"] = token.device or entry["device"]
         entry["active"] = entry["active"] or not token.revoked
-    alive = sorted((entry for entry in families.values() if entry["active"]), key=lambda entry: entry["last_seen_at"],
-                   reverse=True)
-    return [{**entry, "started_at": _stamp(entry["started_at"]), "last_seen_at": _stamp(entry["last_seen_at"])}
-            for entry in alive]
+    alive = sorted(
+        (entry for entry in families.values() if entry["active"]), key=lambda entry: entry["last_seen_at"], reverse=True
+    )
+    return [
+        {**entry, "started_at": _stamp(entry["started_at"]), "last_seen_at": _stamp(entry["last_seen_at"])} for entry in alive
+    ]
 
 
 @router.delete("/users/{user_id}/sessions/{family}")
-def revoke_session(user_id: int, family: str, request: Request, actor: Annotated[User, Depends(USERS)],
-                   session: Annotated[Session, Depends(get_session)]) -> dict:
+def revoke_session(
+    user_id: int,
+    family: str,
+    request: Request,
+    actor: Annotated[User, Depends(USERS)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Закрывает один сеанс сотрудника."""
     user = _get_user(session, user_id)
     closed = security.revoke_sessions(session, user.id, family=family)
     if not closed:
         raise HTTPException(status_code=404, detail="Открытый сеанс не найден")
-    security.record(session, "sessions_revoked", actor=actor, target_user=user, ip=_ip(request),
-                    details={"session": family})
+    security.record(session, "sessions_revoked", actor=actor, target_user=user, ip=_ip(request), details={"session": family})
     session.commit()
     return {"revoked": 1}
 
 
 @router.delete("/users/{user_id}/sessions")
-def revoke_all_sessions(user_id: int, request: Request, actor: Annotated[User, Depends(USERS)],
-                        session: Annotated[Session, Depends(get_session)]) -> dict:
+def revoke_all_sessions(
+    user_id: int, request: Request, actor: Annotated[User, Depends(USERS)], session: Annotated[Session, Depends(get_session)]
+) -> dict:
     """Закрывает все сеансы сотрудника; возвращает число закрытых сеансов."""
     user = _get_user(session, user_id)
-    families = session.scalar(select(func.count(func.distinct(RefreshToken.family))).where(
-        RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False)))
+    families = session.scalar(
+        select(func.count(func.distinct(RefreshToken.family))).where(
+            RefreshToken.user_id == user.id, RefreshToken.revoked.is_(False)
+        )
+    )
     security.revoke_sessions(session, user.id)
-    security.record(session, "sessions_revoked", actor=actor, target_user=user, ip=_ip(request),
-                    details={"sessions": families})
+    security.record(session, "sessions_revoked", actor=actor, target_user=user, ip=_ip(request), details={"sessions": families})
     session.commit()
     return {"revoked": families}
 
@@ -344,8 +413,12 @@ def get_role(code: str, session: Annotated[Session, Depends(get_session)]) -> di
 
 
 @router.post("/roles", status_code=201)
-def create_role(body: RoleCreateBody, request: Request, actor: Annotated[User, Depends(ROLES)],
-                session: Annotated[Session, Depends(get_session)]) -> dict:
+def create_role(
+    body: RoleCreateBody,
+    request: Request,
+    actor: Annotated[User, Depends(ROLES)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Создаёт роль; права берутся из permissions, а без них - из роли copy_from."""
     if session.get(Role, body.code) is not None:
         raise HTTPException(status_code=409, detail=f"Роль с кодом «{body.code}» уже есть")
@@ -356,18 +429,36 @@ def create_role(body: RoleCreateBody, request: Request, actor: Annotated[User, D
         granted = ordered(source.permissions) if source else []
     description = body.description if body.description is not None else (source.description if source else "")
     moment = now()
-    role = Role(code=body.code, title=body.title.strip(), description=(description or "").strip(), is_system=False,
-                permissions=granted, created_at=moment, updated_at=moment)
+    role = Role(
+        code=body.code,
+        title=body.title.strip(),
+        description=(description or "").strip(),
+        is_system=False,
+        permissions=granted,
+        created_at=moment,
+        updated_at=moment,
+    )
     session.add(role)
-    security.record(session, "role_created", actor=actor, target_role=role.code, ip=_ip(request),
-                    details={"title": role.title, "permissions": granted, "copy_from": body.copy_from})
+    security.record(
+        session,
+        "role_created",
+        actor=actor,
+        target_role=role.code,
+        ip=_ip(request),
+        details={"title": role.title, "permissions": granted, "copy_from": body.copy_from},
+    )
     session.commit()
     return _role_response(session, role)
 
 
 @router.patch("/roles/{code}")
-def update_role(code: str, body: RoleUpdateBody, request: Request, actor: Annotated[User, Depends(ROLES)],
-                session: Annotated[Session, Depends(get_session)]) -> dict:
+def update_role(
+    code: str,
+    body: RoleUpdateBody,
+    request: Request,
+    actor: Annotated[User, Depends(ROLES)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Меняет название, описание или права роли, в том числе системной; права действуют сразу."""
     role = _get_role(session, code)
     changes = {}
@@ -395,8 +486,9 @@ def update_role(code: str, body: RoleUpdateBody, request: Request, actor: Annota
 
 
 @router.delete("/roles/{code}", status_code=204)
-def delete_role(code: str, request: Request, actor: Annotated[User, Depends(ROLES)],
-                session: Annotated[Session, Depends(get_session)]) -> Response:
+def delete_role(
+    code: str, request: Request, actor: Annotated[User, Depends(ROLES)], session: Annotated[Session, Depends(get_session)]
+) -> Response:
     """Удаляет роль, созданную администратором ИБ, если она никому не назначена; системные роли не удаляются."""
     role = _get_role(session, code)
     if role.is_system:
@@ -404,8 +496,14 @@ def delete_role(code: str, request: Request, actor: Annotated[User, Depends(ROLE
     members = session.scalar(select(func.count()).select_from(User).where(User.role == code))
     if members:
         raise HTTPException(status_code=409, detail=f"Роль назначена сотрудникам ({members}) - сначала смените им роль")
-    security.record(session, "role_deleted", actor=actor, target_role=code, ip=_ip(request),
-                    details={"title": role.title, "permissions": ordered(role.permissions)})
+    security.record(
+        session,
+        "role_deleted",
+        actor=actor,
+        target_role=code,
+        ip=_ip(request),
+        details={"title": role.title, "permissions": ordered(role.permissions)},
+    )
     session.delete(role)
     session.commit()
     return Response(status_code=204)
@@ -444,9 +542,21 @@ def security_log(
     if until:
         query = query.where(SecurityEvent.at <= until)
     rows = session.scalars(query.order_by(SecurityEvent.at.desc(), SecurityEvent.id.desc()).limit(limit))
-    return [{"id": row.id, "at": _stamp(row.at), "event": row.event, "title": EVENT_TITLES.get(row.event, row.event),
-             "actor": _person(row.actor), "target_user": _person(row.target_user), "target_role": row.target_role,
-             "email": row.email, "ip": row.ip, "details": row.details or {}} for row in rows]
+    return [
+        {
+            "id": row.id,
+            "at": _stamp(row.at),
+            "event": row.event,
+            "title": EVENT_TITLES.get(row.event, row.event),
+            "actor": _person(row.actor),
+            "target_user": _person(row.target_user),
+            "target_role": row.target_role,
+            "email": row.email,
+            "ip": row.ip,
+            "details": row.details or {},
+        }
+        for row in rows
+    ]
 
 
 @router.get("/policy", dependencies=[Depends(require_permission("security.policy"))])
@@ -458,8 +568,12 @@ def get_policy(session: Annotated[Session, Depends(get_session)]) -> dict:
 
 
 @router.patch("/policy")
-def update_policy(body: PolicyBody, request: Request, actor: Annotated[User, Depends(require_permission("security.policy"))],
-                  session: Annotated[Session, Depends(get_session)]) -> dict:
+def update_policy(
+    body: PolicyBody,
+    request: Request,
+    actor: Annotated[User, Depends(require_permission("security.policy"))],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Меняет переданные поля политики; новые значения действуют с ближайшего входа или смены пароля."""
     policy = security.get_policy(session)
     changes = {}
@@ -488,10 +602,17 @@ def system_status(request: Request, session: Annotated[Session, Depends(get_sess
             telemetry.append({"equipment_id": item.id, "available": player is not None, "reason": reason})
     users = session.execute(select(func.count(), func.sum(ACTIVE)).select_from(User)).one()
     sessions = session.scalar(select(func.count(func.distinct(RefreshToken.family))).where(RefreshToken.revoked.is_(False)))
-    return {"time": _stamp(now()), "started_at": _stamp(started),
-            "uptime_s": int((now() - started).total_seconds()) if started else None,
-            "database": {"file": os.path.basename(path),
-                         "size_bytes": os.path.getsize(path) if os.path.exists(path) else None,
-                         "equipment": session.scalar(select(func.count()).select_from(Equipment))},
-            "detector": info() if callable(info) else None, "telemetry": telemetry,
-            "users": {"total": users[0], "active": int(users[1] or 0)}, "open_sessions": sessions}
+    return {
+        "time": _stamp(now()),
+        "started_at": _stamp(started),
+        "uptime_s": int((now() - started).total_seconds()) if started else None,
+        "database": {
+            "file": os.path.basename(path),
+            "size_bytes": os.path.getsize(path) if os.path.exists(path) else None,
+            "equipment": session.scalar(select(func.count()).select_from(Equipment)),
+        },
+        "detector": info() if callable(info) else None,
+        "telemetry": telemetry,
+        "users": {"total": users[0], "active": int(users[1] or 0)},
+        "open_sessions": sessions,
+    }

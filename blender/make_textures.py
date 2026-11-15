@@ -6,6 +6,7 @@
 Шильдик учебный: строка модели повторяет типоразмер опорного насоса из документации заказчика
 (центробежный inline, 65/160, 5,5 кВт, 2900 об/мин), производитель указан как демонстрационный.
 """
+
 import json
 import math
 import random
@@ -66,8 +67,11 @@ def gauge_dial(path, size=1024, vmin=0.0, vmax=10.0, sweep=270.0):
         a = math.radians(start + sweep * i / (n_major * 5))
         major = i % 5 == 0
         r1, r2 = R * (0.74 if major else 0.82), R * 0.92
-        d.line([c + r1 * math.cos(a), c + r1 * math.sin(a), c + r2 * math.cos(a), c + r2 * math.sin(a)],
-               fill=(15, 15, 15), width=12 if major else 5)
+        d.line(
+            [c + r1 * math.cos(a), c + r1 * math.sin(a), c + r2 * math.cos(a), c + r2 * math.sin(a)],
+            fill=(15, 15, 15),
+            width=12 if major else 5,
+        )
         if major:
             v = vmin + (vmax - vmin) * i / (n_major * 5)
             t = f"{v:g}"

@@ -17,6 +17,7 @@ runs/reports/cache/<название>_<набор>.pkl. Пороги по кла
 Отчёт runs/reports/<название>.json: показатели при общих порогах (как в cv/protocol.py) и в разделе
 per_class при выбранных порогах по классам.
 """
+
 import argparse
 import json
 import os
@@ -70,11 +71,15 @@ def choose_thresholds(records: list[dict], beta: float) -> dict:
             tp = sum(1 for rows in matched for name, score, ok in rows if name == cls and score >= level and ok)
             fp = sum(1 for rows in matched for name, score, ok in rows if name == cls and score >= level and not ok)
             precision, recall = tp / max(tp + fp, 1), tp / positives
-            score = (1 + beta ** 2) * precision * recall / max(beta ** 2 * precision + recall, 1e-9)
+            score = (1 + beta**2) * precision * recall / max(beta**2 * precision + recall, 1e-9)
             if score > best[0] + 1e-9:
                 best = (score, level, precision, recall)
-        chosen[cls] = {"threshold": best[1], "f_beta": round(best[0], 3), "precision": round(best[2], 3),
-                       "recall": round(best[3], 3)}
+        chosen[cls] = {
+            "threshold": best[1],
+            "f_beta": round(best[0], 3),
+            "precision": round(best[2], 3),
+            "recall": round(best[3], 3),
+        }
     return chosen
 
 
@@ -125,8 +130,15 @@ def constrained_thresholds(records: list[dict], min_found: float, min_recall: fl
             break
         current = best[1]
     tp, fp, found, alarms = val_counts(prepared, current)
-    return {cls: {"threshold": current[cls], "val_box_recall_all": round(tp / positives, 3),
-                  "val_image_found": round(found / defective, 3), "val_false_boxes": fp} for cls in DEFECT_CLASSES}
+    return {
+        cls: {
+            "threshold": current[cls],
+            "val_box_recall_all": round(tp / positives, 3),
+            "val_image_found": round(found / defective, 3),
+            "val_false_boxes": fp,
+        }
+        for cls in DEFECT_CLASSES
+    }
 
 
 def main() -> None:
@@ -144,6 +156,7 @@ def main() -> None:
     parser.add_argument("--min-recall", type=float, default=0.138)
     args = parser.parse_args()
     from libreyolo import LibreYOLO
+
     model = Options(LibreYOLO(args.weights), flip=args.flip, tiles=args.tiles)
     sets = args.sets.split(",")
     cache = os.path.join(ROOT, "runs", "reports", "cache")
@@ -160,12 +173,25 @@ def main() -> None:
         source = f"val, наибольший F-beta рамок, beta={args.beta}"
     else:
         chosen = constrained_thresholds(records["val"], args.min_found, args.min_recall)
-        source = (f"val, наименьшее число лишних рамок и тревог при доле найденных дефектных снимков не ниже "
-                  f"{args.min_found} и полноте рамок не ниже {args.min_recall}")
+        source = (
+            f"val, наименьшее число лишних рамок и тревог при доле найденных дефектных снимков не ниже "
+            f"{args.min_found} и полноте рамок не ниже {args.min_recall}"
+        )
     thresholds = {cls: row["threshold"] for cls, row in chosen.items()}
-    report = {"name": args.name, "weights": args.weights, "flip": args.flip, "tiles": args.tiles, "iou": 0.5,
-              "floor": FLOOR, "levels": list(LEVELS), "beta": args.beta, "date": time.strftime("%Y-%m-%d"),
-              "thresholds": chosen, "thresholds_source": source, "sets": {}}
+    report = {
+        "name": args.name,
+        "weights": args.weights,
+        "flip": args.flip,
+        "tiles": args.tiles,
+        "iou": 0.5,
+        "floor": FLOOR,
+        "levels": list(LEVELS),
+        "beta": args.beta,
+        "date": time.strftime("%Y-%m-%d"),
+        "thresholds": chosen,
+        "thresholds_source": source,
+        "sets": {},
+    }
     for name in sets:
         part = summarize(records[name], DEFECT_CLASSES)
         part["note"] = SET_NOTES[name]
@@ -178,8 +204,10 @@ def main() -> None:
         part = report["sets"][name]
         for key in [f"conf_{level}" for level in LEVELS] + ["per_class"]:
             row = part[key]
-            print(f"{name} {key}: P {row['box_precision']} R {row['box_recall']} найден {row['image_defect_found']} "
-                  f"класс {row['image_right_class_found']} ложные {row['false_alarm_rate']} mAP50 {part['map50']}")
+            print(
+                f"{name} {key}: P {row['box_precision']} R {row['box_recall']} найден {row['image_defect_found']} "
+                f"класс {row['image_right_class_found']} ложные {row['false_alarm_rate']} mAP50 {part['map50']}"
+            )
     print("отчёт:", out)
 
 

@@ -3,6 +3,7 @@
 Книга состоит из листов: осмотр, оценки по узлам (три оценки в отдельных столбцах), находки, основания,
 проверки и работы, регламент обслуживания. Текст из комментариев пишется как текст, а не как формула.
 """
+
 import io
 from datetime import date, datetime
 
@@ -21,9 +22,11 @@ RESOURCE_STATES = {
     "due": "срок наступил",
     "insufficient_data": "недостаточно данных",
 }
-ESTIMATES_NOTE = ("Три оценки приводятся раздельно и не сводятся в одну: нормативный срок службы - по документам, "
-                  "расчётный остаточный ресурс - по наработке и календарному сроку, фактическое состояние - "
-                  "по камере, датчикам и отметкам инженера.")
+ESTIMATES_NOTE = (
+    "Три оценки приводятся раздельно и не сводятся в одну: нормативный срок службы - по документам, "
+    "расчётный остаточный ресурс - по наработке и календарному сроку, фактическое состояние - "
+    "по камере, датчикам и отметкам инженера."
+)
 SYSTEM_NOTE = "Статусы и оценки в отчёте - подсказка системы; оценка ресурса расчётная."
 LEVEL_TITLES = {"ok": "в норме", "warn": "предупреждение", "alarm": "тревога"}
 MOMENT_FORMAT = "DD.MM.YYYY HH:MM"
@@ -84,8 +87,10 @@ def coverage_text(coverage: dict | None) -> str:
     """Полнота обхода одной строкой."""
     if not coverage:
         return "Не сохранялась"
-    return (f"осмотрено {coverage['inspected']} из {coverage['total']} узлов ({coverage['percent']} %), "
-            f"кадров обработано: {coverage['frames']}")
+    return (
+        f"осмотрено {coverage['inspected']} из {coverage['total']} узлов ({coverage['percent']} %), "
+        f"кадров обработано: {coverage['frames']}"
+    )
 
 
 def coverage_note(coverage: dict | None, code: str) -> str:
@@ -168,8 +173,10 @@ def summary_rows(data: dict) -> list[tuple[str, str]]:
         ("Состояние осмотра", inspection["status_title"]),
         ("Полнота обхода", coverage_text(data.get("coverage"))),
         *([("Неосмотренные узлы", uninspected_text(data))] if uninspected_text(data) else []),
-        ("Показания датчиков на момент", moment_text(data.get("telemetry_at")) if data.get("telemetry_at")
-         else "телеметрии по агрегату нет"),
+        (
+            "Показания датчиков на момент",
+            moment_text(data.get("telemetry_at")) if data.get("telemetry_at") else "телеметрии по агрегату нет",
+        ),
         ("Оценки рассчитаны на дату", date_text(data.get("estimates_on"))),
         ("Отчёт сформирован", moment_text(data["generated_at"])),
         ("Отпечаток набора моделей", models_text(data)),
@@ -219,7 +226,8 @@ def _summary_sheet(sheet, data: dict) -> None:
     sheet.column_dimensions["A"].width = 34
     sheet.column_dimensions["B"].width = 90
     _put(sheet, 1, 1, f"Отчёт об осмотре оборудования № {data['inspection']['id']}", bold=True, color=BRAND).font = Font(
-        name="Arial", size=14, bold=True, color=BRAND)
+        name="Arial", size=14, bold=True, color=BRAND
+    )
     row = 3
     for label, value in summary_rows(data):
         _put(sheet, row, 1, label, bold=True)
@@ -236,23 +244,44 @@ def _summary_sheet(sheet, data: dict) -> None:
 
 def _nodes_sheet(sheet, data: dict) -> None:
     """Лист «Оценки по узлам»: норматив, расчётный остаток и фактическое состояние в отдельных столбцах."""
-    headers = [("Узел", 28), ("Код узла", 16), ("Нормативный срок службы", 44), ("Расчётный остаточный ресурс", 52),
-               ("Состояние расчёта", 20), ("Израсходовано, %", 16), ("Остаток, ч", 12), ("Остаток, сут", 12),
-               ("Прогноз даты", 14), ("Фактическое состояние", 40), ("Причины", 60), ("Осмотр при обходе", 30)]
+    headers = [
+        ("Узел", 28),
+        ("Код узла", 16),
+        ("Нормативный срок службы", 44),
+        ("Расчётный остаточный ресурс", 52),
+        ("Состояние расчёта", 20),
+        ("Израсходовано, %", 16),
+        ("Остаток, ч", 12),
+        ("Остаток, сут", 12),
+        ("Прогноз даты", 14),
+        ("Фактическое состояние", 40),
+        ("Причины", 60),
+        ("Осмотр при обходе", 30),
+    ]
     rows = []
     for node in data["nodes"]:
         calculated = node.get("calculated") or {}
-        rows.append([
-            node["name"], node["code"], normative_text(node), calculated_text(node),
-            RESOURCE_STATES.get(calculated.get("state"), NOT_APPLICABLE), calculated.get("used_percent"),
-            calculated.get("remaining_hours"), calculated.get("remaining_days"),
-            date_text(calculated.get("forecast_date")), actual_title(node, ok_tail(data)),
-            "; ".join(node["actual"]["reasons"]), coverage_note(data.get("coverage"), node["code"]),
-        ])
+        rows.append(
+            [
+                node["name"],
+                node["code"],
+                normative_text(node),
+                calculated_text(node),
+                RESOURCE_STATES.get(calculated.get("state"), NOT_APPLICABLE),
+                calculated.get("used_percent"),
+                calculated.get("remaining_hours"),
+                calculated.get("remaining_days"),
+                date_text(calculated.get("forecast_date")),
+                actual_title(node, ok_tail(data)),
+                "; ".join(node["actual"]["reasons"]),
+                coverage_note(data.get("coverage"), node["code"]),
+            ]
+        )
     last = _table(sheet, headers, rows)
     for offset, node in enumerate(data["nodes"], start=2):
-        sheet.cell(row=offset, column=10).font = Font(name="Arial", size=10, bold=True,
-                                                      color=STATUS_COLORS[node["actual"]["status"]])
+        sheet.cell(row=offset, column=10).font = Font(
+            name="Arial", size=10, bold=True, color=STATUS_COLORS[node["actual"]["status"]]
+        )
     _put(sheet, last + 1, 1, ESTIMATES_NOTE)
     _put(sheet, last + 2, 1, data["basis"])
     _put(sheet, last + 3, 1, data["decision"], bold=True, color=BRAND)
@@ -260,37 +289,78 @@ def _nodes_sheet(sheet, data: dict) -> None:
 
 def _findings_sheets(findings_sheet, evidence_sheet, data: dict) -> None:
     """Листы «Находки» и «Основания»: каждая находка с диагнозом и рекомендацией, каждое условие - отдельной строкой."""
-    headers = [("№", 6), ("Время", 17), ("Узел", 26), ("Статус", 30), ("Критичность", 26), ("Находка", 36),
-               ("Диагноз", 60), ("Рекомендация", 60), ("Источник", 12), ("Правило", 10), ("Уверенность", 13),
-               ("Осталось проверить", 44), ("Комментарий", 40), ("Устранение", 14), ("Снимок", 10)]
+    headers = [
+        ("№", 6),
+        ("Время", 17),
+        ("Узел", 26),
+        ("Статус", 30),
+        ("Критичность", 26),
+        ("Находка", 36),
+        ("Диагноз", 60),
+        ("Рекомендация", 60),
+        ("Источник", 12),
+        ("Правило", 10),
+        ("Уверенность", 13),
+        ("Осталось проверить", 44),
+        ("Комментарий", 40),
+        ("Устранение", 14),
+        ("Снимок", 10),
+    ]
     rows, evidence = [], []
     for view in data["findings"]:
-        rows.append([
-            view["id"], _moment(view["created_at"]), view["node_name"], view["status_title"], severity_text(view),
-            view["title"], view["diagnosis"] or "-", view["recommendation"] or "-", view["source_title"],
-            view["rule_id"] or "-", view["confidence"], "; ".join(view["missing"]) or "-", view["comment"] or "-",
-            view["state_title"], "есть" if view["has_photo"] else "нет",
-        ])
+        rows.append(
+            [
+                view["id"],
+                _moment(view["created_at"]),
+                view["node_name"],
+                view["status_title"],
+                severity_text(view),
+                view["title"],
+                view["diagnosis"] or "-",
+                view["recommendation"] or "-",
+                view["source_title"],
+                view["rule_id"] or "-",
+                view["confidence"],
+                "; ".join(view["missing"]) or "-",
+                view["comment"] or "-",
+                view["state_title"],
+                "есть" if view["has_photo"] else "нет",
+            ]
+        )
         for line in view["evidence"]:
-            evidence.append([view["id"], view["title"], source_title(line.get("source")), line.get("what"),
-                             line.get("value"), line.get("threshold") or "-",
-                             "выполнено" if line.get("met") else "не выполнено"])
+            evidence.append(
+                [
+                    view["id"],
+                    view["title"],
+                    source_title(line.get("source")),
+                    line.get("what"),
+                    line.get("value"),
+                    line.get("threshold") or "-",
+                    "выполнено" if line.get("met") else "не выполнено",
+                ]
+            )
     last = _table(findings_sheet, headers, rows)
     for offset, view in enumerate(data["findings"], start=2):
-        findings_sheet.cell(row=offset, column=4).font = Font(name="Arial", size=10, bold=True,
-                                                              color=STATUS_COLORS.get(view["status"], TEXT))
+        findings_sheet.cell(row=offset, column=4).font = Font(
+            name="Arial", size=10, bold=True, color=STATUS_COLORS.get(view["status"], TEXT)
+        )
     if not rows:
         _put(findings_sheet, last, 1, "Замечаний и дефектов не зафиксировано")
         last += 1
     _put(findings_sheet, last + 1, 1, data["decision"], bold=True, color=BRAND)
-    _table(evidence_sheet, [("№ находки", 11), ("Находка", 36), ("Источник", 12), ("Условие", 52), ("Значение", 40),
-                            ("Уставка", 22), ("Итог", 16)], evidence)
+    _table(
+        evidence_sheet,
+        [("№ находки", 11), ("Находка", 36), ("Источник", 12), ("Условие", 52), ("Значение", 40), ("Уставка", 22), ("Итог", 16)],
+        evidence,
+    )
 
 
 def _works_sheet(sheet, data: dict) -> None:
     """Лист «Проверки и работы»: узлы, проверенные без замечаний, обслуживание и замены в ходе осмотра."""
-    rows = [[_moment(view["created_at"]), view["node_name"], view["title"], view["comment"] or "-"]
-            for view in [*data["checked"], *data["works"]]]
+    rows = [
+        [_moment(view["created_at"]), view["node_name"], view["title"], view["comment"] or "-"]
+        for view in [*data["checked"], *data["works"]]
+    ]
     _table(sheet, [("Время", 17), ("Узел", 30), ("Запись", 46), ("Комментарий", 60)], rows)
 
 
@@ -299,17 +369,30 @@ def rejected_rows(data: dict) -> list[list]:
     rows = []
     for view in data.get("rejected") or []:
         who = (view.get("rejected_by") or {}).get("name") or "-"
-        rows.append([view["id"], view["node_name"], view["title"], who, moment_text(view.get("rejected_at")),
-                     view.get("reject_reason") or "-"])
+        rows.append(
+            [
+                view["id"],
+                view["node_name"],
+                view["title"],
+                who,
+                moment_text(view.get("rejected_at")),
+                view.get("reject_reason") or "-",
+            ]
+        )
     return rows
 
 
 def sound_rows(record: dict) -> list[tuple[str, str]]:
     """Показатели записи звука строками «название - значение» для отчётов PDF и Excel."""
     baseline = record.get("baseline") or {}
-    peaks = "; ".join(f"{number_text(peak['freq_hz'], 1)} Гц (+{number_text(peak['prominence_db'], 0)} дБ"
-                      + (f", {peak['match_title']})" if peak.get("match_title") else ")")
-                      for peak in record.get("peaks") or []) or "нет"
+    peaks = (
+        "; ".join(
+            f"{number_text(peak['freq_hz'], 1)} Гц (+{number_text(peak['prominence_db'], 0)} дБ"
+            + (f", {peak['match_title']})" if peak.get("match_title") else ")")
+            for peak in record.get("peaks") or []
+        )
+        or "нет"
+    )
     bands = "; ".join(f"{band['title']}: {number_text(band['share'] * 100, 0)} %" for band in record.get("bands") or [])
     rows = [
         ("Длительность, частота", f"{number_text(record.get('duration_s'), 1)} с, {number_text(record.get('sample_rate'))} Гц"),
@@ -328,23 +411,46 @@ def sound_rows(record: dict) -> list[tuple[str, str]]:
 
 def _rejected_sheet(sheet, data: dict) -> None:
     """Лист «Отклонено инженером»: находки, признанные ложными; в итог и счётчики они не входят."""
-    _table(sheet, [("№", 6), ("Узел", 26), ("Находка", 40), ("Отклонил", 24), ("Когда", 17), ("Причина", 60)],
-           rejected_rows(data))
+    _table(
+        sheet, [("№", 6), ("Узел", 26), ("Находка", 40), ("Отклонил", 24), ("Когда", 17), ("Причина", 60)], rejected_rows(data)
+    )
 
 
 def _maintenance_sheet(sheet, data: dict) -> None:
     """Лист «Регламент»: наработка после последнего обслуживания против интервала."""
-    rows = [[entry.get("name"), entry.get("work") or "-", entry.get("interval_hours"), entry.get("since_hours"),
-             entry.get("used_percent"), entry.get("remaining_hours"), RESOURCE_STATES.get(entry.get("state"), "-")]
-            for entry in data["maintenance"]]
-    _table(sheet, [("Вид обслуживания", 20), ("Состав работ", 70), ("Интервал, ч", 13), ("После последнего, ч", 20),
-                   ("Израсходовано, %", 17), ("Остаток, ч", 12), ("Состояние", 22)], rows)
+    rows = [
+        [
+            entry.get("name"),
+            entry.get("work") or "-",
+            entry.get("interval_hours"),
+            entry.get("since_hours"),
+            entry.get("used_percent"),
+            entry.get("remaining_hours"),
+            RESOURCE_STATES.get(entry.get("state"), "-"),
+        ]
+        for entry in data["maintenance"]
+    ]
+    _table(
+        sheet,
+        [
+            ("Вид обслуживания", 20),
+            ("Состав работ", 70),
+            ("Интервал, ч", 13),
+            ("После последнего, ч", 20),
+            ("Израсходовано, %", 17),
+            ("Остаток, ч", 12),
+            ("Состояние", 22),
+        ],
+        rows,
+    )
 
 
 def _walk_sheet(sheet, data: dict) -> None:
     """Лист «Обход узлов»: осмотрен ли каждый узел и его фактический статус."""
-    rows = [[node["name"], node["code"], "осмотрен" if node["inspected"] else "не осмотрен", node.get("title") or node["status"]]
-            for node in data.get("walk") or []]
+    rows = [
+        [node["name"], node["code"], "осмотрен" if node["inspected"] else "не осмотрен", node.get("title") or node["status"]]
+        for node in data.get("walk") or []
+    ]
     _table(sheet, [("Узел", 34), ("Код", 16), ("Осмотр", 14), ("Статус", 44)], rows)
 
 
@@ -354,21 +460,45 @@ def _sensors_sheet(sheet, data: dict) -> None:
     if not sensors.get("available"):
         _put(sheet, 1, 1, sensors.get("reason") or "Телеметрии по агрегату нет")
         return
-    rows = [[entry["name"], entry["unit"], entry["value"], entry["warn"], entry["alarm"],
-             LEVEL_TITLES.get(entry["level"], "-")] for entry in sensors["current"]]
-    last = _table(sheet, [("Параметр", 34), ("Единица", 10), (f"Значение на {moment_text(sensors['at'])}", 22),
-                          ("Предупреждение", 16), ("Тревога", 12), ("Уровень", 16)], rows)
-    rules = [[rule["rule_id"], rule["title"], rule["status"], "; ".join(
-        f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})" for line in rule["evidence"] if line["met"])]
-        for rule in sensors["rules"]]
+    rows = [
+        [entry["name"], entry["unit"], entry["value"], entry["warn"], entry["alarm"], LEVEL_TITLES.get(entry["level"], "-")]
+        for entry in sensors["current"]
+    ]
+    last = _table(
+        sheet,
+        [
+            ("Параметр", 34),
+            ("Единица", 10),
+            (f"Значение на {moment_text(sensors['at'])}", 22),
+            ("Предупреждение", 16),
+            ("Тревога", 12),
+            ("Уровень", 16),
+        ],
+        rows,
+    )
+    rules = [
+        [
+            rule["rule_id"],
+            rule["title"],
+            rule["status"],
+            "; ".join(
+                f"{line['what']}: {line['value']} (уставка {line['threshold'] or '-'})"
+                for line in rule["evidence"]
+                if line["met"]
+            ),
+        ]
+        for rule in sensors["rules"]
+    ]
     last = _table(sheet, [("Правило", 34), ("Название", 10), ("Статус", 22), ("Основания", 16)], rules, last + 1)
     codes = [code for code in sensors["meta"]]
     for key in ("24h", "7d"):
         window = sensors["series"][key]
         series = window["codes"]
         stamps = [point["t"] for point in series[codes[0]]] if codes else []
-        table = [[_moment(stamp), *[series[code][index]["v"] if index < len(series[code]) else None for code in codes]]
-                 for index, stamp in enumerate(stamps)]
+        table = [
+            [_moment(stamp), *[series[code][index]["v"] if index < len(series[code]) else None for code in codes]]
+            for index, stamp in enumerate(stamps)
+        ]
         _put(sheet, last + 1, 1, f"Ряды за {window['title']}", bold=True, color=BRAND)
         last = _table(sheet, [("Время", 34), *[(sensors["meta"][code]["name"], 18) for code in codes]], table, last + 2)
     sheet.freeze_panes = None
@@ -379,8 +509,14 @@ def _sound_sheet(sheet, data: dict) -> None:
     records = data.get("sound") or []
     row = 1
     for record in records:
-        _put(sheet, row, 1, f"Запись № {record['id']} от {moment_text(record['created_at'])}"
-                            + (" (норма)" if record.get("normal") else ""), bold=True, color=BRAND)
+        _put(
+            sheet,
+            row,
+            1,
+            f"Запись № {record['id']} от {moment_text(record['created_at'])}" + (" (норма)" if record.get("normal") else ""),
+            bold=True,
+            color=BRAND,
+        )
         row += 1
         for label, value in sound_rows(record):
             _put(sheet, row, 1, label, bold=True)
@@ -406,8 +542,11 @@ def _advice_sheet(sheet, data: dict) -> None:
     last = _table(sheet, [("№ замечания", 12), ("Узел", 28), ("Находка", 36), ("Рекомендация", 80)], rows)
     upcoming = data.get("next_maintenance")
     if upcoming:
-        when = (f"остаток {number_text(upcoming['remaining_hours'])} ч" if upcoming.get("remaining_hours") is not None
-                else f"прогноз {date_text(upcoming.get('forecast_date'))}")
+        when = (
+            f"остаток {number_text(upcoming['remaining_hours'])} ч"
+            if upcoming.get("remaining_hours") is not None
+            else f"прогноз {date_text(upcoming.get('forecast_date'))}"
+        )
         _put(sheet, last + 1, 1, "Ближайшее обслуживание", bold=True)
         _put(sheet, last + 1, 4, f"{upcoming['name']} - {when}. {upcoming.get('work') or ''}")
     row = last + 3

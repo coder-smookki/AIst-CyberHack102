@@ -3,6 +3,7 @@
 Ответ не раскрывает пути на диске: только имена файлов моделей, короткие хэши и состояния. Проверка дешёвая и
 ничего не загружает: модели распознавания не поднимаются в память, базы заказчика не читаются целиком.
 """
+
 from importlib import import_module
 
 from server import fingerprint
@@ -28,8 +29,11 @@ def _models(detector) -> list[dict]:
         if not model["present"]:
             rows.append(_channel(MISSING, "файла модели нет в поставке", file=model["file"], loaded=False, sha256=None))
             continue
-        rows.append(_channel(ERROR if failure else OK, failure, file=model["file"], loaded=model["file"] in loaded,
-                             sha256=model["sha256"]))
+        rows.append(
+            _channel(
+                ERROR if failure else OK, failure, file=model["file"], loaded=model["file"] in loaded, sha256=model["sha256"]
+            )
+        )
     return rows
 
 
@@ -66,5 +70,10 @@ def _sound() -> dict:
 
 def channels(detector, database: str) -> dict:
     """Собирает состояние всех каналов сервера."""
-    return {"database": _channel(OK if database == "ok" else ERROR), "models": _models(detector), "ocr": _ocr(),
-            "telemetry": _telemetry(), "sound": _sound()}
+    return {
+        "database": _channel(OK if database == "ok" else ERROR),
+        "models": _models(detector),
+        "ocr": _ocr(),
+        "telemetry": _telemetry(),
+        "sound": _sound(),
+    }

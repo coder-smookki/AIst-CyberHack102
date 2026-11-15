@@ -3,6 +3,7 @@
 Карточка отдаётся в том же виде, что и запись в data/equipment.json, но с текущими значениями из базы:
 режим, наработка агрегата и узлов, даты замены. Все запросы требуют права «Просмотр оборудования».
 """
+
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -65,35 +66,70 @@ def get_equipment(session: Session, equipment_id: str) -> Equipment:
 
 def node_card(node: Node) -> dict:
     """Описывает узел как в data/equipment.json: код узла повторён в полях id и code."""
-    return {"id": node.code, "code": node.code, "name": node.name, "hours": node.hours,
-            "installed": node.installed.isoformat() if node.installed else None,
-            "replaced": node.replaced.isoformat() if node.replaced else None, **node.data}
+    return {
+        "id": node.code,
+        "code": node.code,
+        "name": node.name,
+        "hours": node.hours,
+        "installed": node.installed.isoformat() if node.installed else None,
+        "replaced": node.replaced.isoformat() if node.replaced else None,
+        **node.data,
+    }
 
 
 def equipment_card(item: Equipment) -> dict:
     """Собирает цифровую карточку в виде записи data/equipment.json с текущими значениями из базы."""
-    return {"id": item.id, "name": item.name, "type": item.type, "model": item.model, "serial": item.serial,
-            "location": item.location, "mode": item.mode, "run_hours": item.run_hours, **item.data,
-            "nodes": [node_card(node) for node in item.nodes]}
+    return {
+        "id": item.id,
+        "name": item.name,
+        "type": item.type,
+        "model": item.model,
+        "serial": item.serial,
+        "location": item.location,
+        "mode": item.mode,
+        "run_hours": item.run_hours,
+        **item.data,
+        "nodes": [node_card(node) for node in item.nodes],
+    }
 
 
 def _activity(session: Session, equipment_ids: list[str]) -> dict[str, dict]:
     """Считает по каждому агрегату незакрытые замечания (без устранённых и отклонённых) и время последнего осмотра."""
-    opened = dict(session.execute(
-        select(Finding.equipment_id, func.count()).where(
-            Finding.equipment_id.in_(equipment_ids), Finding.state.notin_(("resolved", "rejected")), Finding.status != "ok",
-        ).group_by(Finding.equipment_id)).all())
-    latest = dict(session.execute(
-        select(Inspection.equipment_id, func.max(Inspection.started_at)).where(
-            Inspection.equipment_id.in_(equipment_ids)).group_by(Inspection.equipment_id)).all())
+    opened = dict(
+        session.execute(
+            select(Finding.equipment_id, func.count())
+            .where(
+                Finding.equipment_id.in_(equipment_ids),
+                Finding.state.notin_(("resolved", "rejected")),
+                Finding.status != "ok",
+            )
+            .group_by(Finding.equipment_id)
+        ).all()
+    )
+    latest = dict(
+        session.execute(
+            select(Inspection.equipment_id, func.max(Inspection.started_at))
+            .where(Inspection.equipment_id.in_(equipment_ids))
+            .group_by(Inspection.equipment_id)
+        ).all()
+    )
     return {key: {"open_findings": opened.get(key, 0), "last_inspection_at": _stamp(latest.get(key))} for key in equipment_ids}
 
 
 def _summary(item: Equipment) -> dict:
     """Краткое описание агрегата для списка."""
-    return {"id": item.id, "name": item.name, "type": item.type, "model": item.model, "serial": item.serial,
-            "location": item.location, "mode": item.mode, "run_hours": item.run_hours,
-            "manufacturer": item.data.get("manufacturer"), "telemetry": bool(item.data.get("telemetry"))}
+    return {
+        "id": item.id,
+        "name": item.name,
+        "type": item.type,
+        "model": item.model,
+        "serial": item.serial,
+        "location": item.location,
+        "mode": item.mode,
+        "run_hours": item.run_hours,
+        "manufacturer": item.data.get("manufacturer"),
+        "telemetry": bool(item.data.get("telemetry")),
+    }
 
 
 def _card_response(session: Session, item: Equipment) -> dict:
@@ -110,12 +146,25 @@ def _person(user: User | None) -> dict | None:
 
 def _finding_view(finding: Finding, node_names: dict[str, str]) -> dict:
     """Описывает находку осмотра для истории; путь к снимку на сервере не раскрывается."""
-    return {"id": finding.id, "inspection_id": finding.inspection_id, "node_code": finding.node_code,
-            "node_name": node_names.get(finding.node_code), "source": finding.source, "rule_id": finding.rule_id,
-            "status": finding.status, "severity": finding.severity, "title": finding.title,
-            "diagnosis": finding.diagnosis, "recommendation": finding.recommendation,
-            "confidence": finding.confidence, "evidence": finding.evidence or [], "comment": finding.comment,
-            "has_photo": bool(finding.photo_path), "state": finding.state, "created_at": _stamp(finding.created_at)}
+    return {
+        "id": finding.id,
+        "inspection_id": finding.inspection_id,
+        "node_code": finding.node_code,
+        "node_name": node_names.get(finding.node_code),
+        "source": finding.source,
+        "rule_id": finding.rule_id,
+        "status": finding.status,
+        "severity": finding.severity,
+        "title": finding.title,
+        "diagnosis": finding.diagnosis,
+        "recommendation": finding.recommendation,
+        "confidence": finding.confidence,
+        "evidence": finding.evidence or [],
+        "comment": finding.comment,
+        "has_photo": bool(finding.photo_path),
+        "state": finding.state,
+        "created_at": _stamp(finding.created_at),
+    }
 
 
 @router.get("")
@@ -182,17 +231,44 @@ def history(
     events = []
     for inspection in session.scalars(inspections.order_by(Inspection.started_at.desc(), Inspection.id.desc()).limit(limit)):
         findings = [finding for finding in inspection.findings if node is None or finding.node_code == node]
-        events.append((inspection.started_at, 1, inspection.id, {
-            "type": "inspection", "id": inspection.id, "at": _stamp(inspection.started_at),
-            "started_at": _stamp(inspection.started_at), "finished_at": _stamp(inspection.finished_at),
-            "status": inspection.status, "user": _person(inspection.user), "summary": inspection.summary,
-            "findings": [_finding_view(finding, node_names) for finding in findings]}))
+        events.append(
+            (
+                inspection.started_at,
+                1,
+                inspection.id,
+                {
+                    "type": "inspection",
+                    "id": inspection.id,
+                    "at": _stamp(inspection.started_at),
+                    "started_at": _stamp(inspection.started_at),
+                    "finished_at": _stamp(inspection.finished_at),
+                    "status": inspection.status,
+                    "user": _person(inspection.user),
+                    "summary": inspection.summary,
+                    "findings": [_finding_view(finding, node_names) for finding in findings],
+                },
+            )
+        )
     records = records.options(joinedload(MaintenanceRecord.user))
     for record in session.scalars(records.order_by(MaintenanceRecord.at.desc(), MaintenanceRecord.id.desc()).limit(limit)):
-        events.append((record.at, 0, record.id, {
-            "type": "maintenance", "id": record.id, "at": _stamp(record.at), "kind": record.kind,
-            "node_code": record.node_code, "node_name": node_names.get(record.node_code), "comment": record.comment,
-            "user": _person(record.user), "hours_at": record.hours_at}))
+        events.append(
+            (
+                record.at,
+                0,
+                record.id,
+                {
+                    "type": "maintenance",
+                    "id": record.id,
+                    "at": _stamp(record.at),
+                    "kind": record.kind,
+                    "node_code": record.node_code,
+                    "node_name": node_names.get(record.node_code),
+                    "comment": record.comment,
+                    "user": _person(record.user),
+                    "hours_at": record.hours_at,
+                },
+            )
+        )
     events.sort(key=lambda event: event[:3], reverse=True)
     return [event[3] for event in events[:limit]]
 

@@ -1,4 +1,5 @@
 """Проверки чтения манометра и разбора шильдика без обращения к моделям."""
+
 import json
 import math
 import os
@@ -24,6 +25,7 @@ from train import parse_args, train_options
 def dial_with_needle(tmp_path, value: float, tilt: float = 1.0) -> np.ndarray:
     """Рисует циферблат со стрелкой на заданном значении и при необходимости сжимает его, как при съёмке под углом."""
     import make_textures
+
     path = str(tmp_path / "dial.png")
     make_textures.gauge_dial(path, size=512)
     dial = cv2.imread(path)
@@ -120,7 +122,6 @@ def test_nameplate_unique_model():
     assert match["card"]["id"] == "N-101" and match["by"] == "model"
 
 
-
 def test_mask_to_boxes_splits_regions():
     """Две отдельные области маски дают две рамки, а мелкая точка отбрасывается."""
     mask = np.zeros((400, 800), np.uint8)
@@ -145,6 +146,7 @@ def test_mask_to_boxes_keeps_tiny_defect():
 def test_writer_saves_labels_and_screen_copy(tmp_path):
     """Кадр и его экранная копия сохраняются с рамками в долях кадра, счётчики ведутся по источникам."""
     import random
+
     random.seed(3)
     np.random.seed(3)
     writer = Writer(str(tmp_path), ["corrosion", "leak"])
@@ -162,8 +164,11 @@ def test_writer_saves_labels_and_screen_copy(tmp_path):
 def test_match_boxes_counts():
     """Верная рамка, лишняя рамка и пропущенный дефект попадают в разные счётчики."""
     truth = [("corrosion", (0, 0, 100, 100)), ("leak", (200, 200, 300, 300))]
-    predicted = [("corrosion", (5, 5, 100, 100), 0.9), ("corrosion", (400, 400, 450, 450), 0.6),
-                 ("damage", (200, 200, 300, 300), 0.5)]
+    predicted = [
+        ("corrosion", (5, 5, 100, 100), 0.9),
+        ("corrosion", (400, 400, 450, 450), 0.6),
+        ("damage", (200, 200, 300, 300), 0.5),
+    ]
     stats = {}
     match_boxes(predicted, truth, stats)
     assert stats["corrosion"] == {"tp": 1, "fp": 1, "fn": 0}
@@ -173,8 +178,9 @@ def test_match_boxes_counts():
 
 def test_train_options_for_short_run():
     """В коротком запуске эпохи без мозаики и разогрев не превышают длину обучения."""
-    options = train_options(parse_args(["set/data.yaml", "4", "LibreYOLO9s.pt", "cpu", "--name", "probe",
-                                        "--plain-epochs", "15", "--warmup", "9"]))
+    options = train_options(
+        parse_args(["set/data.yaml", "4", "LibreYOLO9s.pt", "cpu", "--name", "probe", "--plain-epochs", "15", "--warmup", "9"])
+    )
     assert options["epochs"] == 4 and options["no_aug_epochs"] == 3 and options["warmup_epochs"] == 4
     assert options["name"] == "probe" and options["device"] == "cpu" and options["imgsz"] == 640
     defaults = train_options(parse_args(["set/data.yaml"]))
@@ -189,6 +195,7 @@ def test_models_manifest_matches_files():
     if not os.path.exists(path):
         pytest.skip("модели ещё не выгружены")
     import onnxruntime
+
     entries = json.load(open(path, encoding="utf-8"))
     assert isinstance(entries, list) and entries
     for entry in entries:
@@ -217,6 +224,7 @@ def test_latency_report_for_delivered_model():
     if not os.path.exists(path):
         pytest.skip("модель ещё не выгружена")
     from latency import measure
+
     row = measure(path, "CPUExecutionProvider", repeats=2)
     assert row["provider"] == "CPUExecutionProvider" and 0 < row["median_ms"] <= row["p90_ms"]
     assert row["input"]["images"] == [1, 3, 640, 640]
@@ -224,17 +232,21 @@ def test_latency_report_for_delivered_model():
 
 def test_summary_of_plates_and_gauges():
     """Сводка чтения шильдика и манометра считает кадры по ширине узла и не учитывает непрочитанные показания."""
-    plates = [{"px": 30, "located": True, "serial_ok": False, "card_ok": False},
-              {"px": 80, "located": True, "serial_ok": False, "card_ok": True},
-              {"px": 140, "located": True, "serial_ok": True, "card_ok": True},
-              {"px": 150, "located": False, "serial_ok": False, "card_ok": False}]
+    plates = [
+        {"px": 30, "located": True, "serial_ok": False, "card_ok": False},
+        {"px": 80, "located": True, "serial_ok": False, "card_ok": True},
+        {"px": 140, "located": True, "serial_ok": True, "card_ok": True},
+        {"px": 150, "located": False, "serial_ok": False, "card_ok": False},
+    ]
     summary = plates_summary(plates)
     assert summary["frames"] == 4 and summary["located"] == 3 and summary["serial_exact"] == 1 and summary["card_found"] == 2
     assert summary["by_width"]["100px+"] == {"frames": 2, "located": 1, "serial_exact": 1, "card_found": 1}
-    gauges = [{"px": 50, "located": True, "ok": True, "value": 5.2, "truth": 5.0},
-              {"px": 90, "located": True, "ok": True, "value": 9.0, "truth": 2.0},
-              {"px": 90, "located": True, "ok": False, "value": 1.0, "truth": 7.0},
-              {"px": 20, "located": False, "ok": False, "value": None, "truth": 3.0}]
+    gauges = [
+        {"px": 50, "located": True, "ok": True, "value": 5.2, "truth": 5.0},
+        {"px": 90, "located": True, "ok": True, "value": 9.0, "truth": 2.0},
+        {"px": 90, "located": True, "ok": False, "value": 1.0, "truth": 7.0},
+        {"px": 20, "located": False, "ok": False, "value": None, "truth": 3.0},
+    ]
     summary = gauges_summary(gauges)
     assert summary["frames"] == 4 and summary["located"] == 3 and summary["read"] == 2
     assert summary["within_5pct_of_scale"] == 1 and summary["error_over_10pct_of_scale"] == 1
@@ -243,8 +255,17 @@ def test_summary_of_plates_and_gauges():
 
 def test_summary_row_without_reports(tmp_path):
     """Опыт без отчётов попадает в сводку с пустыми значениями, а не с выдуманными числами."""
-    spec = {"name": "probe", "family": "LibreYOLO9t", "weights_licence": "MIT", "start": "LibreYOLO9t.pt",
-            "data": "нет", "run": "probe", "compare": "cmp_probe", "latency": "latency_probe", "note": ""}
+    spec = {
+        "name": "probe",
+        "family": "LibreYOLO9t",
+        "weights_licence": "MIT",
+        "start": "LibreYOLO9t.pt",
+        "data": "нет",
+        "run": "probe",
+        "compare": "cmp_probe",
+        "latency": "latency_probe",
+        "note": "",
+    }
     row = experiment_row(spec, str(tmp_path), str(tmp_path))
     assert row["measured"] is False and row["train_minutes"] is None and row["latency_640"] is None
     assert row["conf_0.25"] == {"holdout": None, "holdout_screen": None, "web_testset": None}
@@ -254,30 +275,74 @@ def test_summary_row_reads_reports(tmp_path):
     """Строка сводки берёт длительность обучения, показатели и время вывода из файлов отчётов."""
     os.makedirs(tmp_path / "probe")
     json.dump({"epochs": 3, "train_minutes": 1.5}, open(tmp_path / "probe" / "timing.json", "w"))
-    level = {"box_precision": 0.5, "box_recall": 0.25, "image_defect_found": 0.75, "image_right_class_found": 0.5,
-             "classes": {"leak": {"tp": 1, "fp": 1, "fn": 3}}}
-    web = {"defective_images": 4, "image_recall_any_defect": 0.5, "image_recall_right_class": 0.25, "clean_images": 2,
-           "false_alarm_rate": 0.5, "groups": {"leak": {"images": 4, "any_defect": 2, "right_class": 1}}}
-    json.dump({"holdout": {"images": 8, "conf_0.25": level, "conf_0.5": level}, "holdout_screen": None,
-               "web_testset": {"images": 6, "conf_0.25": web, "conf_0.5": web}}, open(tmp_path / "cmp_probe.json", "w"))
-    json.dump({"model": "probe.onnx", "size_mb": 8.4, "runs": [
-        {"provider": "CPUExecutionProvider", "median_ms": 30.0, "p90_ms": 33.0, "input": {"images": [1, 3, 640, 640]}},
-        {"provider": "CoreMLExecutionProvider", "error": "не поддерживается"}]}, open(tmp_path / "latency_probe.json", "w"))
-    spec = {"name": "probe", "family": "LibreYOLO9t", "weights_licence": "MIT", "start": "LibreYOLO9t.pt",
-            "data": "нет", "run": "probe", "compare": "cmp_probe", "latency": "latency_probe", "note": ""}
+    level = {
+        "box_precision": 0.5,
+        "box_recall": 0.25,
+        "image_defect_found": 0.75,
+        "image_right_class_found": 0.5,
+        "classes": {"leak": {"tp": 1, "fp": 1, "fn": 3}},
+    }
+    web = {
+        "defective_images": 4,
+        "image_recall_any_defect": 0.5,
+        "image_recall_right_class": 0.25,
+        "clean_images": 2,
+        "false_alarm_rate": 0.5,
+        "groups": {"leak": {"images": 4, "any_defect": 2, "right_class": 1}},
+    }
+    json.dump(
+        {
+            "holdout": {"images": 8, "conf_0.25": level, "conf_0.5": level},
+            "holdout_screen": None,
+            "web_testset": {"images": 6, "conf_0.25": web, "conf_0.5": web},
+        },
+        open(tmp_path / "cmp_probe.json", "w"),
+    )
+    json.dump(
+        {
+            "model": "probe.onnx",
+            "size_mb": 8.4,
+            "runs": [
+                {"provider": "CPUExecutionProvider", "median_ms": 30.0, "p90_ms": 33.0, "input": {"images": [1, 3, 640, 640]}},
+                {"provider": "CoreMLExecutionProvider", "error": "не поддерживается"},
+            ],
+        },
+        open(tmp_path / "latency_probe.json", "w"),
+    )
+    spec = {
+        "name": "probe",
+        "family": "LibreYOLO9t",
+        "weights_licence": "MIT",
+        "start": "LibreYOLO9t.pt",
+        "data": "нет",
+        "run": "probe",
+        "compare": "cmp_probe",
+        "latency": "latency_probe",
+        "note": "",
+    }
     row = experiment_row(spec, str(tmp_path), str(tmp_path))
     assert row["measured"] and row["epochs"] == 3 and row["train_minutes"] == 1.5
     assert row["conf_0.25"]["holdout"]["box_recall"] == 0.25 and row["conf_0.25"]["holdout_screen"] is None
     assert row["conf_0.5"]["web_testset"]["groups"] == {"leak": [2, 1, 4]}
-    assert row["latency_640"] == {"model": "probe.onnx", "size_mb": 8.4, "cpu_ms": 30.0, "input": [1, 3, 640, 640],
-                                  "coreml_ms": None, "coreml_ms_error": "не поддерживается"}
+    assert row["latency_640"] == {
+        "model": "probe.onnx",
+        "size_mb": 8.4,
+        "cpu_ms": 30.0,
+        "input": [1, 3, 640, 640],
+        "coreml_ms": None,
+        "coreml_ms_error": "не поддерживается",
+    }
     assert latency_row(None) is None
 
 
 def test_merge_same_class_keeps_best_box():
     """Две модели дали одну и ту же коррозию: остаётся уверенная рамка, другой класс и дальняя рамка не трогаются."""
-    rows = [("corrosion", [100, 100, 300, 300], 0.4), ("corrosion", [110, 105, 310, 300], 0.7),
-            ("leak", [100, 100, 300, 300], 0.3), ("corrosion", [500, 500, 600, 600], 0.3)]
+    rows = [
+        ("corrosion", [100, 100, 300, 300], 0.4),
+        ("corrosion", [110, 105, 310, 300], 0.7),
+        ("leak", [100, 100, 300, 300], 0.3),
+        ("corrosion", [500, 500, 600, 600], 0.3),
+    ]
     kept = merge_same_class(rows)
     assert [(name, score) for name, _, score in kept] == [("corrosion", 0.7), ("leak", 0.3), ("corrosion", 0.3)]
     assert merge_same_class([]) == []
@@ -290,11 +355,15 @@ def test_quantize_keeps_metadata_and_output(tmp_path):
     from onnx import TensorProto, helper, numpy_helper
 
     from quantize import quantize
+
     weights = np.random.default_rng(3).normal(size=(64, 32)).astype(np.float32)
-    graph = helper.make_graph([helper.make_node("MatMul", ["x", "w"], ["y"])], "probe",
-                              [helper.make_tensor_value_info("x", TensorProto.FLOAT, [1, 64])],
-                              [helper.make_tensor_value_info("y", TensorProto.FLOAT, [1, 32])],
-                              [numpy_helper.from_array(weights, "w")])
+    graph = helper.make_graph(
+        [helper.make_node("MatMul", ["x", "w"], ["y"])],
+        "probe",
+        [helper.make_tensor_value_info("x", TensorProto.FLOAT, [1, 64])],
+        [helper.make_tensor_value_info("y", TensorProto.FLOAT, [1, 32])],
+        [numpy_helper.from_array(weights, "w")],
+    )
     model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
     model.metadata_props.add(key="names", value='{"0": "corrosion"}')
     model.metadata_props.add(key="imgsz", value="384")
@@ -312,6 +381,7 @@ def test_quantize_keeps_metadata_and_output(tmp_path):
 def test_protocol_match_skips_unlabelled_classes():
     """Рамка класса, не размеченного на снимке, не считается ни верной, ни лишней."""
     from protocol import match
+
     truth = [("motor", (0, 0, 100, 100))]
     predicted = [("motor", (2, 2, 100, 100), 0.9), ("gauge", (300, 300, 350, 350), 0.8), ("motor", (400, 0, 500, 90), 0.4)]
     assert match(predicted, truth, {"motor"}) == [("motor", 0.9, True), ("motor", 0.4, False)]
@@ -321,6 +391,7 @@ def test_protocol_match_skips_unlabelled_classes():
 def test_protocol_average_precision():
     """AP50 равна 1 при идеальном порядке, падает при лишней рамке впереди и пуста без разметки."""
     from protocol import average_precision
+
     assert average_precision([(0.9, True), (0.8, True)], 2) == 1.0
     assert average_precision([(0.9, False), (0.8, True)], 1) == 0.5
     assert average_precision([(0.9, True)], 2) == 0.5
@@ -331,6 +402,7 @@ def test_protocol_average_precision():
 def test_protocol_summary_levels_and_images():
     """Сводка считает рамки, найденные дефекты и ложные тревоги отдельно для каждого порога."""
     from protocol import summarize
+
     box = (10, 10, 110, 110)
     records = [
         {"truth": [("corrosion", box)], "predicted": [("corrosion", box, 0.3)], "labelled": None, "group": None},
@@ -392,7 +464,11 @@ def test_protocol_run_writes_parts_report(tmp_path, monkeypatch):
 def test_delivered_applies_server_thresholds_and_merge():
     """Проверка поставки применяет пороги из models.json и объединяет рамки моделей так же, как сервер."""
     from delivered import combine, served
-    entries = [{"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.5}}, {"file": "defects.onnx", "conf_check": 0.15}]
+
+    entries = [
+        {"file": "stand.onnx", "conf_check": 0.25, "thresholds": {"leak": 0.5}},
+        {"file": "defects.onnx", "conf_check": 0.15},
+    ]
     stand = [("leak", (0, 0, 100, 100), 0.45), ("motor", (0, 0, 300, 300), 0.3), ("corrosion", (200, 200, 260, 260), 0.2)]
     defects = [("leak", (2, 2, 100, 100), 0.4), ("leak", (0, 0, 99, 99), 0.35), ("corrosion", (500, 0, 560, 60), 0.14)]
     assert served([stand, defects], entries) == [("leak", (2, 2, 100, 100), 0.4), ("motor", (0, 0, 300, 300), 0.3)]
@@ -404,10 +480,21 @@ def test_delivered_applies_server_thresholds_and_merge():
 def test_summary_reads_protocol_and_roundtrip_reports(tmp_path):
     """Сводка берёт из отчёта протокола показатели наборов и уровень сервера, из замера круга - времена без рамок."""
     from summary import protocol_row, roundtrip_summary
-    level = {"box_precision": 0.6, "box_recall": 0.5, "image_defect_found": 0.75, "image_right_class_found": 0.6,
-             "false_alarm_rate": None, "classes": {"leak": {"tp": 1, "fp": 0, "fn": 1}}}
-    report = {"sets": {"holdout": {"images": 8, "map50": 0.4, "ap50": {"leak": 0.4}, "conf_0.15": level, "conf_served": level},
-                       "val": {"missing": "нет"}}}
+
+    level = {
+        "box_precision": 0.6,
+        "box_recall": 0.5,
+        "image_defect_found": 0.75,
+        "image_right_class_found": 0.6,
+        "false_alarm_rate": None,
+        "classes": {"leak": {"tp": 1, "fp": 0, "fn": 1}},
+    }
+    report = {
+        "sets": {
+            "holdout": {"images": 8, "map50": 0.4, "ap50": {"leak": 0.4}, "conf_0.15": level, "conf_served": level},
+            "val": {"missing": "нет"},
+        }
+    }
     (tmp_path / "rep.json").write_text(json.dumps(report), encoding="utf-8")
     row = protocol_row({"name": "x", "report": "rep", "latency": None, "note": ""}, str(tmp_path))
     assert row["measured"] and list(row["sets"]) == ["holdout"]
@@ -421,6 +508,7 @@ def test_summary_reads_protocol_and_roundtrip_reports(tmp_path):
 def test_truth_boxes_read_next_to_dataset_image(tmp_path):
     """Разметка YOLO рядом со снимком набора читается в пиксели и рисуется; у снимка вне набора её нет."""
     from draw_detections import truth_boxes
+
     (tmp_path / "images" / "holdout").mkdir(parents=True)
     (tmp_path / "labels" / "holdout").mkdir(parents=True)
     (tmp_path / "data.yaml").write_text("names:\n  0: corrosion\n  1: leak\n", encoding="utf-8")

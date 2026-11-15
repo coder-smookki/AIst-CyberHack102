@@ -3,6 +3,7 @@
 Политика хранится в базе одной строкой и читается при каждом входе, поэтому изменение действует сразу.
 Журнал пишется в ту же транзакцию, что и само действие: запись появляется только вместе с изменением.
 """
+
 import secrets
 import string
 from contextvars import ContextVar
@@ -16,12 +17,19 @@ from server.models import RefreshToken, Role, SecurityEvent, SecurityPolicy, Use
 from server.permissions import GUARDIAN_PERMISSIONS
 
 POLICY_ID = 1
-POLICY_FIELDS = ("min_password_length", "require_letters_digits", "lockout_attempts", "lockout_minutes",
-                 "session_hours", "biometrics_allowed")
+POLICY_FIELDS = (
+    "min_password_length",
+    "require_letters_digits",
+    "lockout_attempts",
+    "lockout_minutes",
+    "session_hours",
+    "biometrics_allowed",
+)
 TEMPORARY_ALPHABET = "".join(symbol for symbol in string.ascii_letters + string.digits if symbol not in "0O1lI")
 TEMPORARY_MIN_LENGTH = 12
-LOCKOUT_GUARD = ("Изменение отклонено: не останется ни одной активной учётной записи с правами управления "
-                 "учётными записями и ролями")
+LOCKOUT_GUARD = (
+    "Изменение отклонено: не останется ни одной активной учётной записи с правами управления " "учётными записями и ролями"
+)
 EVENT_TITLES = {
     "login_success": "Успешный вход",
     "login_biometric": "Вход по биометрии",
@@ -84,9 +92,17 @@ def temporary_password(policy: SecurityPolicy) -> str:
             return value
 
 
-def record(session: Session, event: str, *, actor: User | None = None, target_user: User | None = None,
-           target_role: str | None = None, email: str | None = None, ip: str | None = None,
-           details: dict | None = None) -> SecurityEvent:
+def record(
+    session: Session,
+    event: str,
+    *,
+    actor: User | None = None,
+    target_user: User | None = None,
+    target_role: str | None = None,
+    email: str | None = None,
+    ip: str | None = None,
+    details: dict | None = None,
+) -> SecurityEvent:
     """Добавляет запись в журнал безопасности; сохраняет её вызывающий вместе со своим изменением.
 
     Если действие выполняется через ассистента (VIA задан), в details добавляется via с источником действия.
@@ -95,9 +111,16 @@ def record(session: Session, event: str, *, actor: User | None = None, target_us
         raise ValueError(f"Неизвестное событие журнала: {event}")
     if VIA.get():
         details = {**(details or {}), "via": VIA.get()}
-    entry = SecurityEvent(event=event, at=now(), actor_id=actor.id if actor else None,
-                          target_user_id=target_user.id if target_user else None, target_role=target_role,
-                          email=email, ip=ip or None, details=details or None)
+    entry = SecurityEvent(
+        event=event,
+        at=now(),
+        actor_id=actor.id if actor else None,
+        target_user_id=target_user.id if target_user else None,
+        target_role=target_role,
+        email=email,
+        ip=ip or None,
+        details=details or None,
+    )
     session.add(entry)
     return entry
 

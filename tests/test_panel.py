@@ -1,5 +1,6 @@
 """Статические проверки пульта демонстрации server/panel: файлы, отсутствие внешних адресов, русский текст,
 оформление кода и соответствие адресов API маршрутам сервера."""
+
 import re
 import shutil
 import subprocess
@@ -22,7 +23,7 @@ def read(name: str) -> str:
 def js_without_strings() -> str:
     """Текст panel.js без строковых литералов и блоков JSDoc - для поиска строчных комментариев."""
     text = re.sub(r"/\*\*.*?\*/", "", read("panel.js"), flags=re.DOTALL)
-    return re.sub(r"`(?:\\.|[^`\\])*`|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", "\"\"", text)
+    return re.sub(r"`(?:\\.|[^`\\])*`|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", '""', text)
 
 
 def test_files_exist():
@@ -57,13 +58,26 @@ def test_russian_interface():
     """Интерфейс на русском: язык страницы, заголовки разделов и сообщения об ошибках."""
     html = read("index.html")
     assert '<html lang="ru">' in html
-    for phrase in ("Пульт демонстрации", "Сценарии и время", "Показания датчиков", "Текущий диагноз",
-                   "История осмотров и работ", "Замечания", "Открыто", "В работе", "Устранено",
-                   "Решение принимает инженер"):
+    for phrase in (
+        "Пульт демонстрации",
+        "Сценарии и время",
+        "Показания датчиков",
+        "Текущий диагноз",
+        "История осмотров и работ",
+        "Замечания",
+        "Открыто",
+        "В работе",
+        "Устранено",
+        "Решение принимает инженер",
+    ):
         assert phrase in html, phrase
     script = read("panel.js")
-    for phrase in ("Нет связи с сервером", "Действие не выполнено", "Недостаточно данных для оценки",
-                   "Это не является подтверждением исправности"):
+    for phrase in (
+        "Нет связи с сервером",
+        "Действие не выполнено",
+        "Недостаточно данных для оценки",
+        "Это не является подтверждением исправности",
+    ):
         assert phrase in script, phrase
     assert len(CYRILLIC.findall(script)) > 2000
 
@@ -116,7 +130,7 @@ def api_paths() -> set[str]:
     script = read("panel.js")
     found = set()
     for tail in re.findall(r"unitPath\(\w+(?:,\s*(`[^`]*`|\"[^\"]*\"))?\)", script):
-        found.add("/equipment/{x}" + re.sub(r"\$\{[^}]+\}", "{x}", tail.strip("`\"").split("?")[0]))
+        found.add("/equipment/{x}" + re.sub(r"\$\{[^}]+\}", "{x}", tail.strip('`"').split("?")[0]))
     for path in re.findall(r"(?:request|send)\(\"[A-Z]+\",\s*[`\"](/[^`\"?]+)", script):
         found.add(re.sub(r"(?<=[a-z])\{x\}$", "", re.sub(r"\$\{[^}]+\}", "{x}", path)))
     return found
@@ -140,8 +154,13 @@ def test_api_paths_match_server_routes():
     """Каждый адрес, к которому обращается пульт, есть среди маршрутов сервера."""
     paths = api_paths()
     known = {path for _, path in server_routes()}
-    assert {"/equipment/{x}/telemetry", "/equipment/{x}/cursor", "/equipment/{x}/scenarios/{x}",
-            "/inspections/findings/{x}/state", "/auth/login"} <= paths
+    assert {
+        "/equipment/{x}/telemetry",
+        "/equipment/{x}/cursor",
+        "/equipment/{x}/scenarios/{x}",
+        "/inspections/findings/{x}/state",
+        "/auth/login",
+    } <= paths
     for path in paths:
         candidates = {path, path.replace("report.{x}", "report.pdf")}
         assert candidates & known, path
@@ -151,8 +170,8 @@ def test_control_methods():
     """Пульт переключает сценарий и время методом POST, как определено на сервере."""
     routes = server_routes()
     script = read("panel.js")
-    assert ("POST", "/equipment/{x}/scenarios/{x}") in routes and "request(\"POST\", unitPath(unitId, `/scenarios/" in script
-    assert ("POST", "/equipment/{x}/cursor") in routes and "request(\"POST\", unitPath(unitId, \"/cursor\"), {json: {at:" in script
+    assert ("POST", "/equipment/{x}/scenarios/{x}") in routes and 'request("POST", unitPath(unitId, `/scenarios/' in script
+    assert ("POST", "/equipment/{x}/cursor") in routes and 'request("POST", unitPath(unitId, "/cursor"), {json: {at:' in script
     assert "LIVE_PERIOD_MS = 2000" in script
 
 

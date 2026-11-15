@@ -1,4 +1,5 @@
 """Проверки осмотров: полнота обхода по кадрам, фиксация результатов, завершение, замечания, маршрут и отчёты."""
+
 import io
 import shutil
 from datetime import date, datetime
@@ -20,10 +21,26 @@ from server.seed import load_cards, seed
 FRAME_W, FRAME_H = 1280, 720
 XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 CALM = {
-    "rpm": 2950.0, "vib_rms": 1.0, "vib_1x": 0.8, "vib_2x": 0.3, "vib_hf": 0.1, "vib_axial": 0.45,
-    "temp_bearing": 50.0, "temp_winding": 65.0, "current_a": 11.0, "current_b": 11.0, "current_c": 11.0,
-    "current_unbalance": 0.5, "press_in": 1.5, "press_out": 4.6, "press_out_true": 4.6, "flow": 47.0, "power": 5.5,
-    "efficiency": 73.8, "run_hours": 19195.0, "mode": 1.0,
+    "rpm": 2950.0,
+    "vib_rms": 1.0,
+    "vib_1x": 0.8,
+    "vib_2x": 0.3,
+    "vib_hf": 0.1,
+    "vib_axial": 0.45,
+    "temp_bearing": 50.0,
+    "temp_winding": 65.0,
+    "current_a": 11.0,
+    "current_b": 11.0,
+    "current_c": 11.0,
+    "current_unbalance": 0.5,
+    "press_in": 1.5,
+    "press_out": 4.6,
+    "press_out_true": 4.6,
+    "flow": 47.0,
+    "power": 5.5,
+    "efficiency": 73.8,
+    "run_hours": 19195.0,
+    "mode": 1.0,
 }
 
 
@@ -175,16 +192,33 @@ def test_percent_grows_monotonically():
     """Доля осмотренных узлов не убывает, осмотренный узел не сбрасывается ни пустыми, ни плохими кадрами."""
     tracker = CoverageTracker(card())
     walk = [
-        [box("motor", 0.9, 0.2)], [], [box("motor", 0.3, 0.2)], [box("motor", 0.9, 0.2), box("terminal_box", 0.7, 0.02)],
-        [box("motor", 0.9, 0.2)], [box("terminal_box", 0.7, 0.02)], [box("terminal_box", 0.2, 0.001)], [],
-        [box("terminal_box", 0.7, 0.02), box("coupling_guard", 0.6, 0.05)], [box("coupling_guard", 0.6, 0.05)],
-        [box("terminal_box", 0.7, 0.02)], [box("coupling_guard", 0.6, 0.05)], [box("terminal_box", 0.7, 0.02)],
-        [box("pump_casing", 0.8, 0.3), box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)], [],
+        [box("motor", 0.9, 0.2)],
+        [],
+        [box("motor", 0.3, 0.2)],
+        [box("motor", 0.9, 0.2), box("terminal_box", 0.7, 0.02)],
+        [box("motor", 0.9, 0.2)],
+        [box("terminal_box", 0.7, 0.02)],
+        [box("terminal_box", 0.2, 0.001)],
+        [],
+        [box("terminal_box", 0.7, 0.02), box("coupling_guard", 0.6, 0.05)],
+        [box("coupling_guard", 0.6, 0.05)],
+        [box("terminal_box", 0.7, 0.02)],
+        [box("coupling_guard", 0.6, 0.05)],
+        [box("terminal_box", 0.7, 0.02)],
         [box("pump_casing", 0.8, 0.3), box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
-        [box("pump_casing", 0.1, 0.3)], [box("pump_casing", 0.8, 0.3), box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
-        [box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)], [box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)], [], [],
-        [box("motor", 0.3, 0.2)], [box("terminal_box", 0.9, 0.001)], [box("pump_casing", 0.1, 0.3), box("gauge", 0.4, 0.5)],
-        [box("coupling_guard", 0.26, 0.0001), box("flange", 0.01, 0.9)], [],
+        [],
+        [box("pump_casing", 0.8, 0.3), box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
+        [box("pump_casing", 0.1, 0.3)],
+        [box("pump_casing", 0.8, 0.3), box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
+        [box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
+        [box("flange", 0.8, 0.02), box("gauge", 0.8, 0.02)],
+        [],
+        [],
+        [box("motor", 0.3, 0.2)],
+        [box("terminal_box", 0.9, 0.001)],
+        [box("pump_casing", 0.1, 0.3), box("gauge", 0.4, 0.5)],
+        [box("coupling_guard", 0.26, 0.0001), box("flange", 0.01, 0.9)],
+        [],
     ]
     percents, inspected = [], set()
     for boxes in walk:
@@ -214,8 +248,16 @@ def test_total_counts_only_nodes_with_detector_classes():
 
 def test_static_priority_follows_rule_severity():
     """Без текущих данных выше стоят узлы, к которым относятся правила с большей критичностью."""
-    assert static_priority(card()) == ["terminal_box", "coupling", "seal", "casing", "motor_bearings", "gauge", "motor",
-                                       "flanges"]
+    assert static_priority(card()) == [
+        "terminal_box",
+        "coupling",
+        "seal",
+        "casing",
+        "motor_bearings",
+        "gauge",
+        "motor",
+        "flanges",
+    ]
 
 
 def test_hint_names_next_node_by_priority():
@@ -266,11 +308,16 @@ def test_all_done_and_nothing_to_track_hints():
 def test_bad_boxes_are_skipped_and_frame_size_is_checked():
     """Негодные рамки пропускаются, рамка обрезается по кадру, неположительный размер кадра - ошибка."""
     tracker = CoverageTracker(card())
-    rubbish = [None, {}, {"cls": "motor"}, {"cls": "motor", "conf": "x", "x1": 0, "y1": 0, "x2": 9, "y2": 9},
-               {"cls": "motor", "conf": 0.9, "x1": 50, "y1": 50, "x2": 50, "y2": 90},
-               {"cls": "motor", "conf": float("nan"), "x1": 0, "y1": 0, "x2": 900, "y2": 700},
-               {"cls": "motor", "conf": 0.9, "x1": 5000, "y1": 5000, "x2": 9000, "y2": 9000},
-               {"cls": "nameplate", "conf": 0.9, "x1": 0, "y1": 0, "x2": 400, "y2": 300}]
+    rubbish = [
+        None,
+        {},
+        {"cls": "motor"},
+        {"cls": "motor", "conf": "x", "x1": 0, "y1": 0, "x2": 9, "y2": 9},
+        {"cls": "motor", "conf": 0.9, "x1": 50, "y1": 50, "x2": 50, "y2": 90},
+        {"cls": "motor", "conf": float("nan"), "x1": 0, "y1": 0, "x2": 900, "y2": 700},
+        {"cls": "motor", "conf": 0.9, "x1": 5000, "y1": 5000, "x2": 9000, "y2": 9000},
+        {"cls": "nameplate", "conf": 0.9, "x1": 0, "y1": 0, "x2": 400, "y2": 300},
+    ]
     state = tracker.observe(rubbish, FRAME_W, FRAME_H)
     assert state["nodes"]["motor"]["seen"] == 0 and state["nodes"]["motor"]["best_conf"] == 0
     assert state["visual"] == {"nameplate": 0.9}
@@ -362,6 +409,7 @@ def api(seeded_database, tmp_path, monkeypatch):
 
 def use_telemetry(monkeypatch, player):
     """Подключает к агрегату N-101 подменный проигрыватель телеметрии."""
+
     def get_player(equipment_id):
         """Подмена: телеметрия есть только у N-101."""
         if equipment_id != "N-101":
@@ -466,8 +514,9 @@ def test_engineer_records_survive_server_restart(api):
 def test_defect_by_sign_uses_rule_and_keeps_photo(api):
     """Дефект по признаку из перечня получает диагноз и рекомендацию правила, основания и стоп-кадр камеры."""
     inspection = api.start()
-    response = api.add(inspection["id"], frame=jpeg((2400, 1800)), kind="defect", node="seal", sign="leak",
-                       comment="Капли у вала")
+    response = api.add(
+        inspection["id"], frame=jpeg((2400, 1800)), kind="defect", node="seal", sign="leak", comment="Капли у вала"
+    )
     assert response.status_code == 201, response.text
     finding = response.json()
     assert finding["rule_id"] == "R01" and finding["status"] == "defect" and finding["state"] == "open"
@@ -629,8 +678,11 @@ def test_finish_returns_summary_and_is_idempotent(api):
     again = api.finish(number)
     assert again.status_code == 200 and again.json()["summary"] == summary
     assert again.json()["finished_at"] == finished["finished_at"]
-    for fields in ({"kind": "checked", "node": "motor"}, {"kind": "defect", "node": "motor"},
-                   {"kind": "replacement", "node": "seal"}):
+    for fields in (
+        {"kind": "checked", "node": "motor"},
+        {"kind": "defect", "node": "motor"},
+        {"kind": "replacement", "node": "seal"},
+    ):
         refused = api.add(number, **fields)
         assert refused.status_code == 409 and "завершён" in refused.json()["detail"]
     assert len(api.client.get(f"/inspections/{number}").json()["findings"]) == 3
@@ -661,10 +713,13 @@ def test_finish_does_not_record_camera_defects_the_engineer_did_not_confirm(api)
             service.tracker_for(session, service.get_inspection(session, number))
         assert refusal.value.status_code == 409
 
+
 def test_diagnosis_uses_telemetry_and_gauge_reading(api, monkeypatch):
     """Диагноз осмотра учитывает датчики, а считанное камерой показание манометра включает правило R05."""
-    use_telemetry(monkeypatch, FakePlayer({**CALM, "vib_hf": 3.4, "temp_bearing": 82.0, "press_out": 3.6},
-                                          {"vib_hf": 0.06, "temp_bearing": 0.6}))
+    use_telemetry(
+        monkeypatch,
+        FakePlayer({**CALM, "vib_hf": 3.4, "temp_bearing": 82.0, "press_out": 3.6}, {"vib_hf": 0.06, "temp_bearing": 0.6}),
+    )
     inspection = api.start()
     with db.SessionLocal() as session:
         found = service.get_inspection(session, inspection["id"])

@@ -5,6 +5,7 @@
 Поля JSON сохраняются при присваивании нового значения целиком: правка вложенного словаря на месте не отслеживается.
 Перечни INSPECTION_STATUSES, FINDING_STATUSES и FINDING_SOURCES - принятые значения полей; база их не проверяет.
 """
+
 from datetime import date, datetime
 
 from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, String, Text, UniqueConstraint

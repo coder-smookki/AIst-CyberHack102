@@ -1,4 +1,5 @@
 """Проверки вариантов вывода детектора дефектов и выбора порогов без обращения к настоящим моделям."""
+
 import os
 import sys
 from types import SimpleNamespace
@@ -58,8 +59,11 @@ def test_remap_keeps_order_and_maps_threshold():
 
 def test_constrained_thresholds_raise_only_while_recall_holds():
     """Порог класса с одной ложной рамкой поднимается, пока верная рамка остаётся найденной."""
-    record = {"truth": [("leak", (0, 0, 10, 10))], "labelled": None,
-              "predicted": [("leak", (0, 0, 10, 10), 0.4), ("leak", (50, 50, 60, 60), 0.1)]}
+    record = {
+        "truth": [("leak", (0, 0, 10, 10))],
+        "labelled": None,
+        "predicted": [("leak", (0, 0, 10, 10), 0.4), ("leak", (50, 50, 60, 60), 0.1)],
+    }
     chosen = constrained_thresholds([record], 1.0, 1.0)
     assert 0.1 < chosen["leak"]["threshold"] <= 0.4
     assert chosen["leak"]["val_false_boxes"] == 0
@@ -76,6 +80,7 @@ def test_kaggle_kernel_is_private(tmp_path, monkeypatch):
     import json
 
     import kaggle_push
+
     monkeypatch.setattr(kaggle_push, "ROOT", str(tmp_path))
     os.makedirs(tmp_path / "cv")
     (tmp_path / "cv" / "kaggle_train.py").write_text("EXPERIMENTS = []\n", encoding="utf-8")

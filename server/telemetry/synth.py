@@ -3,6 +3,7 @@
 Значения заказчика здесь не меняются. Всё рассчитанное в этом модуле считается модельным и
 получает источник "model". Шум детерминирован: у каждого ряда свой генератор с постоянным зерном.
 """
+
 import itertools
 import math
 import random
@@ -12,9 +13,26 @@ from datetime import datetime, timedelta
 from server.telemetry.loader import CUSTOMER_THRESHOLDS, LABEL_KINDS, CustomerRow
 
 CODES = (
-    "rpm", "vib_rms", "vib_1x", "vib_2x", "vib_hf", "vib_axial", "temp_bearing", "temp_winding",
-    "current_a", "current_b", "current_c", "current_unbalance", "press_in", "press_out", "press_out_true",
-    "flow", "power", "efficiency", "run_hours", "mode",
+    "rpm",
+    "vib_rms",
+    "vib_1x",
+    "vib_2x",
+    "vib_hf",
+    "vib_axial",
+    "temp_bearing",
+    "temp_winding",
+    "current_a",
+    "current_b",
+    "current_c",
+    "current_unbalance",
+    "press_in",
+    "press_out",
+    "press_out_true",
+    "flow",
+    "power",
+    "efficiency",
+    "run_hours",
+    "mode",
 )
 PHASE_CODES = ("current_a", "current_b", "current_c")
 SEED = 102
@@ -72,8 +90,20 @@ FLOW_NOISE = 0.002
 PRESSURE_NOISE = 0.005
 SENSOR_NOISE = 0.005
 NOISE_STREAMS = (
-    "rpm", "vib_1x", "vib_2x", "vib_hf", "temp_bearing", "temp_winding", "vib_axial",
-    "current_a", "current_b", "current_c", "press_in", "press_out_true", "press_out", "flow",
+    "rpm",
+    "vib_1x",
+    "vib_2x",
+    "vib_hf",
+    "temp_bearing",
+    "temp_winding",
+    "vib_axial",
+    "current_a",
+    "current_b",
+    "current_c",
+    "press_in",
+    "press_out_true",
+    "press_out",
+    "flow",
 )
 NORMAL_HISTORY_HOURS = 9
 
@@ -99,42 +129,68 @@ class Episode:
 
 EPISODES = (
     Episode(
-        "imbalance", "Дисбаланс рабочего колеса",
+        "imbalance",
+        "Дисбаланс рабочего колеса",
         "Амплитуда 1x растёт до 5,2 мм/с (база заказчика)",
-        datetime(2026, 11, 13, 16), datetime(2026, 11, 17, 19), ("R02",), "customer",
+        datetime(2026, 11, 13, 16),
+        datetime(2026, 11, 17, 19),
+        ("R02",),
+        "customer",
     ),
     Episode(
-        "misalignment", "Расцентровка валов",
+        "misalignment",
+        "Расцентровка валов",
         "Амплитуда 2x растёт до 4,3 мм/с (база заказчика); модель: осевая вибрация на муфте растёт вместе с 2x, "
         "ток выше на 5-8 %, температуры в норме",
-        datetime(2026, 11, 18, 16), datetime(2026, 11, 22, 19), ("R09",), "customer",
+        datetime(2026, 11, 18, 16),
+        datetime(2026, 11, 22, 19),
+        ("R09",),
+        "customer",
     ),
     Episode(
-        "bearing_wear", "Износ подшипника",
-        "ВЧ шум до 6 g, затем температура подшипника до 98 °C (база заказчика); модель: ток и давление "
-        "на входе в норме",
-        datetime(2026, 11, 23, 16), datetime(2026, 11, 27, 19), ("R08", "R01", "R03"), "customer",
+        "bearing_wear",
+        "Износ подшипника",
+        "ВЧ шум до 6 g, затем температура подшипника до 98 °C (база заказчика); модель: ток и давление " "на входе в норме",
+        datetime(2026, 11, 23, 16),
+        datetime(2026, 11, 27, 19),
+        ("R08", "R01", "R03"),
+        "customer",
     ),
     Episode(
-        "winding_overheat", "Перегрев обмоток двигателя",
+        "winding_overheat",
+        "Перегрев обмоток двигателя",
         "Температура обмоток до 121 °C (база заказчика); модель: небаланс токов по фазам 7-9 %",
-        datetime(2026, 11, 27, 20), datetime(2026, 12, 1, 3), ("R04",), "customer",
+        datetime(2026, 11, 27, 20),
+        datetime(2026, 12, 1, 3),
+        ("R04",),
+        "customer",
     ),
     Episode(
-        "cavitation", "Кавитация",
-        "Модель: давление на входе падает с 1,5 до 0,4 бар, ВЧ шум 3-4 g, СКЗ вибрации растёт, "
-        "температура подшипника в норме",
-        datetime(2026, 12, 2, 0), datetime(2026, 12, 3, 19), ("R07", "R12"), "model",
+        "cavitation",
+        "Кавитация",
+        "Модель: давление на входе падает с 1,5 до 0,4 бар, ВЧ шум 3-4 g, СКЗ вибрации растёт, " "температура подшипника в норме",
+        datetime(2026, 12, 2, 0),
+        datetime(2026, 12, 3, 19),
+        ("R07", "R12"),
+        "model",
     ),
     Episode(
-        "hydraulic_wear", "Износ проточной части",
+        "hydraulic_wear",
+        "Износ проточной части",
         "Модель: подача падает при той же мощности, КПД ниже на 15-18 %, вибрация и температура в норме",
-        datetime(2026, 12, 4, 0), datetime(2026, 12, 5, 19), ("R10",), "model",
+        datetime(2026, 12, 4, 0),
+        datetime(2026, 12, 5, 19),
+        ("R10",),
+        "model",
     ),
     Episode(
-        "sensor_drift", "Дрейф датчика давления нагнетания",
+        "sensor_drift",
+        "Дрейф датчика давления нагнетания",
         "Модель: электронный датчик показывает на 20 % ниже стрелочного манометра",
-        datetime(2026, 12, 6, 0), datetime(2026, 12, 6, 23), ("R05",), "model",
+        datetime(2026, 12, 6, 0),
+        datetime(2026, 12, 6, 23),
+        ("R05",),
+        "model",
     ),
 )
 EPISODE_BY_ID = {episode.id: episode for episode in EPISODES}
@@ -158,9 +214,7 @@ class PumpModel:
     @classmethod
     def from_specs(cls, specs: dict) -> "PumpModel":
         """Создаёт модель из блока specs карточки оборудования."""
-        return cls(
-            float(specs["flow_m3h"]), float(specs["head_m"]), float(specs["power_kw"]), float(specs["rated_current_a"])
-        )
+        return cls(float(specs["flow_m3h"]), float(specs["head_m"]), float(specs["power_kw"]), float(specs["rated_current_a"]))
 
     @property
     def pressure_rise_bar(self) -> float:
@@ -182,7 +236,7 @@ class PumpModel:
         ratio = rpm / self.reference_rpm
         flow = self.flow_m3h * ratio * flow_factor
         head = self.head_m * (ratio * flow_factor) ** 2
-        power = self.power_kw * ratio ** 3 * load_factor
+        power = self.power_kw * ratio**3 * load_factor
         return flow, head, power
 
     def mean_current(self, power_kw: float) -> float:
@@ -279,7 +333,7 @@ def fault_state(at: datetime) -> FaultState:
     return FaultState(
         load=interpolate(misalignment, MISALIGNMENT_LOAD),
         axial=MISALIGNMENT_AXIAL * misalignment,
-        unbalance=math.sqrt(UNBALANCE_BASE ** 2 + (UNBALANCE_PEAK ** 2 - UNBALANCE_BASE ** 2) * winding),
+        unbalance=math.sqrt(UNBALANCE_BASE**2 + (UNBALANCE_PEAK**2 - UNBALANCE_BASE**2) * winding),
         press_in=press_in,
         cavitation=math.sqrt(min(1.0, max(0.0, deficit))),
         efficiency_drop=interpolate(EPISODE_BY_ID["hydraulic_wear"].progress(at), WEAR_EFFICIENCY_DROP),
@@ -351,7 +405,7 @@ def _extension_measurements(index: int, state: FaultState, noise: dict[str, list
     second = _draw("vib_2x", index, noise)
     high = max(0.0, _draw("vib_hf", index, noise) + CAVITATION_HF_RISE * state.cavitation)
     broadband = CAVITATION_BROADBAND * state.cavitation
-    overall = math.sqrt(first ** 2 + second ** 2 + RMS_FLOOR ** 2 + broadband ** 2) + RMS_HF_SHARE * high
+    overall = math.sqrt(first**2 + second**2 + RMS_FLOOR**2 + broadband**2) + RMS_HF_SHARE * high
     return {
         "rpm": round(_draw("rpm", index, noise)),
         "vib_rms": round(overall, 2),
@@ -363,16 +417,14 @@ def _extension_measurements(index: int, state: FaultState, noise: dict[str, list
     }
 
 
-def _modelled(
-    index: int, rpm: float, state: FaultState, model: PumpModel, noise: dict[str, list[float]]
-) -> dict[str, float]:
+def _modelled(index: int, rpm: float, state: FaultState, model: PumpModel, noise: dict[str, list[float]]) -> dict[str, float]:
     """Рассчитывает параметры, которых нет в базах заказчика, для одного часа.
 
     Токи фаз получаются из мощности на валу, небаланс и мощность пересчитываются уже из округлённых
     токов, КПД - из округлённых подачи, давлений и мощности, поэтому сохранённые значения согласованы
     между собой точно. КПД считается по истинному давлению нагнетания, а не по электронному датчику.
     """
-    flow_factor = (1.0 - state.efficiency_drop) ** (1 / 3) * (1.0 - CAVITATION_FLOW_LOSS * state.cavitation ** 2)
+    flow_factor = (1.0 - state.efficiency_drop) ** (1 / 3) * (1.0 - CAVITATION_FLOW_LOSS * state.cavitation**2)
     flow, head, shaft_power = model.duty(rpm, flow_factor, 1.0 + state.load)
     mean_current = model.mean_current(shaft_power)
     currents = [
@@ -431,35 +483,56 @@ def _scenarios(
     result = []
     for episode in EPISODES:
         inside = [index for index, at in enumerate(times) if episode.onset <= at <= episode.peak]
-        breached = [
-            index for index in inside if _breached(episode.id, {code: series[code][index] for code in CODES}, model)
-        ]
-        result.append({
-            "id": episode.id, "title": episode.title, "description": episode.description,
-            "onset": episode.onset, "start": times[breached[0]] if breached else episode.peak,
-            "end": episode.peak, "peak": episode.peak,
-            "expected_rules": list(episode.rules), "source": episode.source, "kind": "fault",
-        })
+        breached = [index for index in inside if _breached(episode.id, {code: series[code][index] for code in CODES}, model)]
+        result.append(
+            {
+                "id": episode.id,
+                "title": episode.title,
+                "description": episode.description,
+                "onset": episode.onset,
+                "start": times[breached[0]] if breached else episode.peak,
+                "end": episode.peak,
+                "peak": episode.peak,
+                "expected_rules": list(episode.rules),
+                "source": episode.source,
+                "kind": "fault",
+            }
+        )
     quiet_end = max(0, sum(1 for at in times if at < EPISODES[0].onset) - 1)
     due_index = None
     if service_due_hours is not None:
-        due_index = next(
-            (index for index in range(quiet_end + 1) if series["run_hours"][index] >= service_due_hours), None
-        )
+        due_index = next((index for index in range(quiet_end + 1) if series["run_hours"][index] >= service_due_hours), None)
     normal_index = due_index - 1 if due_index else min(NORMAL_HISTORY_HOURS, quiet_end)
     description = "Все параметры датчиков в норме"
     if due_index:
         description += ", срок обслуживания по наработке ещё не наступил"
-    result.append({
-        "id": "normal", "title": "Нормальный режим", "description": description,
-        "onset": times[0], "start": times[0], "end": times[normal_index], "peak": times[normal_index],
-        "expected_rules": [], "source": "customer", "kind": "reference",
-    })
+    result.append(
+        {
+            "id": "normal",
+            "title": "Нормальный режим",
+            "description": description,
+            "onset": times[0],
+            "start": times[0],
+            "end": times[normal_index],
+            "peak": times[normal_index],
+            "expected_rules": [],
+            "source": "customer",
+            "kind": "reference",
+        }
+    )
     if due_index is not None:
-        result.append({
-            "id": "maintenance_due", "title": "Срок обслуживания по наработке",
-            "description": f"Модель: счётчик наработки достигает {service_due_hours:.0f} ч - наступает срок ТО",
-            "onset": times[0], "start": times[due_index], "end": times[due_index], "peak": times[due_index],
-            "expected_rules": ["R11"], "source": "model", "kind": "reference",
-        })
+        result.append(
+            {
+                "id": "maintenance_due",
+                "title": "Срок обслуживания по наработке",
+                "description": f"Модель: счётчик наработки достигает {service_due_hours:.0f} ч - наступает срок ТО",
+                "onset": times[0],
+                "start": times[due_index],
+                "end": times[due_index],
+                "peak": times[due_index],
+                "expected_rules": ["R11"],
+                "source": "model",
+                "kind": "reference",
+            }
+        )
     return result

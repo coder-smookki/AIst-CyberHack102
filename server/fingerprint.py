@@ -6,6 +6,7 @@
 каждой новой находке и печатается в отчётах, чтобы по находке было видно, каким набором моделей она получена.
 Пути к файлам наружу не отдаются: только имена файлов и их хэши.
 """
+
 import hashlib
 import json
 from datetime import datetime
@@ -17,8 +18,21 @@ MANIFEST = "models.json"
 DEFAULT_MODEL = "detector.onnx"
 SHORT = 12
 CHUNK = 1024 * 1024
-SEMANTIC_KEYS = ("file", "role", "classes", "defect_classes", "imgsz", "input", "conf_check", "conf_defect",
-                 "thresholds", "hint", "only", "rename", "min_share")
+SEMANTIC_KEYS = (
+    "file",
+    "role",
+    "classes",
+    "defect_classes",
+    "imgsz",
+    "input",
+    "conf_check",
+    "conf_defect",
+    "thresholds",
+    "hint",
+    "only",
+    "rename",
+    "min_share",
+)
 
 
 def _entries(models_dir: Path) -> tuple[list[dict], bool]:
@@ -65,8 +79,13 @@ def compute(models_dir: Path | str = MODELS_DIR) -> dict:
         models.append({"file": entry["file"], "sha256": full[:SHORT] if full else None, "present": full is not None})
         canonical.append({**entry, "sha256": full})
     text = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return {"fingerprint": hashlib.sha256(text.encode("utf-8")).hexdigest()[:SHORT], "algorithm": "sha256",
-            "manifest": manifest, "models": models, "computed_at": datetime.now().isoformat(timespec="seconds")}
+    return {
+        "fingerprint": hashlib.sha256(text.encode("utf-8")).hexdigest()[:SHORT],
+        "algorithm": "sha256",
+        "manifest": manifest,
+        "models": models,
+        "computed_at": datetime.now().isoformat(timespec="seconds"),
+    }
 
 
 @lru_cache(maxsize=1)

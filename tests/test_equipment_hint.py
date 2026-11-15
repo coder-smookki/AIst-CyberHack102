@@ -1,4 +1,5 @@
 """Проверки подключения детектора типа оборудования как третьей модели-подсказки (server/recognition.py)."""
+
 import json
 from pathlib import Path
 
@@ -17,26 +18,45 @@ class FakeResult:
     def __init__(self, rows, names):
         """Запоминает строки (x1, y1, x2, y2, номер класса, уверенность) и названия классов."""
         self.names = names
-        self.boxes = type("Boxes", (), {
-            "xyxy": np.array([row[:4] for row in rows], dtype=float).reshape(-1, 4),
-            "cls": np.array([row[4] for row in rows]), "conf": np.array([row[5] for row in rows])})()
+        self.boxes = type(
+            "Boxes",
+            (),
+            {
+                "xyxy": np.array([row[:4] for row in rows], dtype=float).reshape(-1, 4),
+                "cls": np.array([row[4] for row in rows]),
+                "conf": np.array([row[5] for row in rows]),
+            },
+        )()
 
 
 def make_detector(tmp_path, equipment_rows, stand_rows=(), defect_rows=(), with_equipment=True):
     """Создаёт детектор с подменными моделями: узлы, дефекты и, при with_equipment, подсказка типа оборудования."""
     folder = tmp_path / "models"
     folder.mkdir(parents=True, exist_ok=True)
-    document = [{"file": "detector.onnx", "defect_classes": ["leak"]},
-                {"file": "defects.onnx", "defect_classes": ["damage"], "conf_check": 0.15}]
+    document = [
+        {"file": "detector.onnx", "defect_classes": ["leak"]},
+        {"file": "defects.onnx", "defect_classes": ["damage"], "conf_check": 0.15},
+    ]
     if with_equipment:
-        document.append({"file": "equipment.onnx", "role": "equipment", "hint": True, "conf_check": 0.6,
-                         "thresholds": {"control_cabinet": 0.6, "motor": 0.7}, "only": ["control_cabinet", "motor", "pump_unit"],
-                         "rename": {"motor": "electric_motor"}, "min_share": 0.01,
-                         "labels": {"control_cabinet": "Шкаф управления", "motor": "Электродвигатель"}})
+        document.append(
+            {
+                "file": "equipment.onnx",
+                "role": "equipment",
+                "hint": True,
+                "conf_check": 0.6,
+                "thresholds": {"control_cabinet": 0.6, "motor": 0.7},
+                "only": ["control_cabinet", "motor", "pump_unit"],
+                "rename": {"motor": "electric_motor"},
+                "min_share": 0.01,
+                "labels": {"control_cabinet": "Шкаф управления", "motor": "Электродвигатель"},
+            }
+        )
     (folder / "models.json").write_text(json.dumps(document), encoding="utf-8")
-    outputs = {"detector.onnx": FakeResult(list(stand_rows), {0: "motor", 1: "leak"}),
-               "defects.onnx": FakeResult(list(defect_rows), {0: "damage"}),
-               "equipment.onnx": FakeResult(list(equipment_rows), EQUIPMENT_NAMES)}
+    outputs = {
+        "detector.onnx": FakeResult(list(stand_rows), {0: "motor", 1: "leak"}),
+        "defects.onnx": FakeResult(list(defect_rows), {0: "damage"}),
+        "equipment.onnx": FakeResult(list(equipment_rows), EQUIPMENT_NAMES),
+    }
     for entry in document:
         (folder / entry["file"]).write_bytes(b"x")
     return recognition.Detector(folder, lambda path: (lambda frame, conf: [outputs[path.name]]))
@@ -46,16 +66,25 @@ def test_hint_box_gets_label_and_flag(tmp_path):
     """Рамка типа оборудования получает русскую подпись и пометку hint и не считается дефектом."""
     detector = make_detector(tmp_path, [(100, 100, 400, 400, 1, 0.9)])
     boxes = detector.detect(FRAME)
-    assert boxes == [{"cls": "control_cabinet", "conf": 0.9, "x1": 100.0, "y1": 100.0, "x2": 400.0, "y2": 400.0,
-                      "label": "Шкаф управления", "hint": True}]
+    assert boxes == [
+        {
+            "cls": "control_cabinet",
+            "conf": 0.9,
+            "x1": 100.0,
+            "y1": 100.0,
+            "x2": 400.0,
+            "y2": 400.0,
+            "label": "Шкаф управления",
+            "hint": True,
+        }
+    ]
     assert "control_cabinet" not in recognition.defect_classes(detector)
     assert recognition.box_status("control_cabinet", 0.9, recognition.defect_classes(detector)) == "ok"
 
 
 def test_hint_model_stays_silent_below_threshold_and_on_dropped_classes(tmp_path):
     """Неуверенные рамки, классы вне перечня only и слишком мелкие рамки не выдаются вовсе."""
-    rows = [(100, 100, 400, 400, 1, 0.55), (100, 100, 400, 400, 2, 0.95), (10, 10, 30, 30, 1, 0.95),
-            (50, 50, 300, 300, 5, 0.99)]
+    rows = [(100, 100, 400, 400, 1, 0.55), (100, 100, 400, 400, 2, 0.95), (10, 10, 30, 30, 1, 0.95), (50, 50, 300, 300, 5, 0.99)]
     assert make_detector(tmp_path, rows).detect(FRAME) == []
 
 
@@ -123,6 +152,7 @@ def test_cabinet_hint_covers_cabinet_node_in_walk_around():
     """Рамка шкафа управления засчитывает узел ШУ-3 в обходе, но не даёт находок диагностики."""
     from server.inspections.coverage import CoverageTracker
     from server.rules.engine import diagnose
+
     card = _card("SHU-3")
     tracker = CoverageTracker(card)
     assert tracker.node_for("control_cabinet") == "door_seal"
@@ -147,6 +177,7 @@ def test_every_mapped_node_class_is_shipped():
 def test_hint_classes_are_not_defect_signs():
     """Классы подсказки не совпадают с признаками правил: рамка типа оборудования не становится дефектом."""
     from server.rules.engine import defect_signs
+
     assert not _shipped_hint_classes() & set(defect_signs())
 
 
@@ -154,11 +185,14 @@ def test_foreign_type_hint_does_not_touch_other_unit():
     """Подсказка другого типа на обходе насоса не засчитывает узлы и не даёт находок: агрегат остаётся прежним."""
     from server.inspections.coverage import CoverageTracker
     from server.rules.engine import diagnose
+
     card = _card("N-101")
     tracker = CoverageTracker(card)
     before = tracker.state()
-    boxes = [{"cls": "control_cabinet", "conf": 0.95, "x1": 0, "y1": 0, "x2": 600, "y2": 460, "hint": True},
-             {"cls": "transformer", "conf": 0.95, "x1": 0, "y1": 0, "x2": 600, "y2": 460, "hint": True}]
+    boxes = [
+        {"cls": "control_cabinet", "conf": 0.95, "x1": 0, "y1": 0, "x2": 600, "y2": 460, "hint": True},
+        {"cls": "transformer", "conf": 0.95, "x1": 0, "y1": 0, "x2": 600, "y2": 460, "hint": True},
+    ]
     for _ in range(6):
         state = tracker.observe(boxes, 640, 480)
     assert tracker.node_for("control_cabinet") is None and tracker.node_for("transformer") is None

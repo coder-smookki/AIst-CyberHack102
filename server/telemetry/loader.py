@@ -1,4 +1,5 @@
 """Чтение баз заказчика по вибрации и температуре насоса Н-101 без изменения значений."""
+
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime

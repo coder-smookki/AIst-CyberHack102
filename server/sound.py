@@ -10,6 +10,7 @@
 отмеченными как норма, а без них - с типовым уровнем для типа оборудования. Результат - измерения и признаки-
 кандидаты с пояснением по-русски; замечаниями они становятся только после подтверждения инженером.
 """
+
 import io
 import itertools
 import math
@@ -104,7 +105,7 @@ def _spectrum(samples: np.ndarray, rate: int) -> tuple[np.ndarray, np.ndarray]:
     power = np.zeros(size // 2 + 1)
     count = 0
     for start in range(0, samples.size - size + 1, step):
-        chunk = samples[start:start + size]
+        chunk = samples[start : start + size]
         power += np.abs(np.fft.rfft((chunk - chunk.mean()) * window)) ** 2
         count += 1
     freqs = np.fft.rfftfreq(size, 1.0 / rate)
@@ -118,8 +119,16 @@ def _bands(freqs: np.ndarray, power: np.ndarray) -> list[dict]:
     for code, title, low, high in BANDS:
         mask = (freqs >= low) & (freqs < (high if high is not None else np.inf)) & (freqs > 0)
         energy = float(power[mask].sum())
-        result.append({"code": code, "title": title, "from_hz": low, "to_hz": high, "share": round(energy / total, 4),
-                       "db": round(10.0 * math.log10(energy / total) if energy > 0 else SILENCE_DBFS, 1)})
+        result.append(
+            {
+                "code": code,
+                "title": title,
+                "from_hz": low,
+                "to_hz": high,
+                "share": round(energy / total, 4),
+                "db": round(10.0 * math.log10(energy / total) if energy > 0 else SILENCE_DBFS, 1),
+            }
+        )
     return result
 
 
@@ -143,7 +152,7 @@ def _peaks(freqs: np.ndarray, power: np.ndarray) -> list[dict]:
     for index in np.flatnonzero((freqs >= PEAK_MIN_HZ) & (freqs <= PEAK_MAX_HZ)):
         if index < 1 or index >= level.size - 1 or level[index] < level[index - 1] or level[index] < level[index + 1]:
             continue
-        around = np.concatenate([level[max(index - half, 0):max(index - 2, 0)], level[index + 3:index + half + 1]])
+        around = np.concatenate([level[max(index - half, 0) : max(index - 2, 0)], level[index + 3 : index + half + 1]])
         if around.size == 0:
             continue
         prominence = float(level[index] - np.median(around))
@@ -191,11 +200,11 @@ def _spectrum_points(freqs: np.ndarray, power: np.ndarray, rate: int) -> list[di
 def analyse(samples: np.ndarray, rate: int, *, rpm: float | None = None, blades: int | None = None) -> dict:
     """Считает показатели звука: уровень, импульсность, полосы, центроид, тональные пики и их совпадения."""
     centred = samples - samples.mean()
-    rms = float(np.sqrt(np.mean(centred ** 2)))
+    rms = float(np.sqrt(np.mean(centred**2)))
     if rms <= 1e-6:
         raise SoundError("Запись пустая: сигнала нет")
     peak = float(np.max(np.abs(centred)))
-    kurtosis = float(np.mean(centred ** 4) / rms ** 4)
+    kurtosis = float(np.mean(centred**4) / rms**4)
     freqs, power = _spectrum(centred, rate)
     total = float(power[1:].sum()) or 1e-20
     centroid = float((freqs * power).sum() / total)
@@ -206,13 +215,21 @@ def analyse(samples: np.ndarray, rate: int, *, rpm: float | None = None, blades:
         peaks.append({**item, "match": code, "match_title": title})
     high = (freqs >= 2000.0) & (freqs < 8000.0)
     return {
-        "duration_s": round(samples.size / rate, 2), "sample_rate": rate,
-        "level_dbfs": round(_db(rms), 1), "peak_dbfs": round(_db(peak), 1),
-        "crest_factor": round(peak / rms, 2), "kurtosis": round(kurtosis, 2),
-        "centroid_hz": round(centroid, 1), "bands": _bands(freqs, power),
-        "hf_flatness": round(_flatness(power[high]), 3), "rpm": rpm, "shaft_hz": round(shaft, 2) if shaft else None,
-        "blades": blades, "blade_pass_hz": round(blades * shaft, 1) if blades and shaft else None,
-        "peaks": peaks, "spectrum": _spectrum_points(freqs, power, rate),
+        "duration_s": round(samples.size / rate, 2),
+        "sample_rate": rate,
+        "level_dbfs": round(_db(rms), 1),
+        "peak_dbfs": round(_db(peak), 1),
+        "crest_factor": round(peak / rms, 2),
+        "kurtosis": round(kurtosis, 2),
+        "centroid_hz": round(centroid, 1),
+        "bands": _bands(freqs, power),
+        "hf_flatness": round(_flatness(power[high]), 3),
+        "rpm": rpm,
+        "shaft_hz": round(shaft, 2) if shaft else None,
+        "blades": blades,
+        "blade_pass_hz": round(blades * shaft, 1) if blades and shaft else None,
+        "peaks": peaks,
+        "spectrum": _spectrum_points(freqs, power, rate),
     }
 
 
@@ -223,14 +240,22 @@ def baseline_level(equipment_type: str | None, levels: list[float], specs: dict 
     """
     if levels:
         used = levels[:BASELINE_RECORDINGS]
-        return {"dbfs": round(sum(used) / len(used), 1), "source": "recordings", "recordings": len(used),
-                "title": f"среднее {len(used)} записей этого агрегата, отмеченных как норма"}
+        return {
+            "dbfs": round(sum(used) / len(used), 1),
+            "source": "recordings",
+            "recordings": len(used),
+            "title": f"среднее {len(used)} записей этого агрегата, отмеченных как норма",
+        }
     card_level = (specs or {}).get("sound_baseline_dbfs")
     if isinstance(card_level, (int, float)):
         return {"dbfs": float(card_level), "source": "card", "recordings": 0, "title": "уровень из карточки агрегата"}
     level = TYPE_BASELINES.get(equipment_type or "", DEFAULT_BASELINE)
-    return {"dbfs": level, "source": "model_default", "recordings": 0,
-            "title": "типовой уровень для этого типа оборудования (записей-норм ещё нет)"}
+    return {
+        "dbfs": level,
+        "source": "model_default",
+        "recordings": 0,
+        "title": "типовой уровень для этого типа оборудования (записей-норм ещё нет)",
+    }
 
 
 def candidates(measures: dict, baseline: dict) -> list[dict]:
@@ -239,30 +264,43 @@ def candidates(measures: dict, baseline: dict) -> list[dict]:
 
     def add(sign: str, text: str, value: float | None) -> None:
         """Добавляет кандидата с готовым запросом подтверждения."""
-        found.append({"sign": sign, "title": SIGN_TITLES[sign], "text": text, "value": value,
-                      "confirm": {"kind": "defect", "sign": sign}})
+        found.append(
+            {"sign": sign, "title": SIGN_TITLES[sign], "text": text, "value": value, "confirm": {"kind": "defect", "sign": sign}}
+        )
 
     delta = measures["level_dbfs"] - baseline["dbfs"]
     if delta >= LOUDER_DB:
         against = "прошлых осмотров" if baseline["source"] == "recordings" else "типового уровня"
         add("noise_high", f"Повышенный шум относительно {against} +{_number(delta, 0)} дБ", round(delta, 1))
     if measures["kurtosis"] >= KURTOSIS_LIMIT and measures["crest_factor"] >= CREST_LIMIT:
-        add("noise_impulsive", f"Импульсный шум (стук), коэффициент амплитуды {_number(measures['crest_factor'])}, "
-                               f"эксцесс {_number(measures['kurtosis'])}", measures["crest_factor"])
+        add(
+            "noise_impulsive",
+            f"Импульсный шум (стук), коэффициент амплитуды {_number(measures['crest_factor'])}, "
+            f"эксцесс {_number(measures['kurtosis'])}",
+            measures["crest_factor"],
+        )
     for peak in measures["peaks"]:
         if peak["match"]:
-            add("noise_tonal", f"Тональная составляющая {_number(peak['freq_hz'], 0)} Гц ≈ {peak['match_title']}",
-                peak["freq_hz"])
+            add(
+                "noise_tonal", f"Тональная составляющая {_number(peak['freq_hz'], 0)} Гц ≈ {peak['match_title']}", peak["freq_hz"]
+            )
             break
     bands = {band["code"]: band for band in measures["bands"]}
     hf_share = bands["high"]["share"] + bands["ultra"]["share"]
     if hf_share >= HF_SHARE_LIMIT and measures["hf_flatness"] >= FLATNESS_LIMIT:
-        add("cavitation_noise", f"Широкополосный высокочастотный шум, похожий на кавитацию: "
-                                f"{_number(hf_share * 100, 0)} % энергии выше 2 кГц", round(hf_share, 3))
+        add(
+            "cavitation_noise",
+            f"Широкополосный высокочастотный шум, похожий на кавитацию: " f"{_number(hf_share * 100, 0)} % энергии выше 2 кГц",
+            round(hf_share, 3),
+        )
     return found
 
 
 def summary(measures: dict, baseline: dict) -> dict:
     """Итог анализа для хранения и ответа: измерения, норма уровня с отличием, кандидаты и оговорка."""
-    return {**measures, "baseline": {**baseline, "delta_db": round(measures["level_dbfs"] - baseline["dbfs"], 1)},
-            "candidates": candidates(measures, baseline), "note": CANDIDATE_NOTE}
+    return {
+        **measures,
+        "baseline": {**baseline, "delta_db": round(measures["level_dbfs"] - baseline["dbfs"], 1)},
+        "candidates": candidates(measures, baseline),
+        "note": CANDIDATE_NOTE,
+    }

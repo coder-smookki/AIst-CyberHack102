@@ -13,6 +13,7 @@
 и при выбранных порогах; на чистых снимках помещений (клавиатуры, мониторы, стены) - доля снимков с ложной рамкой.
 Отчёт runs/reports/<название>.json.
 """
+
 import argparse
 import glob
 import json
@@ -36,13 +37,17 @@ def records_for(model, folder: str, split: str) -> list[dict]:
             continue
         height, width = frame.shape[:2]
         stem = os.path.splitext(os.path.basename(path))[0]
-        truth = [(EQUIPMENT_CLASSES[cls], box) for cls, box in
-                 read_truth(os.path.join(folder, "labels", split, stem + ".txt"), width, height)]
+        truth = [
+            (EQUIPMENT_CLASSES[cls], box)
+            for cls, box in read_truth(os.path.join(folder, "labels", split, stem + ".txt"), width, height)
+        ]
         result = model(frame, conf=0.05)
         result = result[0] if isinstance(result, (list, tuple)) else result
         names = result.names if isinstance(getattr(result, "names", None), dict) else dict(enumerate(EQUIPMENT_CLASSES))
-        predicted = [(names[int(c)], tuple(float(v) for v in box), float(s))
-                     for box, c, s in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)]
+        predicted = [
+            (names[int(c)], tuple(float(v) for v in box), float(s))
+            for box, c, s in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)
+        ]
         records.append({"file": os.path.basename(path), "truth": truth, "predicted": predicted, "size": (width, height)})
     return records
 
@@ -76,10 +81,14 @@ def class_stats(records: list[dict], thresholds: dict, min_area: float) -> dict:
     for name, row in stats.items():
         positives = row["tp"] + row["fn"]
         found = row["tp"] + row["fp"]
-        out[name] = {"tp": row["tp"], "fp": row["fp"], "fn": row["fn"],
-                     "precision": round(row["tp"] / found, 3) if found else None,
-                     "recall": round(row["tp"] / positives, 3) if positives else None,
-                     "ap50": average_precision(row["scored"], positives) if positives else None}
+        out[name] = {
+            "tp": row["tp"],
+            "fp": row["fp"],
+            "fn": row["fn"],
+            "precision": round(row["tp"] / found, 3) if found else None,
+            "recall": round(row["tp"] / positives, 3) if positives else None,
+            "ap50": average_precision(row["scored"], positives) if positives else None,
+        }
     return out
 
 
@@ -104,8 +113,12 @@ def false_alarms(records: list[dict], thresholds: dict, min_area: float) -> dict
         hit += bool(names)
         for name in names:
             by_class[name] = by_class.get(name, 0) + 1
-    return {"images": len(records), "with_alarm": hit, "rate": round(hit / len(records), 3) if records else None,
-            "by_class": by_class}
+    return {
+        "images": len(records),
+        "with_alarm": hit,
+        "rate": round(hit / len(records), 3) if records else None,
+        "by_class": by_class,
+    }
 
 
 def clean_alarms(model, folder: str, thresholds: dict, min_area: float) -> dict:
@@ -127,8 +140,10 @@ def records_for_frame(model, path: str) -> dict:
     result = model(frame, conf=0.05)
     result = result[0] if isinstance(result, (list, tuple)) else result
     names = result.names if isinstance(getattr(result, "names", None), dict) else dict(enumerate(EQUIPMENT_CLASSES))
-    predicted = [(names[int(c)], tuple(float(v) for v in box), float(s))
-                 for box, c, s in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)]
+    predicted = [
+        (names[int(c)], tuple(float(v) for v in box), float(s))
+        for box, c, s in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)
+    ]
     return {"truth": [], "predicted": predicted, "size": (width, height)}
 
 
@@ -143,6 +158,7 @@ def main() -> None:
     parser.add_argument("--clean", default=os.path.join(ROOT, "data", "open", "clean-indoor", "images"))
     args = parser.parse_args()
     from libreyolo import LibreYOLO
+
     model = LibreYOLO(args.weights)
     val = records_for(model, args.data, "val")
     test = records_for(model, args.data, "test")
@@ -150,11 +166,17 @@ def main() -> None:
     neg_val, neg_test = negatives[0::2], negatives[1::2]
     thresholds = pick_thresholds(val + neg_val, args.target, args.min_area)
     flat = {name: 0.25 for name in EQUIPMENT_CLASSES}
-    report = {"name": args.name, "weights": args.weights, "date": time.strftime("%Y-%m-%d %H:%M"), "target_precision": args.target,
-              "min_area": args.min_area, "thresholds": thresholds,
-              "val_tuned": class_stats(val, thresholds, args.min_area),
-              "test_conf_0.25": class_stats(test, flat, 0.0),
-              "test_tuned": class_stats(test, thresholds, args.min_area)}
+    report = {
+        "name": args.name,
+        "weights": args.weights,
+        "date": time.strftime("%Y-%m-%d %H:%M"),
+        "target_precision": args.target,
+        "min_area": args.min_area,
+        "thresholds": thresholds,
+        "val_tuned": class_stats(val, thresholds, args.min_area),
+        "test_conf_0.25": class_stats(test, flat, 0.0),
+        "test_tuned": class_stats(test, thresholds, args.min_area),
+    }
     if negatives:
         report["negatives_conf_0.25"] = false_alarms(neg_test, flat, 0.0)
         report["negatives_tuned"] = false_alarms(neg_test, thresholds, args.min_area)

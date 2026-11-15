@@ -1,4 +1,5 @@
 """Проверки дополнительных маршрутов: справочник и разбор правил, отклонение и комментарии замечаний, сведения об объекте."""
+
 import io
 import shutil
 import socket
@@ -24,10 +25,26 @@ from server.seed import load_cards
 SECRET = "x" * 48
 PASSWORD = "demo12345"
 CALM = {
-    "rpm": 2950.0, "vib_rms": 1.0, "vib_1x": 0.8, "vib_2x": 0.3, "vib_hf": 0.1, "vib_axial": 0.45,
-    "temp_bearing": 50.0, "temp_winding": 65.0, "current_a": 11.0, "current_b": 11.0, "current_c": 11.0,
-    "current_unbalance": 0.5, "press_in": 1.5, "press_out": 4.6, "press_out_true": 4.6, "flow": 47.0, "power": 5.5,
-    "efficiency": 73.8, "run_hours": 19195.0, "mode": 1.0,
+    "rpm": 2950.0,
+    "vib_rms": 1.0,
+    "vib_1x": 0.8,
+    "vib_2x": 0.3,
+    "vib_hf": 0.1,
+    "vib_axial": 0.45,
+    "temp_bearing": 50.0,
+    "temp_winding": 65.0,
+    "current_a": 11.0,
+    "current_b": 11.0,
+    "current_c": 11.0,
+    "current_unbalance": 0.5,
+    "press_in": 1.5,
+    "press_out": 4.6,
+    "press_out_true": 4.6,
+    "flow": 47.0,
+    "power": 5.5,
+    "efficiency": 73.8,
+    "run_hours": 19195.0,
+    "mode": 1.0,
 }
 HOT = {**CALM, "vib_hf": 3.2, "temp_bearing": 82.0}
 
@@ -62,10 +79,26 @@ class FakePlayer:
 
     def parameters(self, at=None):
         """Описание параметров с уставками заказчика для вибрации и температур."""
-        limits = {"vib_rms": (None, None), "vib_1x": (2.8, 4.5), "vib_2x": (1.8, 3.0), "vib_hf": (2.5, 5.0),
-                  "temp_bearing": (75.0, 90.0), "temp_winding": (90.0, 110.0)}
-        return [{"code": code, "name": code, "unit": "мм/с", "warn": warn, "alarm": alarm,
-                 "direction": "high" if warn else None, "source": "model"} for code, (warn, alarm) in limits.items()]
+        limits = {
+            "vib_rms": (None, None),
+            "vib_1x": (2.8, 4.5),
+            "vib_2x": (1.8, 3.0),
+            "vib_hf": (2.5, 5.0),
+            "temp_bearing": (75.0, 90.0),
+            "temp_winding": (90.0, 110.0),
+        }
+        return [
+            {
+                "code": code,
+                "name": code,
+                "unit": "мм/с",
+                "warn": warn,
+                "alarm": alarm,
+                "direction": "high" if warn else None,
+                "source": "model",
+            }
+            for code, (warn, alarm) in limits.items()
+        ]
 
     def window(self, code, hours=24, at=None):
         """Ряд значений параметра по часам: постоянное текущее значение."""
@@ -142,8 +175,9 @@ def start(client, auth_headers, equipment_id="N-101"):
 
 def defect(client, auth_headers, inspection_id, sign="leak", node="seal"):
     """Фиксирует дефект по признаку и возвращает запись."""
-    response = client.post(f"/inspections/{inspection_id}/findings", headers=auth_headers,
-                           data={"kind": "defect", "sign": sign, "node": node})
+    response = client.post(
+        f"/inspections/{inspection_id}/findings", headers=auth_headers, data={"kind": "defect", "sign": sign, "node": node}
+    )
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -303,8 +337,7 @@ def test_reject_after_finish_updates_summary(client, readings):
     finding = defect(client, engineer, inspection_id, sign="corrosion", node="casing")
     finished = client.post(f"/inspections/{inspection_id}/finish", headers=engineer).json()
     assert finished["summary"]["status"] == "defect"
-    client.post(f"/inspections/findings/{finding['id']}/state", json={"state": "rejected", "comment": "грязь"},
-                headers=master)
+    client.post(f"/inspections/findings/{finding['id']}/state", json={"state": "rejected", "comment": "грязь"}, headers=master)
     summary = client.get(f"/inspections/{inspection_id}", headers=engineer).json()["summary"]
     assert summary["rejected"] == 1 and summary["by_status"]["defect"] == 0
     assert summary["status"] == "incomplete" and summary["status_title"] == "Осмотр неполный" and summary["uninspected"]
@@ -317,13 +350,17 @@ def test_resolved_finding_cannot_be_rejected(client):
     first = defect(client, engineer, inspection_id)
     second = defect(client, engineer, inspection_id, sign="corrosion", node="casing")
     for state in ("in_work", "resolved"):
-        assert client.post(f"/inspections/findings/{first['id']}/state", json={"state": state},
-                           headers=master).status_code == 200
-    assert client.post(f"/inspections/findings/{first['id']}/state", json={"state": "rejected", "comment": "нет"},
-                       headers=master).status_code == 409
+        assert client.post(f"/inspections/findings/{first['id']}/state", json={"state": state}, headers=master).status_code == 200
+    assert (
+        client.post(
+            f"/inspections/findings/{first['id']}/state", json={"state": "rejected", "comment": "нет"}, headers=master
+        ).status_code
+        == 409
+    )
     client.post(f"/inspections/findings/{second['id']}/state", json={"state": "in_work"}, headers=master)
-    moved = client.post(f"/inspections/findings/{second['id']}/state", json={"state": "rejected", "comment": "нет"},
-                        headers=master)
+    moved = client.post(
+        f"/inspections/findings/{second['id']}/state", json={"state": "rejected", "comment": "нет"}, headers=master
+    )
     assert moved.status_code == 200 and moved.json()["state"] == "rejected"
 
 
@@ -363,9 +400,11 @@ def test_old_findings_table_is_migrated(seeded_database, tmp_path, monkeypatch):
     path = tmp_path / "old.db"
     shutil.copyfile(seeded_database, path)
     with sqlite3.connect(path) as connection:
-        rows = connection.execute("SELECT id, inspection_id, equipment_id, node_code, source, rule_id, status, severity, "
-                                  "title, diagnosis, recommendation, confidence, evidence, comment, photo_path, state, "
-                                  "created_at FROM findings").fetchall()
+        rows = connection.execute(
+            "SELECT id, inspection_id, equipment_id, node_code, source, rule_id, status, severity, "
+            "title, diagnosis, recommendation, confidence, evidence, comment, photo_path, state, "
+            "created_at FROM findings"
+        ).fetchall()
         connection.execute("DROP TABLE findings")
         connection.executescript(OLD_FINDINGS)
         connection.executemany(f"INSERT INTO findings VALUES ({', '.join('?' * 17)})", rows)
@@ -404,12 +443,15 @@ def test_site_defaults_and_shift(client, monkeypatch):
     assert body["server_name"] == socket.gethostname() and body["name"] == "Насосная станция № 5"
 
 
-@pytest.mark.parametrize(("clock", "code", "start"), [
-    ("2026-11-14T08:00", "day", "2026-11-14T08:00"),
-    ("2026-11-14T19:59", "day", "2026-11-14T08:00"),
-    ("2026-11-14T20:00", "night", "2026-11-14T20:00"),
-    ("2026-11-15T07:59", "night", "2026-11-14T20:00"),
-])
+@pytest.mark.parametrize(
+    ("clock", "code", "start"),
+    [
+        ("2026-11-14T08:00", "day", "2026-11-14T08:00"),
+        ("2026-11-14T19:59", "day", "2026-11-14T08:00"),
+        ("2026-11-14T20:00", "night", "2026-11-14T20:00"),
+        ("2026-11-15T07:59", "night", "2026-11-14T20:00"),
+    ],
+)
 def test_shift_boundaries(clock, code, start, monkeypatch):
     """Дневная смена 08:00-20:00, ночная 20:00-08:00; ночная после полуночи начинается накануне."""
     monkeypatch.setenv("KST_TIMEZONE", "Europe/Moscow")
@@ -444,7 +486,7 @@ def tone(freq, seconds=6.0, rate=16000, amplitude=0.3, noise=0.01, seed=1):
 def knocks(seconds=6.0, rate=16000, period=0.1):
     """Тихий шум с короткими ударами через равные промежутки - стук."""
     samples = 0.01 * np.random.default_rng(2).standard_normal(int(rate * seconds))
-    samples[::int(rate * period)] += 0.9
+    samples[:: int(rate * period)] += 0.9
     return samples
 
 
@@ -455,8 +497,12 @@ def white(seconds=6.0, rate=16000, amplitude=0.2):
 
 def upload(client, auth_headers, inspection_id, data, normal=False):
     """Отправляет запись звука осмотра."""
-    return client.post(f"/inspections/{inspection_id}/sound", headers=auth_headers,
-                       files={"audio": ("rec.wav", data, "audio/wav")}, data={"normal": str(normal).lower()})
+    return client.post(
+        f"/inspections/{inspection_id}/sound",
+        headers=auth_headers,
+        files={"audio": ("rec.wav", data, "audio/wav")},
+        data={"normal": str(normal).lower()},
+    )
 
 
 def test_sound_analysis_of_synthetic_signals():
@@ -483,13 +529,16 @@ def test_sound_analysis_of_synthetic_signals():
     assert stereo[1] == 16000 and stereo[0].size == 96000
 
 
-@pytest.mark.parametrize(("data", "text"), [
-    (b"not a wav file", "не является записью WAV"),
-    (wav(tone(100.0), width=1), "16 бит"),
-    (wav(tone(100.0, seconds=1.0)), "Длительность"),
-    (wav(tone(100.0, rate=8000), rate=8000), "Частота дискретизации"),
-    (wav(np.zeros(32000)), None),
-])
+@pytest.mark.parametrize(
+    ("data", "text"),
+    [
+        (b"not a wav file", "не является записью WAV"),
+        (wav(tone(100.0), width=1), "16 бит"),
+        (wav(tone(100.0, seconds=1.0)), "Длительность"),
+        (wav(tone(100.0, rate=8000), rate=8000), "Частота дискретизации"),
+        (wav(np.zeros(32000)), None),
+    ],
+)
 def test_sound_rejects_bad_records(data, text):
     """Не WAV, не 16 бит, короче 2 с, частота ниже 16 кГц и тишина отклоняются с понятным текстом."""
     with pytest.raises(sound.SoundError) as error:
@@ -521,8 +570,9 @@ def test_sound_endpoint_stores_record_and_candidates(client):
     assert client.get(f"/inspections/{inspection_id}", headers=engineer).json()["findings"] == []
     assert upload(client, engineer, inspection_id, b"junk").status_code == 422
     assert upload(client, headers(client, "operator"), inspection_id, wav(white())).status_code == 403
-    confirmed = client.post(f"/inspections/{inspection_id}/findings", headers=engineer,
-                            data={"kind": "defect", "sign": "noise_impulsive"})
+    confirmed = client.post(
+        f"/inspections/{inspection_id}/findings", headers=engineer, data={"kind": "defect", "sign": "noise_impulsive"}
+    )
     assert confirmed.status_code == 201, confirmed.text
     assert confirmed.json()["rule_id"] == "N01" and confirmed.json()["status"] == "check"
     rule = client.get(f"/equipment/N-101/rules/N01?inspection_id={inspection_id}", headers=engineer).json()
@@ -537,8 +587,15 @@ def test_new_equipment_types_and_rules(client):
     engineer = headers(client, "engineer")
     cabinet = client.get("/equipment/SHU-3", headers=engineer).json()
     assert cabinet["type"] == "control_cabinet" and cabinet["serial"] == "2408-0317" and cabinet["demo"] is True
-    assert {node["id"] for node in cabinet["nodes"]} == {"door_seal", "terminals", "contactors", "breakers", "indicators",
-                                                         "cable_entries", "vent_filter"}
+    assert {node["id"] for node in cabinet["nodes"]} == {
+        "door_seal",
+        "terminals",
+        "contactors",
+        "breakers",
+        "indicators",
+        "cable_entries",
+        "vent_filter",
+    }
     transformer = client.get("/equipment/TR-1", headers=engineer).json()
     assert transformer["model"] == "ТМ-400/10-У1" and len(transformer["nodes"]) == 7
     assert all(node["source"] and (node["norm_hours"] or node["norm_years"]) for node in transformer["nodes"])
@@ -642,8 +699,11 @@ def test_note_finding_does_not_mark_node(client):
     inspection_id = start(client, auth_headers)
     empty = client.post(f"/inspections/{inspection_id}/findings", data={"kind": "note", "node": "seal"}, headers=auth_headers)
     assert empty.status_code == 422
-    made = client.post(f"/inspections/{inspection_id}/findings",
-                       data={"kind": "note", "node": "seal", "comment": "Подтёков нет, но шумит"}, headers=auth_headers)
+    made = client.post(
+        f"/inspections/{inspection_id}/findings",
+        data={"kind": "note", "node": "seal", "comment": "Подтёков нет, но шумит"},
+        headers=auth_headers,
+    )
     assert made.status_code == 201, made.text
     body = made.json()
     assert body["kind"] == "note" and body["title"] == "Заметка инженера" and body["state"] == "resolved"

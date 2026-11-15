@@ -10,6 +10,7 @@
 достаточная доля лучей от камеры действительно попадает в узел. Узлы, скрытые за двигателем или видимые
 с обратной стороны, в разметку не попадают. Проверено в Blender 5.2, движок EEVEE, фоновый режим.
 """
+
 import contextlib
 import json
 import math
@@ -21,12 +22,23 @@ import bpy
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Euler, Vector
 
-argv = sys.argv[sys.argv.index("--") + 1:]
+argv = sys.argv[sys.argv.index("--") + 1 :]
 TEX, OUT, SPLIT, N, SEED = argv[0], argv[1], argv[2], int(argv[3]), int(argv[4])
 SAVE_BLEND = "--save-blend" in argv
 W, H = 960, 720
-CLASSES = ["motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box",
-           "terminal_box_burnt", "nameplate", "gauge", "leak", "corrosion"]
+CLASSES = [
+    "motor",
+    "pump_casing",
+    "flange",
+    "coupling_guard",
+    "coupling_no_guard",
+    "terminal_box",
+    "terminal_box_burnt",
+    "nameplate",
+    "gauge",
+    "leak",
+    "corrosion",
+]
 rnd = random.Random(SEED)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -88,10 +100,22 @@ M = {
     "guard": mat("guard", (0.92, 0.62, 0.03), 0.45, 0.2),
     "coupling": mat("coupling", (0.78, 0.25, 0.04), 0.4, 0.3),
     "box": mat("box", (0.26, 0.28, 0.30), 0.5, 0.3),
-    "burnt": mat("burnt", (0.03, 0.03, 0.03), 0.9, 0.0,
-                 (9, [(0.25, (0.012, 0.010, 0.010)), (0.55, (0.10, 0.045, 0.02)), (0.8, (0.30, 0.27, 0.24))]), 0.5),
-    "rust": mat("rust", (0.4, 0.15, 0.04), 0.95, 0.0,
-                (22, [(0.25, (0.16, 0.055, 0.02)), (0.55, (0.47, 0.19, 0.05)), (0.85, (0.66, 0.34, 0.10))]), 0.9),
+    "burnt": mat(
+        "burnt",
+        (0.03, 0.03, 0.03),
+        0.9,
+        0.0,
+        (9, [(0.25, (0.012, 0.010, 0.010)), (0.55, (0.10, 0.045, 0.02)), (0.8, (0.30, 0.27, 0.24))]),
+        0.5,
+    ),
+    "rust": mat(
+        "rust",
+        (0.4, 0.15, 0.04),
+        0.95,
+        0.0,
+        (22, [(0.25, (0.16, 0.055, 0.02)), (0.55, (0.47, 0.19, 0.05)), (0.85, (0.66, 0.34, 0.10))]),
+        0.9,
+    ),
     "oil": mat("oil", (0.012, 0.010, 0.008), 0.06, 0.0),
     "floor": mat("floor", (0.2, 0.2, 0.2), 0.85, 0.0, (4.5, [(0.3, (0.13, 0.13, 0.125)), (0.75, (0.27, 0.27, 0.26))]), 0.15),
     "wall": mat("wall", (0.35, 0.36, 0.34), 0.9, 0.0, (2.2, [(0.3, (0.26, 0.27, 0.26)), (0.8, (0.42, 0.42, 0.40))]), 0.05),
@@ -172,37 +196,78 @@ cyl("env@0@lantern_bottom", "paint", 0.17, 0.035, (0, 0, ZL0 + 0.017))
 cyl("env@0@lantern_top", "paint", 0.19, 0.035, (0, 0, ZL1 - 0.017))
 for k in range(4):
     a = math.pi / 4 + k * math.pi / 2
-    box(f"env@0@pillar{k}", "paint", (0.05, 0.035, ZL1 - ZL0), (0.155 * math.cos(a), 0.155 * math.sin(a), (ZL0 + ZL1) / 2), (0, 0, a))
+    box(
+        f"env@0@pillar{k}",
+        "paint",
+        (0.05, 0.035, ZL1 - ZL0),
+        (0.155 * math.cos(a), 0.155 * math.sin(a), (ZL0 + ZL1) / 2),
+        (0, 0, a),
+    )
 cyl("coupling_no_guard@0@shaft", "steel", 0.024, ZL1 - ZL0, (0, 0, (ZL0 + ZL1) / 2))
 cyl("coupling_no_guard@0@hub", "coupling", 0.058, 0.11, (0, 0, (ZL0 + ZL1) / 2 + 0.01))
 guard_parts = []
 for k, a in enumerate((-math.pi / 2, math.pi / 2, 0, math.pi)):
-    guard_parts.append(box(f"coupling_guard@0@shield{k}", "guard", (0.20, 0.012, ZL1 - ZL0 - 0.075),
-                           (0.168 * math.cos(a), 0.168 * math.sin(a), (ZL0 + ZL1) / 2), (0, 0, a + math.pi / 2)))
+    guard_parts.append(
+        box(
+            f"coupling_guard@0@shield{k}",
+            "guard",
+            (0.20, 0.012, ZL1 - ZL0 - 0.075),
+            (0.168 * math.cos(a), 0.168 * math.sin(a), (ZL0 + ZL1) / 2),
+            (0, 0, a + math.pi / 2),
+        )
+    )
 
 ZM0, ZM1 = ZL1, ZL1 + 0.50
 cyl("motor@0@body", "motor", 0.185, ZM1 - ZM0, (0, 0, (ZM0 + ZM1) / 2))
 for k in range(30):
     a = 2 * math.pi * k / 30
-    box(f"motor@0@fin{k}", "motor", (0.03, 0.008, ZM1 - ZM0 - 0.06), (0.196 * math.cos(a), 0.196 * math.sin(a), (ZM0 + ZM1) / 2), (0, 0, a))
+    box(
+        f"motor@0@fin{k}",
+        "motor",
+        (0.03, 0.008, ZM1 - ZM0 - 0.06),
+        (0.196 * math.cos(a), 0.196 * math.sin(a), (ZM0 + ZM1) / 2),
+        (0, 0, a),
+    )
 cyl("motor@0@fan_cover", "dark", 0.205, 0.13, (0, 0, ZM1 + 0.065))
 cyl("motor@0@flange", "motor", 0.21, 0.03, (0, 0, ZM0 + 0.015))
 
 A_BOX = math.radians(-58)
 bx, by = 0.255 * math.cos(A_BOX), 0.255 * math.sin(A_BOX)
 tb = box("terminal_box@0@body", "box", (0.17, 0.11, 0.15), (bx, by, ZM0 + 0.33), (0, 0, A_BOX))
-tb_lid = box("terminal_box@0@lid", "box", (0.012, 0.125, 0.165), (0.345 * math.cos(A_BOX), 0.345 * math.sin(A_BOX), ZM0 + 0.33), (0, 0, A_BOX))
+tb_lid = box(
+    "terminal_box@0@lid",
+    "box",
+    (0.012, 0.125, 0.165),
+    (0.345 * math.cos(A_BOX), 0.345 * math.sin(A_BOX), ZM0 + 0.33),
+    (0, 0, A_BOX),
+)
 cyl("terminal_box@0@gland", "dark", 0.016, 0.05, (bx, by, ZM0 + 0.235), (0, 0, 0), 16)
 soots = [
-    ell("terminal_box_burnt@0@scorch", "burnt", (0.006, 0.05, 0.06),
-        (0.352 * math.cos(A_BOX), 0.352 * math.sin(A_BOX), ZM0 + 0.34), (0, 0, A_BOX)),
-    ell("terminal_box_burnt@0@soot", "burnt", (0.05, 0.02, 0.09),
-        (0.205 * math.cos(A_BOX + 0.25), 0.205 * math.sin(A_BOX + 0.25), ZM0 + 0.445), (0, 0, A_BOX + 0.25)),
+    ell(
+        "terminal_box_burnt@0@scorch",
+        "burnt",
+        (0.006, 0.05, 0.06),
+        (0.352 * math.cos(A_BOX), 0.352 * math.sin(A_BOX), ZM0 + 0.34),
+        (0, 0, A_BOX),
+    ),
+    ell(
+        "terminal_box_burnt@0@soot",
+        "burnt",
+        (0.05, 0.02, 0.09),
+        (0.205 * math.cos(A_BOX + 0.25), 0.205 * math.sin(A_BOX + 0.25), ZM0 + 0.445),
+        (0, 0, A_BOX + 0.25),
+    ),
 ]
 
 A_PL = math.radians(-118)
-pl = plane("nameplate@0@plate", "plate", 0.17, 0.109, (0.213 * math.cos(A_PL), 0.213 * math.sin(A_PL), ZM0 + 0.27),
-           (math.pi / 2, 0, A_PL + math.pi / 2))
+pl = plane(
+    "nameplate@0@plate",
+    "plate",
+    0.17,
+    0.109,
+    (0.213 * math.cos(A_PL), 0.213 * math.sin(A_PL), ZM0 + 0.27),
+    (math.pi / 2, 0, A_PL + math.pi / 2),
+)
 box("env@0@plate_base", "motor", (0.02, 0.18, 0.118), (0.202 * math.cos(A_PL), 0.202 * math.sin(A_PL), ZM0 + 0.27), (0, 0, A_PL))
 
 GX, GZ = 0.66, ZP + 0.27
@@ -231,7 +296,9 @@ cam = bpy.data.objects.new("cam", cam_data)
 col.objects.link(cam)
 scene.camera = cam
 lights = []
-for i, (kind, loc, energy) in enumerate((("AREA", (-1.5, -2.5, 3.2), 260), ("AREA", (2.5, -1.8, 2.4), 150), ("POINT", (0, -0.5, 3.4), 70))):
+for i, (kind, loc, energy) in enumerate(
+    (("AREA", (-1.5, -2.5, 3.2), 260), ("AREA", (2.5, -1.8, 2.4), 150), ("POINT", (0, -0.5, 3.4), 70))
+):
     ld = bpy.data.lights.new(f"l{i}", kind)
     ld.energy = energy
     if kind == "AREA":
@@ -253,6 +320,7 @@ scene.render.image_settings.file_format = "JPEG"
 scene.render.image_settings.quality = 92
 with contextlib.suppress(Exception):
     scene.eevee.taa_render_samples = 16
+
 
 def set_hidden(o, flag):
     """Скрывает объект и для рендера, и для лучей проверки видимости."""
@@ -339,8 +407,16 @@ for i in range(N):
     r = rnd.uniform(1.5, 3.3)
     tgt = Vector((rnd.uniform(-0.25, 0.3), 0, rnd.uniform(0.6, 1.05)))
     if rnd.random() < 0.22:
-        tgt = Vector(rnd.choice([(0.21 * math.cos(A_PL), 0.21 * math.sin(A_PL), ZM0 + 0.27), (GX, 0, GZ),
-                                 (bx, by, ZM0 + 0.33), (0, -0.2, ZP + 0.1)]))
+        tgt = Vector(
+            rnd.choice(
+                [
+                    (0.21 * math.cos(A_PL), 0.21 * math.sin(A_PL), ZM0 + 0.27),
+                    (GX, 0, GZ),
+                    (bx, by, ZM0 + 0.33),
+                    (0, -0.2, ZP + 0.1),
+                ]
+            )
+        )
         r = rnd.uniform(0.7, 1.3)
         az = math.radians(rnd.uniform(-70, 40)) + (A_PL + math.pi / 2 if tgt.z > ZM0 and tgt.x < 0 else 0) * 0.5
     pos = tgt + Vector((math.sin(az) * math.cos(el), -math.cos(az) * math.cos(el), math.sin(el))) * r
@@ -349,7 +425,9 @@ for i in range(N):
         pos.y = 1.35
     cam.location = pos
     q = (tgt - pos).to_track_quat("-Z", "Y")
-    cam.rotation_euler = (q.to_matrix().to_4x4() @ Euler((0, 0, math.radians(rnd.uniform(-5, 5)))).to_matrix().to_4x4()).to_euler()
+    cam.rotation_euler = (
+        q.to_matrix().to_4x4() @ Euler((0, 0, math.radians(rnd.uniform(-5, 5)))).to_matrix().to_4x4()
+    ).to_euler()
     cam_data.lens = rnd.uniform(24, 45)
 
     for lo, e in lights:
@@ -383,9 +461,20 @@ for i in range(N):
     scene.render.filepath = os.path.join(img_dir, name + ".jpg")
     bpy.ops.render.render(write_still=True)
     open(os.path.join(lab_dir, name + ".txt"), "w").writelines(rows)
-    meta_all.append({"file": name + ".jpg", "gauge_bar": bar, "guard": guard_on, "leak": leak_on, "burnt": burnt,
-                     "az_deg": round(math.degrees(az), 1), "el_deg": round(math.degrees(el), 1), "dist_m": round(r, 2),
-                     "lens_mm": round(cam_data.lens, 1), "objects": found})
+    meta_all.append(
+        {
+            "file": name + ".jpg",
+            "gauge_bar": bar,
+            "guard": guard_on,
+            "leak": leak_on,
+            "burnt": burnt,
+            "az_deg": round(math.degrees(az), 1),
+            "el_deg": round(math.degrees(el), 1),
+            "dist_m": round(r, 2),
+            "lens_mm": round(cam_data.lens, 1),
+            "objects": found,
+        }
+    )
 
 json.dump({"classes": CLASSES, "frames": meta_all}, open(os.path.join(OUT, f"meta_{SPLIT}_{SEED}.json"), "w"), indent=0)
 if SAVE_BLEND:

@@ -13,6 +13,7 @@ kaggle kernels push. Результат забирается командой ka
 -p runs/kaggle/<ноутбук> и проверяется локально через cv/protocol.py. Ключ --source прикладывает вывод
 прошлого ноутбука как входные данные: так cv/kaggle_train_v4.py продолжает опыт, прерванный пределом сессии.
 """
+
 import argparse
 import json
 import os
@@ -22,8 +23,9 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 KAGGLE = os.path.join(ROOT, ".venv", "bin", "kaggle")
 
 
-def build(kernel: str, experiments: list, dataset: str, script: str = "kaggle_train.py", extra: tuple = (),
-          sources: tuple = ()) -> str:
+def build(
+    kernel: str, experiments: list, dataset: str, script: str = "kaggle_train.py", extra: tuple = (), sources: tuple = ()
+) -> str:
     """Создаёт папку ноутбука со скриптом и описанием и возвращает её путь.
 
     extra - дополнительные наборы Kaggle, sources - ноутбуки, чей вывод прикладывается как входные данные.
@@ -35,9 +37,19 @@ def build(kernel: str, experiments: list, dataset: str, script: str = "kaggle_tr
     code = code.replace("EXPERIMENTS = []", "EXPERIMENTS = " + repr(experiments), 1)
     with open(os.path.join(folder, "train.py"), "w", encoding="utf-8") as handle:
         handle.write(code)
-    meta = {"id": f"{owner}/{kernel}", "title": kernel, "code_file": "train.py", "language": "python",
-            "kernel_type": "script", "is_private": True, "enable_gpu": True, "enable_internet": True,
-            "dataset_sources": [dataset, *extra], "competition_sources": [], "kernel_sources": list(sources)}
+    meta = {
+        "id": f"{owner}/{kernel}",
+        "title": kernel,
+        "code_file": "train.py",
+        "language": "python",
+        "kernel_type": "script",
+        "is_private": True,
+        "enable_gpu": True,
+        "enable_internet": True,
+        "dataset_sources": [dataset, *extra],
+        "competition_sources": [],
+        "kernel_sources": list(sources),
+    }
     json.dump(meta, open(os.path.join(folder, "kernel-metadata.json"), "w", encoding="utf-8"), indent=1)
     return folder
 

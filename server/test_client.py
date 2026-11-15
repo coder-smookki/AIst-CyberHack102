@@ -5,6 +5,7 @@
 
 Токен доступа выдаёт POST /auth/login; он добавляется к адресу соединения параметром token.
 """
+
 import asyncio
 import glob
 import json
@@ -38,8 +39,10 @@ async def main(url: str, folder: str, token: str) -> None:
             boxes += len(reply["boxes"])
     trips.sort()
     median = trips[len(trips) // 2]
-    print(f"кадров {len(frames)}: круг медиана {median:.1f} мс, p95 {trips[int(len(trips) * 0.95)]:.1f} мс, "
-          f"модель {sum(inference) / len(inference):.1f} мс, рамок {boxes}, около {1000 / median:.0f} кадров/с")
+    print(
+        f"кадров {len(frames)}: круг медиана {median:.1f} мс, p95 {trips[int(len(trips) * 0.95)]:.1f} мс, "
+        f"модель {sum(inference) / len(inference):.1f} мс, рамок {boxes}, около {1000 / median:.0f} кадров/с"
+    )
 
 
 if __name__ == "__main__":

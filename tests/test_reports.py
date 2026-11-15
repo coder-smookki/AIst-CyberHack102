@@ -1,4 +1,5 @@
 """Проверки отчётов об осмотре: содержание и кириллица в PDF и Excel, три раздельные оценки, находки с основаниями."""
+
 import io
 import shutil
 import subprocess
@@ -25,10 +26,26 @@ OK_NOTE = "не является подтверждением исправнос
 TRICKY_COMMENT = "Капли <b>у вала</b> & пятно 5 см; t < 40 °C </para>"
 FORMULA_COMMENT = "=СУММ(A1:A9)"
 READINGS = {
-    "rpm": 2950.0, "vib_rms": 1.4, "vib_1x": 0.8, "vib_2x": 0.3, "vib_hf": 3.4, "vib_axial": 0.45,
-    "temp_bearing": 82.0, "temp_winding": 65.0, "current_a": 11.0, "current_b": 11.0, "current_c": 11.0,
-    "current_unbalance": 0.5, "press_in": 1.5, "press_out": 4.6, "press_out_true": 4.6, "flow": 47.0, "power": 5.5,
-    "efficiency": 73.8, "run_hours": 19195.0, "mode": 1.0,
+    "rpm": 2950.0,
+    "vib_rms": 1.4,
+    "vib_1x": 0.8,
+    "vib_2x": 0.3,
+    "vib_hf": 3.4,
+    "vib_axial": 0.45,
+    "temp_bearing": 82.0,
+    "temp_winding": 65.0,
+    "current_a": 11.0,
+    "current_b": 11.0,
+    "current_c": 11.0,
+    "current_unbalance": 0.5,
+    "press_in": 1.5,
+    "press_out": 4.6,
+    "press_out_true": 4.6,
+    "flow": 47.0,
+    "power": 5.5,
+    "efficiency": 73.8,
+    "run_hours": 19195.0,
+    "mode": 1.0,
 }
 
 
@@ -85,8 +102,9 @@ def reports(tmp_path_factory):
                 tracker.observe([box("terminal_box", 0.9, 0.03), box("motor", 0.8, 0.2)], 1280, 720)
             tracker.observe([box("terminal_box_burnt", 0.86, 0.03)], 1280, 720)
             service.add_finding(session, inspection, engineer, kind="defect", node="terminal_box", sign="terminal_box_burnt")
-            service.add_finding(session, inspection, engineer, kind="defect", node="seal", sign="leak",
-                                comment=TRICKY_COMMENT, frame=jpeg())
+            service.add_finding(
+                session, inspection, engineer, kind="defect", node="seal", sign="leak", comment=TRICKY_COMMENT, frame=jpeg()
+            )
             service.add_finding(session, inspection, engineer, kind="checked", node="flanges", comment=FORMULA_COMMENT)
             service.add_finding(session, inspection, engineer, kind="replacement", node="gauge", comment="Манометр заменён")
             service.add_finding(session, inspection, engineer, kind="maintenance", maintenance_code="TO-1")
@@ -165,8 +183,17 @@ def test_report_data_has_everything(reports):
 
 def test_xlsx_sheets_and_russian_text(reports, book):
     """Книга Excel содержит листы с русскими названиями, а ячейки - русский текст об оборудовании и осмотре."""
-    assert book.sheetnames == ["Осмотр", "Оценки по узлам", "Находки", "Основания", "Проверки и работы", "Регламент",
-                               "Обход узлов", "Датчики", "Рекомендации"]
+    assert book.sheetnames == [
+        "Осмотр",
+        "Оценки по узлам",
+        "Находки",
+        "Основания",
+        "Проверки и работы",
+        "Регламент",
+        "Обход узлов",
+        "Датчики",
+        "Рекомендации",
+    ]
     summary = dict((row[0], row[1]) for row in sheet_rows(book["Осмотр"]) if row[0])
     assert book["Осмотр"]["A1"].value == f"Отчёт об осмотре оборудования № {reports['finished']['inspection']['id']}"
     assert summary["Оборудование"] == "Насос Н-101 (N-101)"
@@ -187,8 +214,9 @@ def test_xlsx_three_estimates_are_separate_columns(reports, book):
     """Норматив, расчётный остаток и фактическое состояние стоят в отдельных столбцах и не смешаны."""
     rows = sheet_rows(book["Оценки по узлам"])
     header = rows[0]
-    normative, calculated, actual = (header.index(title) for title in
-                                     ("Нормативный срок службы", "Расчётный остаточный ресурс", "Фактическое состояние"))
+    normative, calculated, actual = (
+        header.index(title) for title in ("Нормативный срок службы", "Расчётный остаточный ресурс", "Фактическое состояние")
+    )
     assert len({normative, calculated, actual}) == 3
     by_name = {row[0]: row for row in rows[1:9]}
     assert set(by_name) == {node["name"] for node in reports["finished"]["nodes"]}
@@ -219,7 +247,7 @@ def test_xlsx_findings_with_evidence(reports, book):
     rows = sheet_rows(book["Находки"])
     header = rows[0]
     findings = reports["finished"]["findings"]
-    by_rule = {row[header.index("Правило")]: row for row in rows[1:1 + len(findings)]}
+    by_rule = {row[header.index("Правило")]: row for row in rows[1 : 1 + len(findings)]}
     assert set(by_rule) == {view["rule_id"] for view in findings}
     leak = by_rule["R01"]
     assert leak[header.index("Узел")] == "Торцевое уплотнение"
@@ -244,8 +272,11 @@ def test_xlsx_works_schedule_and_formula_safety(book):
     """Работы и регламент записаны по-русски; комментарий, похожий на формулу, остаётся текстом."""
     works = book["Проверки и работы"]
     rows = sheet_rows(works)
-    assert [row[2] for row in rows[1:]] == ["Проверено, замечаний нет", "Выполнена замена узла",
-                                           "Выполнено техническое обслуживание: ТО-1"]
+    assert [row[2] for row in rows[1:]] == [
+        "Проверено, замечаний нет",
+        "Выполнена замена узла",
+        "Выполнено техническое обслуживание: ТО-1",
+    ]
     assert [row[1] for row in rows[1:]] == ["Фланцевые соединения", "Манометр на нагнетании", "Агрегат в целом"]
     assert works["D2"].value == FORMULA_COMMENT and works["D2"].data_type == "s"
     assert works["A2"].is_date and works["A2"].number_format == "DD.MM.YYYY HH:MM"
@@ -262,7 +293,10 @@ def test_pdf_is_real_document_with_embedded_font(reports):
     assert b"/FontFile2" in content
     assert content.count(b"/Type /Page\n") + content.count(b"/Type /Page ") >= 3
     assert b"/Subtype /Image" in content
-    without_photo = {**reports["finished"], "findings": [{**view, "photo_file": None} for view in reports["finished"]["findings"]]}
+    without_photo = {
+        **reports["finished"],
+        "findings": [{**view, "photo_file": None} for view in reports["finished"]["findings"]],
+    }
     assert b"/Subtype /Image" not in build_pdf(without_photo)
 
 
@@ -271,13 +305,33 @@ def test_pdf_story_contains_report_content(reports):
     data = reports["finished"]
     text = story_text(build_story(data))
     for expected in (
-        f"Отчёт об осмотре оборудования № {data['inspection']['id']}", "Насос Н-101 (N-101)", "Алексей Смирнов, инженер",
-        "26.11.2026 09:00", "1. Нормативный срок службы", "2. Расчётный остаточный ресурс", "3. Фактическое состояние",
-        "Три оценки приводятся раздельно", "Норматив: 15000 ч", "Оценка расчётная", "Недостаточно данных для оценки",
-        f"Видимых проблем не обнаружено ({OK_NOTE})", "Обнаружены признаки возможного дефекта", "Диагноз:",
-        "Рекомендация:", "Основания:", "Температура подшипника", "> 75 °C", "Осталось проверить:", TRICKY_COMMENT,
-        "Стоп-кадр камеры:", "Проверки и работы", FORMULA_COMMENT, "Регламент обслуживания", DECISION,
-        "Оценки сохранены на момент завершения осмотра", "записано автоматически по результатам диагностики",
+        f"Отчёт об осмотре оборудования № {data['inspection']['id']}",
+        "Насос Н-101 (N-101)",
+        "Алексей Смирнов, инженер",
+        "26.11.2026 09:00",
+        "1. Нормативный срок службы",
+        "2. Расчётный остаточный ресурс",
+        "3. Фактическое состояние",
+        "Три оценки приводятся раздельно",
+        "Норматив: 15000 ч",
+        "Оценка расчётная",
+        "Недостаточно данных для оценки",
+        f"Видимых проблем не обнаружено ({OK_NOTE})",
+        "Обнаружены признаки возможного дефекта",
+        "Диагноз:",
+        "Рекомендация:",
+        "Основания:",
+        "Температура подшипника",
+        "> 75 °C",
+        "Осталось проверить:",
+        TRICKY_COMMENT,
+        "Стоп-кадр камеры:",
+        "Проверки и работы",
+        FORMULA_COMMENT,
+        "Регламент обслуживания",
+        DECISION,
+        "Оценки сохранены на момент завершения осмотра",
+        "записано автоматически по результатам диагностики",
     ):
         assert expected in text, expected
     assert text.rstrip().endswith(f"Статус «Видимых проблем не обнаружено» {OK_NOTE}")
@@ -308,9 +362,20 @@ def test_pdf_text_is_readable_cyrillic(reports, tmp_path):
     path.write_bytes(build_pdf(reports["finished"]))
     result = subprocess.run(["pdftotext", "-enc", "UTF-8", str(path), "-"], capture_output=True, check=True, timeout=15)
     text = " ".join(result.stdout.decode("utf-8").split())
-    for expected in ("Отчёт об осмотре оборудования", "Насос Н-101", "Алексей Смирнов", "Нормативный срок",
-                     "Расчётный остаточный", "Фактическое состояние", "Основания", "Рекомендация", DECISION,
-                     "Капли <b>у вала</b> & пятно 5 см; t < 40 °C </para>", "КСТ Визор - отчёт об осмотре", "Страница 2"):
+    for expected in (
+        "Отчёт об осмотре оборудования",
+        "Насос Н-101",
+        "Алексей Смирнов",
+        "Нормативный срок",
+        "Расчётный остаточный",
+        "Фактическое состояние",
+        "Основания",
+        "Рекомендация",
+        DECISION,
+        "Капли <b>у вала</b> & пятно 5 см; t < 40 °C </para>",
+        "КСТ Визор - отчёт об осмотре",
+        "Страница 2",
+    ):
         assert expected in text, expected
 
 
@@ -377,8 +442,11 @@ def test_pdf_survives_very_long_comments(reports):
     data = reports["finished"]
     long_comment = "\n".join(f"Строка замечания номер {number}" for number in range(400))
     first = {**data["findings"][0], "comment": long_comment}
-    heavy = {**data, "findings": [first, *data["findings"][1:]],
-             "checked": [{**view, "comment": long_comment} for view in data["checked"]]}
+    heavy = {
+        **data,
+        "findings": [first, *data["findings"][1:]],
+        "checked": [{**view, "comment": long_comment} for view in data["checked"]],
+    }
     content = build_pdf(heavy)
     assert content.startswith(b"%PDF-") and len(content) > len(build_pdf(data))
     text = story_text(build_story(heavy))
@@ -407,12 +475,20 @@ def test_text_helpers():
     assert date_text("2027-02-04") == "04.02.2027" and date_text(None) == "-"
     assert duration_text(None) == "-" and duration_text(42) == "42 с"
     assert duration_text(605) == "10 мин 05 с" and duration_text(3725) == "1 ч 02 мин"
-    coverage = {"nodes": {"a": {"manual": True, "inspected": True, "seen": 0, "trackable": True},
-                          "b": {"manual": False, "inspected": True, "seen": 7, "trackable": True},
-                          "c": {"manual": False, "inspected": False, "seen": 2, "trackable": True},
-                          "d": {"manual": False, "inspected": False, "seen": 0, "trackable": True},
-                          "e": {"manual": False, "inspected": False, "seen": 0, "trackable": False}}}
+    coverage = {
+        "nodes": {
+            "a": {"manual": True, "inspected": True, "seen": 0, "trackable": True},
+            "b": {"manual": False, "inspected": True, "seen": 7, "trackable": True},
+            "c": {"manual": False, "inspected": False, "seen": 2, "trackable": True},
+            "d": {"manual": False, "inspected": False, "seen": 0, "trackable": True},
+            "e": {"manual": False, "inspected": False, "seen": 0, "trackable": False},
+        }
+    }
     assert [coverage_note(coverage, code) for code in "abcde"] == [
-        "Отмечен инженером вручную", "Осмотрен камерой, кадров: 7", "Осмотр камерой не завершён, кадров: 2",
-        "Камерой не осмотрен", "Камерой не распознаётся"]
+        "Отмечен инженером вручную",
+        "Осмотрен камерой, кадров: 7",
+        "Осмотр камерой не завершён, кадров: 2",
+        "Камерой не осмотрен",
+        "Камерой не распознаётся",
+    ]
     assert coverage_note(None, "a") == "Сведений об обходе нет" and coverage_note(coverage, "z") == "Сведений об обходе нет"

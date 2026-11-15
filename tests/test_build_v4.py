@@ -1,4 +1,5 @@
 """Проверки чистых функций сборки defects_ds_v4 (cv/build_defects_v4.py) и ноутбука cv/kaggle_train_v4.py."""
+
 import os
 import random
 import sys
@@ -20,8 +21,7 @@ def test_class_names_inline_and_block(tmp_path):
 
 def test_parse_rows_boxes_polygons_and_broken_lines():
     """Рамка и полигон переводятся в углы, битые строки и чужие номера классов пропускаются."""
-    rows = parse_rows(["0 0.5 0.5 0.2 0.4", "1 0.1 0.1 0.3 0.1 0.3 0.4", "x 1 2 3 4", "7 0.5 0.5 0.1 0.1"],
-                      ["leakage", "rock"])
+    rows = parse_rows(["0 0.5 0.5 0.2 0.4", "1 0.1 0.1 0.3 0.1 0.3 0.4", "x 1 2 3 4", "7 0.5 0.5 0.1 0.1"], ["leakage", "rock"])
     assert rows[0][0] == "leakage" and np.allclose(rows[0][1:], (0.4, 0.3, 0.6, 0.7))
     assert rows[1][0] == "rock" and np.allclose(rows[1][1:], (0.1, 0.1, 0.3, 0.4))
     assert len(rows) == 2
@@ -29,8 +29,12 @@ def test_parse_rows_boxes_polygons_and_broken_lines():
 
 def test_map_boxes_rules():
     """Сопоставление учитывает skip_if, only_if, порог площади и закрытие всего кадра."""
-    source = {"map": {"rust": "corrosion", "burned socket": "terminal_box_burnt"}, "skip_if": {"clean"},
-              "min_area": {"corrosion": 0.01}, "max_cover": 0.9}
+    source = {
+        "map": {"rust": "corrosion", "burned socket": "terminal_box_burnt"},
+        "skip_if": {"clean"},
+        "min_area": {"corrosion": 0.01},
+        "max_cover": 0.9,
+    }
     small = ("rust", 0.1, 0.1, 0.15, 0.15)
     big = ("rust", 0.2, 0.2, 0.5, 0.5)
     assert map_boxes(source, [small]) is None
@@ -89,6 +93,7 @@ def test_index_finds_same_frame_not_other():
 def test_kaggle_v4_resume_and_weights(tmp_path, monkeypatch):
     """Прерванный опыт продолжается с last.pt из приложенного вывода, иначе берутся начальные веса."""
     import kaggle_train_v4 as notebook
+
     monkeypatch.setattr(notebook, "INPUT", str(tmp_path / "input"))
     monkeypatch.setattr(notebook, "OUT", str(tmp_path / "out"))
     monkeypatch.setattr(notebook, "WORK", str(tmp_path / "work"))

@@ -10,6 +10,7 @@
 Собранная на Next.js панель (web/out) отдаётся по /web/, /panel/ и /_next/: файлы с хешем в имени хранятся год,
 страницы перепроверяются; прежняя панель без сборки остаётся по /web-classic/ и /panel-classic/.
 """
+
 import hashlib
 import os
 import re

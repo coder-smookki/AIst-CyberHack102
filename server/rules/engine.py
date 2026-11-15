@@ -4,6 +4,7 @@
 полностью. Выполнена только часть - находка получает статус «требует проверки» и список того,
 что осталось проверить; уверенный визуальный признак без подтверждения датчиками остаётся находкой.
 """
+
 import copy
 import json
 import operator
@@ -309,9 +310,7 @@ def _trend(leaf: dict, context: _Context, node_id: str) -> dict:
     sign = "+" if slope > 0 else ""
     met = OPERATORS[leaf["op"]](slope, leaf["value"])
     text = f"{sign}{_fmt(slope, 3)} {unit}"
-    return _result(
-        "met" if met else "unmet", [_evidence("sensor", what, text, limit, met)], early=met, score=1.0 if met else 0.0
-    )
+    return _result("met" if met else "unmet", [_evidence("sensor", what, text, limit, met)], early=met, score=1.0 if met else 0.0)
 
 
 def _sign(leaf: dict, context: _Context, node_id: str) -> dict:
@@ -475,9 +474,7 @@ def _finding(rule: dict, context: _Context) -> dict | None:
     parts = rule["parts"]
     results = [_evaluate(part["expr"], context, node_id) for part in parts]
     active = [
-        (part, result)
-        for part, result in zip(parts, results)
-        if not part.get("qualifier") and result["state"] in ("met", "weak")
+        (part, result) for part, result in zip(parts, results) if not part.get("qualifier") and result["state"] in ("met", "weak")
     ]
     if not active:
         return None
@@ -631,12 +628,21 @@ def _leaf_view(leaf: dict, result: dict, source: str) -> dict:
     lines = result["evidence"]
     first = lines[0] if lines else {}
     return {
-        "kind": leaf["kind"], "source": first.get("source") or leaf.get("source") or source,
-        "param": leaf.get("param"), "signs": list(leaf.get("signs") or []), "label": leaf.get("label"),
-        "op": leaf.get("op"), "limit": leaf.get("value"),
-        "what": first.get("what") or leaf.get("what") or leaf["kind"], "value": first.get("value"),
-        "threshold": first.get("threshold"), "state": result["state"], "met": result["state"] == "met",
-        "missing": result["state"] == "unknown", "hints": list(result["missing"]), "evidence": lines,
+        "kind": leaf["kind"],
+        "source": first.get("source") or leaf.get("source") or source,
+        "param": leaf.get("param"),
+        "signs": list(leaf.get("signs") or []),
+        "label": leaf.get("label"),
+        "op": leaf.get("op"),
+        "limit": leaf.get("value"),
+        "what": first.get("what") or leaf.get("what") or leaf["kind"],
+        "value": first.get("value"),
+        "threshold": first.get("threshold"),
+        "state": result["state"],
+        "met": result["state"] == "met",
+        "missing": result["state"] == "unknown",
+        "hints": list(result["missing"]),
+        "evidence": lines,
     }
 
 
@@ -684,16 +690,30 @@ def explain_rule(equipment: dict, readings: dict, trends: dict, visual: dict, ma
         tree = _explain(part["expr"], context, node_id, part["source"], flat)
         for view in flat[start:]:
             view["part"] = index
-        parts.append({"index": index, "source": part["source"], "qualifier": bool(part.get("qualifier")),
-                      "state": result["state"], "met": result["state"] == "met", "missing": result["missing"],
-                      "tree": tree})
+        parts.append(
+            {
+                "index": index,
+                "source": part["source"],
+                "qualifier": bool(part.get("qualifier")),
+                "state": result["state"],
+                "met": result["state"] == "met",
+                "missing": result["missing"],
+                "tree": tree,
+            }
+        )
     escalation = None
     if effective.get("escalation"):
         extra = _evaluate(effective["escalation"]["expr"], context, node_id)
         lines = []
         tree = _explain(effective["escalation"]["expr"], context, node_id, "sensor", lines)
-        escalation = {"state": extra["state"], "met": extra["state"] == "met", "status": effective["escalation"]["status"],
-                      "severity": effective["escalation"]["severity"], "conditions": lines, "tree": tree}
+        escalation = {
+            "state": extra["state"],
+            "met": extra["state"] == "met",
+            "status": effective["escalation"]["status"],
+            "severity": effective["escalation"]["severity"],
+            "conditions": lines,
+            "tree": tree,
+        }
     findings = []
     if applies:
         if rule.get("group") == "visual":
@@ -718,11 +738,18 @@ def explain_rule(equipment: dict, readings: dict, trends: dict, visual: dict, ma
         status = "ok"
     missing = _unique([hint for part in parts if part["state"] != "met" for hint in part["missing"]])
     return {
-        "rule_id": rule["id"], "applies": applies, "node_id": node_id, "status": status,
+        "rule_id": rule["id"],
+        "applies": applies,
+        "node_id": node_id,
+        "status": status,
         "severity": finding["severity"] if finding else None,
         "diagnosis": finding["diagnosis"] if finding else None,
         "recommendation": finding["recommendation"] if finding else effective["recommendation"],
         "confidence": finding["confidence"] if finding else None,
-        "parts": parts, "conditions": flat, "escalation": escalation, "evidence": evidence,
-        "missing": finding["missing"] if finding else missing, "findings": findings,
+        "parts": parts,
+        "conditions": flat,
+        "escalation": escalation,
+        "evidence": evidence,
+        "missing": finding["missing"] if finding else missing,
+        "findings": findings,
     }

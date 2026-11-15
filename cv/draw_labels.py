@@ -3,14 +3,26 @@
 Запуск:
     python cv/draw_labels.py <папка_изображений> <папка_разметки> <лист.jpg> класс1,класс2,... [сколько=6] [столбцов=3]
 """
+
 import glob
 import os
 import sys
 
 from PIL import Image, ImageDraw
 
-PALETTE = ["#1E8E5A", "#135AA6", "#8A94A0", "#E39A0C", "#D93B30", "#6B4FBB", "#000000", "#00A3A3", "#C2185B",
-           "#3B2F2F", "#B5651D"]
+PALETTE = [
+    "#1E8E5A",
+    "#135AA6",
+    "#8A94A0",
+    "#E39A0C",
+    "#D93B30",
+    "#6B4FBB",
+    "#000000",
+    "#00A3A3",
+    "#C2185B",
+    "#3B2F2F",
+    "#B5651D",
+]
 
 
 def draw(image_path: str, label_path: str, names: list[str]) -> Image.Image:
@@ -45,5 +57,11 @@ def sheet(images: str, labels: str, out: str, names: list[str], count: int = 6, 
 
 
 if __name__ == "__main__":
-    sheet(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4].split(","),
-          int(sys.argv[5]) if len(sys.argv) > 5 else 6, int(sys.argv[6]) if len(sys.argv) > 6 else 3)
+    sheet(
+        sys.argv[1],
+        sys.argv[2],
+        sys.argv[3],
+        sys.argv[4].split(","),
+        int(sys.argv[5]) if len(sys.argv) > 5 else 6,
+        int(sys.argv[6]) if len(sys.argv) > 6 else 3,
+    )

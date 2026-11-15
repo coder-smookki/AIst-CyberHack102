@@ -21,6 +21,7 @@
 бы один дефект и где найден дефект нужного класса; доля ложных тревог на чистых снимках. В наборе parts
 разметка неполная, поэтому рамки класса, не размеченного на данном снимке, не считаются лишними.
 """
+
 import argparse
 import csv
 import glob
@@ -38,12 +39,28 @@ from evaluate import iou, load_names, read_truth
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 DEFECT_CLASSES = ("corrosion", "leak", "terminal_box_burnt", "damage")
 DEFECT_NAMES = (*DEFECT_CLASSES, "coupling_no_guard")
-PART_CLASSES = ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box",
-                "terminal_box_burnt", "nameplate", "gauge", "leak", "corrosion")
+PART_CLASSES = (
+    "motor",
+    "pump_casing",
+    "flange",
+    "coupling_guard",
+    "coupling_no_guard",
+    "terminal_box",
+    "terminal_box_burnt",
+    "nameplate",
+    "gauge",
+    "leak",
+    "corrosion",
+)
 LEVELS = (0.15, 0.25, 0.35, 0.5)
 FLOOR = 0.05
-WEB_EXPECTED = {"corrosion": "corrosion", "leak": "leak", "burnt_electrical": "terminal_box_burnt",
-                "insulation_damage": "damage", "crack": "damage"}
+WEB_EXPECTED = {
+    "corrosion": "corrosion",
+    "leak": "leak",
+    "burnt_electrical": "terminal_box_burnt",
+    "insulation_damage": "damage",
+    "crack": "damage",
+}
 WEB_CLEAN = ("equipment_ok", "gauge", "nameplate")
 SET_PATHS = {
     "holdout": ("data/open/defects_ds", "holdout"),
@@ -116,11 +133,18 @@ def summarize(records: list[dict], classes: tuple, levels: tuple = LEVELS) -> di
     for row in records:
         for name, _ in row["truth"]:
             positives[name] = positives.get(name, 0) + 1
-    names = sorted(set(positives) | {name for rows in matched for name, _, _ in rows},
-                   key=lambda name: (classes.index(name) if name in classes else len(classes), name))
-    report = {"images": len(records), "boxes": positives,
-              "ap50": {name: average_precision([(s, ok) for rows in matched for n, s, ok in rows if n == name],
-                                               positives.get(name, 0)) for name in names}}
+    names = sorted(
+        set(positives) | {name for rows in matched for name, _, _ in rows},
+        key=lambda name: (classes.index(name) if name in classes else len(classes), name),
+    )
+    report = {
+        "images": len(records),
+        "boxes": positives,
+        "ap50": {
+            name: average_precision([(s, ok) for rows in matched for n, s, ok in rows if n == name], positives.get(name, 0))
+            for name in names
+        },
+    }
     values = [value for name, value in report["ap50"].items() if value is not None]
     report["map50"] = round(sum(values) / len(values), 3) if values else None
     for level in levels:
@@ -155,10 +179,16 @@ def summarize(records: list[dict], classes: tuple, levels: tuple = LEVELS) -> di
             row["precision"] = ratio(row["tp"], row["tp"] + row["fp"])
             row["recall"] = ratio(row["tp"], row["tp"] + row["fn"])
         tp, fp, fn = (sum(row[key] for row in stats.values()) for key in ("tp", "fp", "fn"))
-        entry = {"box_precision": ratio(tp, tp + fp), "box_recall": ratio(tp, tp + fn),
-                 "defective_images": defective, "image_defect_found": ratio(found, defective),
-                 "image_right_class_found": ratio(right, defective), "clean_images": clean,
-                 "false_alarm_rate": ratio(alarms, clean), "classes": stats}
+        entry = {
+            "box_precision": ratio(tp, tp + fp),
+            "box_recall": ratio(tp, tp + fn),
+            "defective_images": defective,
+            "image_defect_found": ratio(found, defective),
+            "image_right_class_found": ratio(right, defective),
+            "clean_images": clean,
+            "false_alarm_rate": ratio(alarms, clean),
+            "classes": stats,
+        }
         if groups:
             entry["groups"] = groups
         report[f"conf_{level}"] = entry
@@ -195,9 +225,16 @@ def labelled_records(models: list, folder: str, split: str, keep: tuple, partial
             continue
         height, width = frame.shape[:2]
         stem = os.path.splitext(os.path.basename(path))[0]
-        truth = [(names[cls], box) for cls, box in read_truth(os.path.join(folder, "labels", split, stem + ".txt"), width, height)]
-        record = {"file": os.path.basename(path), "truth": [row for row in truth if row[0] in keep],
-                  "predicted": predict(models, frame, keep), "labelled": None, "group": None}
+        truth = [
+            (names[cls], box) for cls, box in read_truth(os.path.join(folder, "labels", split, stem + ".txt"), width, height)
+        ]
+        record = {
+            "file": os.path.basename(path),
+            "truth": [row for row in truth if row[0] in keep],
+            "predicted": predict(models, frame, keep),
+            "labelled": None,
+            "group": None,
+        }
         if partial is not None:
             record["labelled"] = partial.get(f"images/{split}/{os.path.basename(path)}", set())
         records.append(record)
@@ -212,16 +249,22 @@ def web_records(models: list, keep: tuple) -> list[dict]:
         path = os.path.join(folder, row["file"])
         frame = read_frame(path) if os.path.exists(path) else None
         if frame is not None:
-            records.append({"file": row["file"], "truth": [], "predicted": predict(models, frame, keep),
-                            "labelled": set(), "group": row["class"]})
+            records.append(
+                {
+                    "file": row["file"],
+                    "truth": [],
+                    "predicted": predict(models, frame, keep),
+                    "labelled": set(),
+                    "group": row["class"],
+                }
+            )
     return records
 
 
 def parts_labelled() -> dict:
     """Читает из описи parts_real, какие классы размечены на каждом снимке."""
     path = os.path.join(ROOT, "data", "open", "parts_real", "manifest.csv")
-    return {row["file"]: set(filter(None, row["classes"].split(";")))
-            for row in csv.DictReader(open(path, encoding="utf-8"))}
+    return {row["file"]: set(filter(None, row["classes"].split(";"))) for row in csv.DictReader(open(path, encoding="utf-8"))}
 
 
 def run(models: list, sets: list[str], mode: str) -> dict:
@@ -256,11 +299,24 @@ def main() -> None:
     parser.add_argument("--mode", choices=("defects", "parts"), default="defects")
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
-    sets = args.sets.split(",") if args.sets else (["parts"] if args.mode == "parts" else ["holdout", "holdout_screen", "web", "val"])
+    sets = (
+        args.sets.split(",")
+        if args.sets
+        else (["parts"] if args.mode == "parts" else ["holdout", "holdout_screen", "web", "val"])
+    )
     from libreyolo import LibreYOLO
+
     models = [LibreYOLO(path) for path in args.weights]
-    report = {"name": args.name, "weights": args.weights, "mode": args.mode, "iou": 0.5, "floor": FLOOR,
-              "levels": list(LEVELS), "date": time.strftime("%Y-%m-%d"), "sets": run(models, sets, args.mode)}
+    report = {
+        "name": args.name,
+        "weights": args.weights,
+        "mode": args.mode,
+        "iou": 0.5,
+        "floor": FLOOR,
+        "levels": list(LEVELS),
+        "date": time.strftime("%Y-%m-%d"),
+        "sets": run(models, sets, args.mode),
+    }
     out = args.out or os.path.join(ROOT, "runs", "reports", f"{args.name}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     json.dump(report, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -268,8 +324,10 @@ def main() -> None:
         for level in LEVELS:
             row = part.get(f"conf_{level}")
             if row:
-                print(f"{args.name} {name} порог {level}: рамки P {row['box_precision']} R {row['box_recall']}, "
-                      f"дефект найден {row['image_defect_found']}, ложные тревоги {row['false_alarm_rate']}, mAP50 {part['map50']}")
+                print(
+                    f"{args.name} {name} порог {level}: рамки P {row['box_precision']} R {row['box_recall']}, "
+                    f"дефект найден {row['image_defect_found']}, ложные тревоги {row['false_alarm_rate']}, mAP50 {part['map50']}"
+                )
     print("отчёт:", out)
 
 

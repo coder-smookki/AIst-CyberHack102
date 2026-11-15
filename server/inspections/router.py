@@ -7,6 +7,7 @@
 Маршруты замечаний объявлены раньше маршрутов с номером осмотра, иначе слово findings в адресе
 принималось бы за номер.
 """
+
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
@@ -49,8 +50,12 @@ class CommentBody(BaseModel):
 
 
 @router.post("", status_code=201)
-def start(body: StartBody, response: Response, user: Annotated[User, Depends(INSPECT)],
-          session: Annotated[Session, Depends(get_session)]) -> dict:
+def start(
+    body: StartBody,
+    response: Response,
+    user: Annotated[User, Depends(INSPECT)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Начинает осмотр; если у сотрудника уже идёт осмотр этого агрегата, возвращает его с кодом 200."""
     inspection, created = service.start_inspection(session, user, body.equipment_id, body.identified_by)
     if not created:
@@ -79,8 +84,9 @@ def list_findings(
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
 ) -> list[dict]:
     """Замечания по всем осмотрам для доски «открыто - в работе - устранено»; отклонённые - только по запросу."""
-    return service.list_findings(session, equipment_id=equipment_id, state=state, include_ok=include_ok,
-                                 include_rejected=include_rejected, limit=limit)
+    return service.list_findings(
+        session, equipment_id=equipment_id, state=state, include_ok=include_ok, include_rejected=include_rejected, limit=limit
+    )
 
 
 @router.get("/findings/{finding_id}", dependencies=[Depends(VIEW)])
@@ -97,27 +103,37 @@ def finding_photo(finding_id: int, session: Annotated[Session, Depends(get_sessi
 
 
 @router.post("/findings/{finding_id}/state")
-def set_state(finding_id: int, body: StateBody, user: Annotated[User, Depends(require_permission("findings.confirm"))],
-              session: Annotated[Session, Depends(get_session)]) -> dict:
+def set_state(
+    finding_id: int,
+    body: StateBody,
+    user: Annotated[User, Depends(require_permission("findings.confirm"))],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Переводит замечание в следующее состояние или отклоняет его; нужно право «Подтверждение замечаний»."""
     changed = service.set_finding_state(session, service.get_finding(session, finding_id), body.state, user, body.comment)
     return service.one_finding_view(session, changed)
 
 
 @router.post("/findings/{finding_id}/comment")
-def comment(finding_id: int, body: CommentBody, user: Annotated[User, Depends(current_user)],
-            session: Annotated[Session, Depends(get_session)]) -> dict:
+def comment(
+    finding_id: int,
+    body: CommentBody,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Дописывает к замечанию комментарий с временем и автором: право «Просмотр замечаний» или автор осмотра."""
     found = service.get_finding(session, finding_id)
     if not service.can_comment(session, found, user, granted(session, user)):
-        raise HTTPException(status_code=403, detail="Комментировать замечание может автор осмотра или сотрудник "
-                                                    "с правом «Просмотр замечаний»")
+        raise HTTPException(
+            status_code=403, detail="Комментировать замечание может автор осмотра или сотрудник " "с правом «Просмотр замечаний»"
+        )
     return service.one_finding_view(session, service.add_comment(session, found, user, body.text))
 
 
 @router.get("/sound/recent", dependencies=[Depends(VIEW)])
-def recent_sounds(session: Annotated[Session, Depends(get_session)],
-                  limit: Annotated[int, Query(ge=1, le=100)] = 20) -> list[dict]:
+def recent_sounds(
+    session: Annotated[Session, Depends(get_session)], limit: Annotated[int, Query(ge=1, le=100)] = 20
+) -> list[dict]:
     """Последние записи звука по всем осмотрам, сначала новые: для панели мастера."""
     return [acoustics.record_view(record) for record in acoustics.recent_sounds(session, limit)]
 
@@ -165,8 +181,19 @@ def add_finding(
         picture = frame.file.read(service.MAX_FRAME_BYTES + 1)
         if not picture:
             raise HTTPException(status_code=422, detail="Кадр пустой")
-    created = service.add_finding(session, found, user, kind=kind, node=node, severity=severity, comment=comment,
-                                  sign=sign, rule_id=rule_id, maintenance_code=maintenance_code, frame=picture)
+    created = service.add_finding(
+        session,
+        found,
+        user,
+        kind=kind,
+        node=node,
+        severity=severity,
+        comment=comment,
+        sign=sign,
+        rule_id=rule_id,
+        maintenance_code=maintenance_code,
+        frame=picture,
+    )
     return service.one_finding_view(session, created)
 
 
@@ -199,8 +226,9 @@ def sounds(inspection_id: int, session: Annotated[Session, Depends(get_session)]
 
 
 @router.post("/{inspection_id}/finish")
-def finish(inspection_id: int, user: Annotated[User, Depends(INSPECT)],
-           session: Annotated[Session, Depends(get_session)]) -> dict:
+def finish(
+    inspection_id: int, user: Annotated[User, Depends(INSPECT)], session: Annotated[Session, Depends(get_session)]
+) -> dict:
     """Завершает осмотр и возвращает его со сводкой: число записей по статусам, длительность, оценки по узлам."""
     finished = service.finish_inspection(session, service.get_inspection(session, inspection_id), user)
     return service.inspection_view(session, finished)
@@ -224,14 +252,16 @@ def _report(session: Session, user: User, inspection_id: int, build, media_type:
 
 
 @router.get("/{inspection_id}/report.pdf")
-def report_pdf(inspection_id: int, user: Annotated[User, Depends(REPORTS)],
-               session: Annotated[Session, Depends(get_session)]) -> Response:
+def report_pdf(
+    inspection_id: int, user: Annotated[User, Depends(REPORTS)], session: Annotated[Session, Depends(get_session)]
+) -> Response:
     """Отчёт об осмотре в формате PDF."""
     return _report(session, user, inspection_id, build_pdf, "application/pdf", "pdf")
 
 
 @router.get("/{inspection_id}/report.xlsx")
-def report_xlsx(inspection_id: int, user: Annotated[User, Depends(REPORTS)],
-                session: Annotated[Session, Depends(get_session)]) -> Response:
+def report_xlsx(
+    inspection_id: int, user: Annotated[User, Depends(REPORTS)], session: Annotated[Session, Depends(get_session)]
+) -> Response:
     """Отчёт об осмотре в формате Excel."""
     return _report(session, user, inspection_id, build_xlsx, XLSX_TYPE, "xlsx")

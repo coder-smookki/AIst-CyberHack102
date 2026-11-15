@@ -6,6 +6,7 @@
 Предсказание считается верным, если совпал класс и пересечение рамок не меньше половины их объединения.
 Порог уверенности по умолчанию низкий: пропуск дефекта для заказчика хуже лишнего предупреждения.
 """
+
 import glob
 import json
 import os
@@ -57,9 +58,13 @@ def evaluate(weights: str, images: str, labels: str, names: list[str], conf: flo
         truth = read_truth(os.path.join(labels, os.path.basename(path)[:-4] + ".txt"), width, height)
         result = model(frame, conf=conf)
         result = result[0] if isinstance(result, (list, tuple)) else result
-        predicted = sorted(((int(c), tuple(float(v) for v in b), float(p))
-                            for b, c, p in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)),
-                           key=lambda row: -row[2])
+        predicted = sorted(
+            (
+                (int(c), tuple(float(v) for v in b), float(p))
+                for b, c, p in zip(result.boxes.xyxy, result.boxes.cls, result.boxes.conf)
+            ),
+            key=lambda row: -row[2],
+        )
         used = set()
         for cls, box, _ in predicted:
             best, best_iou = None, 0.5
@@ -84,7 +89,9 @@ def evaluate(weights: str, images: str, labels: str, names: list[str], conf: flo
         row["precision"] = round(row["tp"] / (row["tp"] + row["fp"]), 3) if row["tp"] + row["fp"] else None
         row["recall"] = round(row["tp"] / (row["tp"] + row["fn"]), 3) if row["tp"] + row["fn"] else None
     return {
-        "images": len(files), "conf": conf, "ms_per_image": round((time.time() - started) / max(1, len(files)) * 1000, 1),
+        "images": len(files),
+        "conf": conf,
+        "ms_per_image": round((time.time() - started) / max(1, len(files)) * 1000, 1),
         "precision": round(total["tp"] / max(1, total["tp"] + total["fp"]), 3),
         "recall": round(total["tp"] / max(1, total["tp"] + total["fn"]), 3),
         "classes": stats,
@@ -96,8 +103,12 @@ if __name__ == "__main__":
     report = evaluate(sys.argv[1], sys.argv[2], sys.argv[3], load_names(sys.argv[4]), threshold)
     if len(sys.argv) > 6:
         json.dump(report, open(sys.argv[6], "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print(f"кадров {report['images']}, порог {report['conf']}, точность {report['precision']}, полнота {report['recall']}, "
-          f"{report['ms_per_image']} мс на кадр")
+    print(
+        f"кадров {report['images']}, порог {report['conf']}, точность {report['precision']}, полнота {report['recall']}, "
+        f"{report['ms_per_image']} мс на кадр"
+    )
     for name, row in report["classes"].items():
-        print(f"  {name:20s} верно {row['tp']:4d}  лишних {row['fp']:4d}  пропущено {row['fn']:4d}  "
-              f"точность {row['precision']}  полнота {row['recall']}")
+        print(
+            f"  {name:20s} верно {row['tp']:4d}  лишних {row['fp']:4d}  пропущено {row['fn']:4d}  "
+            f"точность {row['precision']}  полнота {row['recall']}"
+        )

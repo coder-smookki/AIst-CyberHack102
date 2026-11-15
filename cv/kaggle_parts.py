@@ -15,6 +15,7 @@ ds.zip закрытого набора kstv-parts-mix-v1 (сборка cv/build_
 реальные кадры real_*), drop (имена классов, рамки которых убираются из train и val) и любые настройки
 обучения LibreYOLO. Эпоха выбирается только по части val, порог уверенности здесь не подбирается.
 """
+
 import glob
 import json
 import os
@@ -28,8 +29,19 @@ import zipfile
 EXPERIMENTS = []
 WORK = "/tmp/kstv"
 OUT = "/kaggle/working"
-CLASSES = ("motor", "pump_casing", "flange", "coupling_guard", "coupling_no_guard", "terminal_box",
-           "terminal_box_burnt", "nameplate", "gauge", "leak", "corrosion")
+CLASSES = (
+    "motor",
+    "pump_casing",
+    "flange",
+    "coupling_guard",
+    "coupling_no_guard",
+    "terminal_box",
+    "terminal_box_burnt",
+    "nameplate",
+    "gauge",
+    "leak",
+    "corrosion",
+)
 CHILD = """
 import json, sys, time
 from libreyolo import LibreYOLO
@@ -50,9 +62,19 @@ def push(kernel: str, experiments: list, dataset: str) -> str:
     code = code.replace("EXPERIMENTS = []", "EXPERIMENTS = " + repr(experiments), 1)
     with open(os.path.join(folder, "train.py"), "w", encoding="utf-8") as handle:
         handle.write(code)
-    meta = {"id": f"{dataset.split('/')[0]}/{kernel}", "title": kernel, "code_file": "train.py",
-            "language": "python", "kernel_type": "script", "is_private": True, "enable_gpu": True,
-            "enable_internet": True, "dataset_sources": [dataset], "competition_sources": [], "kernel_sources": []}
+    meta = {
+        "id": f"{dataset.split('/')[0]}/{kernel}",
+        "title": kernel,
+        "code_file": "train.py",
+        "language": "python",
+        "kernel_type": "script",
+        "is_private": True,
+        "enable_gpu": True,
+        "enable_internet": True,
+        "dataset_sources": [dataset],
+        "competition_sources": [],
+        "kernel_sources": [],
+    }
     json.dump(meta, open(os.path.join(folder, "kernel-metadata.json"), "w", encoding="utf-8"), indent=1)
     subprocess.run([sys.executable, "-m", "kaggle.cli", "kernels", "push", "-p", folder], check=True)
     return folder
@@ -72,8 +94,11 @@ def unpack() -> str:
 def place(source: str, label: str, root: str, split: str, name: str, drop: set) -> None:
     """Кладёт ссылку на кадр и его разметку в папку опыта, убирая рамки классов из drop."""
     os.symlink(source, os.path.join(root, "images", split, name + os.path.splitext(source)[1]))
-    lines = [line for line in open(label, encoding="utf-8")
-             if line.split() and CLASSES[int(line.split()[0])] not in drop] if os.path.exists(label) else []
+    lines = (
+        [line for line in open(label, encoding="utf-8") if line.split() and CLASSES[int(line.split()[0])] not in drop]
+        if os.path.exists(label)
+        else []
+    )
     with open(os.path.join(root, "labels", split, name + ".txt"), "w", encoding="utf-8") as handle:
         handle.writelines(lines)
 
@@ -101,15 +126,21 @@ def prepare(source: str, experiment: dict) -> str:
 def launch(experiment: dict, source: str, gpu: int) -> tuple:
     """Запускает опыт в отдельном процессе на указанной видеокарте и возвращает процесс, журнал и срок."""
     name = experiment["name"]
-    config = {"data": prepare(source, experiment), "project": os.path.join(OUT, "runs"), "name": name,
-              "exist_ok": True, "device": "0", "workers": 2}
-    config.update({key: value for key, value in experiment.items()
-                   if key not in ("name", "minutes", "real_repeat", "drop")})
+    config = {
+        "data": prepare(source, experiment),
+        "project": os.path.join(OUT, "runs"),
+        "name": name,
+        "exist_ok": True,
+        "device": "0",
+        "workers": 2,
+    }
+    config.update({key: value for key, value in experiment.items() if key not in ("name", "minutes", "real_repeat", "drop")})
     os.makedirs(os.path.join(OUT, "runs", name), exist_ok=True)
     log = open(os.path.join(OUT, "runs", name, "kaggle_train.log"), "w", encoding="utf-8")
     env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), PYTHONUNBUFFERED="1")
-    process = subprocess.Popen([sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env,
-                               stdout=log, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        [sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env, stdout=log, stderr=subprocess.STDOUT
+    )
     return process, log, time.time() + experiment.get("minutes", 100) * 60
 
 
@@ -126,6 +157,7 @@ def train() -> None:
     os.makedirs(WORK, exist_ok=True)
     source = unpack()
     import torch
+
     gpus = max(1, torch.cuda.device_count())
     queue, running, status = list(EXPERIMENTS), {}, {}
     while queue or running:
@@ -158,6 +190,7 @@ def main() -> None:
     """Отправляет ноутбук при запуске с параметром push, иначе обучает (режим ноутбука Kaggle)."""
     if len(sys.argv) > 1 and sys.argv[1] == "push":
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("mode")
         parser.add_argument("kernel")

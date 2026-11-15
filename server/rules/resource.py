@@ -3,6 +3,7 @@
 Нормативная и расчётная оценки возвращаются отдельными блоками и не смешиваются; фактическое
 состояние узла сюда не входит - его даёт диагностика.
 """
+
 from datetime import date, datetime, timedelta
 from operator import itemgetter
 from typing import Any

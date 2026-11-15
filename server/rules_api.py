@@ -6,6 +6,7 @@ GET /rules - перечень правил из data/rules.json в виде, у�
 инженера этого осмотра): применимость, состояние, каждое условие со значением и порогом, основания, рекомендация.
 Чтение требует права «Просмотр оборудования» или «Просмотр замечаний».
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,8 +21,13 @@ from server.rules import defect_signs, explain_rule, load_rules, parameter_meta
 from server.telemetry_api import feed_for, node_names, stamp
 
 READ = require_permission("equipment.view", "findings.view", any_of=True)
-GROUP_TITLES = {"customer": "Правило заказчика", "threshold": "Уставка заказчика", "visual": "Визуальный признак",
-                "sound": "Признак по звуку", "demo": "Демонстрационное правило"}
+GROUP_TITLES = {
+    "customer": "Правило заказчика",
+    "threshold": "Уставка заказчика",
+    "visual": "Визуальный признак",
+    "sound": "Признак по звуку",
+    "demo": "Демонстрационное правило",
+}
 GROUP_SOURCES = {
     "customer": "12 правил диагностики заказчика (КСТ Энерго Инжиниринг)",
     "threshold": "Уставки из баз значений вибрации и температуры заказчика",
@@ -38,8 +44,13 @@ RULE_STATUS_TITLES = {
     "not_applicable": "Правило не применяется к этому оборудованию",
 }
 PART_TITLES = {"camera": "Камера", "sensor": "Датчики", "resource": "Ресурс", "manual": "Инженер", "sound": "Звук"}
-KIND_TITLES = {"threshold": "порог", "trend": "тренд", "sign": "признак", "label": "диагноз по уставкам",
-               "maintenance": "межремонтный интервал"}
+KIND_TITLES = {
+    "threshold": "порог",
+    "trend": "тренд",
+    "sign": "признак",
+    "label": "диагноз по уставкам",
+    "maintenance": "межремонтный интервал",
+}
 
 router = APIRouter(tags=["rules"], dependencies=[Depends(READ)])
 
@@ -60,10 +71,17 @@ def _condition(leaf: dict, part: dict, parameters: dict, escalation: bool = Fals
     if leaf["kind"] == "trend":
         unit = f"{unit}/ч" if unit else "/ч"
     return {
-        "kind": leaf["kind"], "kind_title": KIND_TITLES.get(leaf["kind"], leaf["kind"]),
-        "source": leaf.get("source") or part["source"], "qualifier": bool(part.get("qualifier")),
-        "escalation": escalation, "param": leaf.get("param"), "name": leaf.get("what") or meta.get("name"),
-        "op": leaf.get("op"), "value": leaf.get("value"), "unit": unit or None, "label": leaf.get("label"),
+        "kind": leaf["kind"],
+        "kind_title": KIND_TITLES.get(leaf["kind"], leaf["kind"]),
+        "source": leaf.get("source") or part["source"],
+        "qualifier": bool(part.get("qualifier")),
+        "escalation": escalation,
+        "param": leaf.get("param"),
+        "name": leaf.get("what") or meta.get("name"),
+        "op": leaf.get("op"),
+        "value": leaf.get("value"),
+        "unit": unit or None,
+        "label": leaf.get("label"),
         "equals": leaf.get("equals"),
     }
 
@@ -101,15 +119,34 @@ def rule_item(rule: dict, titles: dict, parameters: dict) -> dict:
     for name in ("camera_only", "partial"):
         block = rule.get(name)
         if block:
-            variants.append({"when": name, "status": block.get("status", "check"), "severity": block.get("severity", 1),
-                             "diagnosis": block.get("diagnosis"), "recommendation": block.get("recommendation")})
+            variants.append(
+                {
+                    "when": name,
+                    "status": block.get("status", "check"),
+                    "severity": block.get("severity", 1),
+                    "diagnosis": block.get("diagnosis"),
+                    "recommendation": block.get("recommendation"),
+                }
+            )
     if escalation:
-        variants.append({"when": "escalation", "status": escalation["status"], "severity": escalation["severity"],
-                         "diagnosis": escalation["diagnosis"], "recommendation": escalation["recommendation"]})
+        variants.append(
+            {
+                "when": "escalation",
+                "status": escalation["status"],
+                "severity": escalation["severity"],
+                "diagnosis": escalation["diagnosis"],
+                "recommendation": escalation["recommendation"],
+            }
+        )
     group = rule.get("group")
     return {
-        "id": rule["id"], "title": rule["title"], "group": group, "group_title": GROUP_TITLES.get(group, group),
-        "applies_to": list(rule["applies_to"]), "node": rule["node"], "node_fallbacks": list(rule.get("node_fallbacks") or []),
+        "id": rule["id"],
+        "title": rule["title"],
+        "group": group,
+        "group_title": GROUP_TITLES.get(group, group),
+        "applies_to": list(rule["applies_to"]),
+        "node": rule["node"],
+        "node_fallbacks": list(rule.get("node_fallbacks") or []),
         "camera": {
             "text": rule.get("camera_text"),
             "signs": _sign_list(camera_signs, titles),
@@ -118,13 +155,23 @@ def rule_item(rule: dict, titles: dict, parameters: dict) -> dict:
         },
         "sensor": {"text": rule.get("sensor_text"), "conditions": sensor},
         "sound": {"signs": _sign_list(sound_signs, titles)},
-        "status": {"status": rule.get("status", "defect"), "status_title": RULE_STATUS_TITLES.get(rule.get("status", "defect")),
-                   "diagnosis": rule["diagnosis"], "variants": variants},
-        "severity": rule["severity"], "severity_title": SEVERITY_TITLES.get(rule["severity"]),
+        "status": {
+            "status": rule.get("status", "defect"),
+            "status_title": RULE_STATUS_TITLES.get(rule.get("status", "defect")),
+            "diagnosis": rule["diagnosis"],
+            "variants": variants,
+        },
+        "severity": rule["severity"],
+        "severity_title": SEVERITY_TITLES.get(rule["severity"]),
         "recommendation": rule["recommendation"],
-        "source": {"group": group, "title": rule.get("source_note") or GROUP_SOURCES.get(group, group),
-                   "customer": group == "customer", "thresholds": group == "threshold", "visual": visual,
-                   "demo": group == "demo"},
+        "source": {
+            "group": group,
+            "title": rule.get("source_note") or GROUP_SOURCES.get(group, group),
+            "customer": group == "customer",
+            "thresholds": group == "threshold",
+            "visual": visual,
+            "demo": group == "demo",
+        },
     }
 
 
@@ -136,8 +183,12 @@ def rules() -> list[dict]:
 
 
 @router.get("/equipment/{equipment_id}/rules/{rule_id}")
-def evaluate(equipment_id: str, rule_id: str, session: Annotated[Session, Depends(get_session)],
-             inspection_id: Annotated[int | None, Query(ge=1)] = None) -> dict:
+def evaluate(
+    equipment_id: str,
+    rule_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    inspection_id: Annotated[int | None, Query(ge=1)] = None,
+) -> dict:
     """Проверка одного правила для агрегата сейчас - сработало оно или нет - с разбором по условиям.
 
     Без inspection_id учитываются датчики и ресурс на текущий момент ленты. С номером осмотра этого агрегата -
@@ -167,14 +218,24 @@ def evaluate(equipment_id: str, rule_id: str, session: Annotated[Session, Depend
     for condition in result["conditions"]:
         condition["source_title"] = PART_TITLES.get(condition["source"], condition["source"])
     return {
-        "equipment_id": item.id, "rule_id": rule["id"], "title": rule["title"], "group": rule.get("group"),
-        "group_title": GROUP_TITLES.get(rule.get("group")), "inspection_id": inspection_id, "at": stamp(feed.at),
-        "telemetry": feed.player is not None, "telemetry_reason": feed.reason,
+        "equipment_id": item.id,
+        "rule_id": rule["id"],
+        "title": rule["title"],
+        "group": rule.get("group"),
+        "group_title": GROUP_TITLES.get(rule.get("group")),
+        "inspection_id": inspection_id,
+        "at": stamp(feed.at),
+        "telemetry": feed.player is not None,
+        "telemetry_reason": feed.reason,
         "confirmed_signs": [{"code": code, "title": signs[code]} for code in confirmed],
         **result,
         "node_name": names.get(result["node_id"], WHOLE_UNIT),
-        "status_title": UNCHECKED_TITLE if result["status"] == "unknown" and any(
-            part["state"] == "unmet" for part in result["parts"]) else RULE_STATUS_TITLES[result["status"]],
+        "status_title": (
+            UNCHECKED_TITLE
+            if result["status"] == "unknown" and any(part["state"] == "unmet" for part in result["parts"])
+            else RULE_STATUS_TITLES[result["status"]]
+        ),
         "severity_title": SEVERITY_TITLES.get(result["severity"]) if result["severity"] else None,
-        "camera_text": rule.get("camera_text"), "sensor_text": rule.get("sensor_text"),
+        "camera_text": rule.get("camera_text"),
+        "sensor_text": rule.get("sensor_text"),
     }

@@ -1,4 +1,5 @@
 """Проигрыватель телеметрии: лента значений с курсором времени, окнами, трендами и сценариями."""
+
 import json
 import math
 import threading
@@ -34,46 +35,102 @@ def parameter_catalogue(model: PumpModel) -> list[dict]:
     помечены в basis как принятые командой.
     """
     base = synth.BASELINE
-    rms = math.sqrt(base["vib_1x"][0] ** 2 + base["vib_2x"][0] ** 2 + synth.RMS_FLOOR ** 2)
+    rms = math.sqrt(base["vib_1x"][0] ** 2 + base["vib_2x"][0] ** 2 + synth.RMS_FLOOR**2)
     rms += synth.RMS_HF_SHARE * base["vib_hf"][0]
     discharge = synth.PRESS_IN_BASE + model.pressure_rise_bar
     efficiency = model.nominal_efficiency
     current = (
         round(model.rated_current_a * synth.CURRENT_WARN_RATIO, 2),
         round(model.rated_current_a * synth.CURRENT_ALARM_RATIO, 2),
-        "high", model.rated_current_a, CURRENT_BASIS,
+        "high",
+        model.rated_current_a,
+        CURRENT_BASIS,
     )
     vibration = (synth.VIBRATION_WARN, synth.VIBRATION_ALARM, "high")
     entries = (
         ("rpm", "Частота вращения", "об/мин", None, None, None, base["rpm"][0], None),
-        ("vib_rms", "СКЗ виброскорости общее", "мм/с", *vibration, rms,
-         "Принято командой: как уставки заказчика для амплитуды 1x"),
-        ("vib_1x", "Амплитуда вибрации 1x", "мм/с", *CUSTOMER_THRESHOLDS["vib_1x"], "high", base["vib_1x"][0],
-         VIBRATION_BASIS),
-        ("vib_2x", "Амплитуда вибрации 2x", "мм/с", *CUSTOMER_THRESHOLDS["vib_2x"], "high", base["vib_2x"][0],
-         VIBRATION_BASIS),
-        ("vib_hf", "ВЧ шум", "g", *CUSTOMER_THRESHOLDS["vib_hf"], "high", base["vib_hf"][0],
-         "Предупреждение - из описания базы вибрации, тревога 5,0 g восстановлена по диагнозам в базе"),
-        ("vib_axial", "Осевая вибрация на муфте", "мм/с", *vibration, base["vib_axial"][0],
-         "Принято командой: как для общего уровня виброскорости"),
-        ("temp_bearing", "Температура подшипника насоса", "°C", *CUSTOMER_THRESHOLDS["temp_bearing"], "high",
-         base["temp_bearing"][0], TEMPERATURE_BASIS),
-        ("temp_winding", "Температура обмоток двигателя", "°C", *CUSTOMER_THRESHOLDS["temp_winding"], "high",
-         base["temp_winding"][0], TEMPERATURE_BASIS),
+        (
+            "vib_rms",
+            "СКЗ виброскорости общее",
+            "мм/с",
+            *vibration,
+            rms,
+            "Принято командой: как уставки заказчика для амплитуды 1x",
+        ),
+        ("vib_1x", "Амплитуда вибрации 1x", "мм/с", *CUSTOMER_THRESHOLDS["vib_1x"], "high", base["vib_1x"][0], VIBRATION_BASIS),
+        ("vib_2x", "Амплитуда вибрации 2x", "мм/с", *CUSTOMER_THRESHOLDS["vib_2x"], "high", base["vib_2x"][0], VIBRATION_BASIS),
+        (
+            "vib_hf",
+            "ВЧ шум",
+            "g",
+            *CUSTOMER_THRESHOLDS["vib_hf"],
+            "high",
+            base["vib_hf"][0],
+            "Предупреждение - из описания базы вибрации, тревога 5,0 g восстановлена по диагнозам в базе",
+        ),
+        (
+            "vib_axial",
+            "Осевая вибрация на муфте",
+            "мм/с",
+            *vibration,
+            base["vib_axial"][0],
+            "Принято командой: как для общего уровня виброскорости",
+        ),
+        (
+            "temp_bearing",
+            "Температура подшипника насоса",
+            "°C",
+            *CUSTOMER_THRESHOLDS["temp_bearing"],
+            "high",
+            base["temp_bearing"][0],
+            TEMPERATURE_BASIS,
+        ),
+        (
+            "temp_winding",
+            "Температура обмоток двигателя",
+            "°C",
+            *CUSTOMER_THRESHOLDS["temp_winding"],
+            "high",
+            base["temp_winding"][0],
+            TEMPERATURE_BASIS,
+        ),
         ("current_a", "Ток фазы A", "А", *current),
         ("current_b", "Ток фазы B", "А", *current),
         ("current_c", "Ток фазы C", "А", *current),
-        ("current_unbalance", "Небаланс токов по фазам", "%", synth.UNBALANCE_WARN, synth.UNBALANCE_ALARM, "high",
-         synth.UNBALANCE_BASE, "Предупреждение - порог заказчика 5 % (правило 4), тревога 10 % принята командой"),
-        ("press_in", "Давление на входе", "бар", synth.PRESS_IN_WARN, synth.PRESS_IN_ALARM, "low",
-         synth.PRESS_IN_BASE, "Принято командой: предупреждение ниже 1,0 бар, тревога ниже 0,5 бар"),
+        (
+            "current_unbalance",
+            "Небаланс токов по фазам",
+            "%",
+            synth.UNBALANCE_WARN,
+            synth.UNBALANCE_ALARM,
+            "high",
+            synth.UNBALANCE_BASE,
+            "Предупреждение - порог заказчика 5 % (правило 4), тревога 10 % принята командой",
+        ),
+        (
+            "press_in",
+            "Давление на входе",
+            "бар",
+            synth.PRESS_IN_WARN,
+            synth.PRESS_IN_ALARM,
+            "low",
+            synth.PRESS_IN_BASE,
+            "Принято командой: предупреждение ниже 1,0 бар, тревога ниже 0,5 бар",
+        ),
         ("press_out", "Давление нагнетания, электронный датчик", "бар", None, None, None, discharge, None),
         ("press_out_true", "Давление нагнетания, стрелочный манометр", "бар", None, None, None, discharge, None),
         ("flow", "Подача", "м³/ч", None, None, None, model.flow_m3h, None),
         ("power", "Потребляемая мощность насоса", "кВт", None, None, None, model.power_kw, None),
-        ("efficiency", "КПД насоса", "%", round(efficiency * (1 - synth.EFFICIENCY_DROP_WARN), 2),
-         round(efficiency * (1 - synth.EFFICIENCY_DROP_ALARM), 2), "low", efficiency,
-         "Предупреждение - падение на 15 % от паспортного КПД (правило 10), тревога - на 20 %, принята командой"),
+        (
+            "efficiency",
+            "КПД насоса",
+            "%",
+            round(efficiency * (1 - synth.EFFICIENCY_DROP_WARN), 2),
+            round(efficiency * (1 - synth.EFFICIENCY_DROP_ALARM), 2),
+            "low",
+            efficiency,
+            "Предупреждение - падение на 15 % от паспортного КПД (правило 10), тревога - на 20 %, принята командой",
+        ),
         ("run_hours", "Наработка", "ч", None, None, None, None, None),
         ("mode", "Режим работы (1 - в работе, 0 - остановлен)", "", None, None, None, None, None),
     )

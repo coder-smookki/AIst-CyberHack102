@@ -3,6 +3,7 @@
 Запуск:
     python cv/nameplate.py <изображение> [data/equipment.json]
 """
+
 import difflib
 import json
 import re
@@ -34,6 +35,7 @@ def ocr_model_paths() -> dict[str, str]:
     понятная ошибка вместо обращения к внешнему адресу.
     """
     import rapidocr
+
     folders = [Path(__file__).resolve().parent.parent / "models" / "ocr", Path(rapidocr.__file__).resolve().parent / "models"]
     found, missing = {}, []
     for key, name in OCR_MODELS.items():
@@ -43,8 +45,7 @@ def ocr_model_paths() -> dict[str, str]:
         else:
             found[key] = str(path)
     if missing:
-        raise FileNotFoundError("Нет файлов моделей распознавания текста: " + ", ".join(missing)
-                                + ". Положите их в models/ocr")
+        raise FileNotFoundError("Нет файлов моделей распознавания текста: " + ", ".join(missing) + ". Положите их в models/ocr")
     return found
 
 
@@ -53,6 +54,7 @@ def engine():
     global _engine
     if _engine is None:
         from rapidocr import RapidOCR
+
         _engine = RapidOCR(params=ocr_model_paths())
     return _engine
 
@@ -122,7 +124,7 @@ def similarity(key: str, haystack: str) -> float:
     matcher.set_seq2(key)
     best = 0.0
     for start in range(max(1, len(haystack) - len(key) + 1)):
-        matcher.set_seq1(haystack[start:start + len(key)])
+        matcher.set_seq1(haystack[start : start + len(key)])
         if matcher.quick_ratio() > best:
             best = max(best, matcher.ratio())
     return best

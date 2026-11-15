@@ -13,6 +13,7 @@
      "images": [{"file": "pump_ok.jpg", "boxes": [["motor", 0.20, 0.25, 0.51, 0.64]]}]}
 Рамки заданы как x1, y1, x2, y2 в долях изображения.
 """
+
 import argparse
 import glob
 import json
@@ -34,7 +35,7 @@ def rand_bg(bgs):
             s = max(S / h, S / w) * random.uniform(1.0, 1.6)
             bg = cv2.resize(bg, (int(w * s) + 1, int(h * s) + 1))
             y, x = random.randint(0, bg.shape[0] - S), random.randint(0, bg.shape[1] - S)
-            return cv2.GaussianBlur(bg[y:y + S, x:x + S], (0, 0), random.uniform(1, 4))
+            return cv2.GaussianBlur(bg[y : y + S, x : x + S], (0, 0), random.uniform(1, 4))
     base = np.full((S, S, 3), [random.randint(20, 230) for _ in range(3)], np.uint8)
     noise = cv2.resize(np.random.randint(0, 60, (8, 8, 3), np.uint8), (S, S), interpolation=cv2.INTER_CUBIC)
     return cv2.add(base, noise)
@@ -53,8 +54,16 @@ def glare(img):
     """Добавляет мягкое светлое пятно, похожее на блик лампы на экране."""
     h, w = img.shape[:2]
     m = np.zeros((h, w), np.float32)
-    cv2.ellipse(m, (random.randint(0, w), random.randint(0, h)), (random.randint(40, 200), random.randint(30, 120)),
-                random.uniform(0, 180), 0, 360, 1.0, -1)
+    cv2.ellipse(
+        m,
+        (random.randint(0, w), random.randint(0, h)),
+        (random.randint(40, 200), random.randint(30, 120)),
+        random.uniform(0, 180),
+        0,
+        360,
+        1.0,
+        -1,
+    )
     m = cv2.GaussianBlur(m, (0, 0), random.uniform(25, 60)) * random.uniform(60, 150)
     return np.clip(img.astype(np.float32) + m[..., None], 0, 255).astype(np.uint8)
 
@@ -91,7 +100,9 @@ def make_frame(src, boxes, bgs, scale_range=(0.45, 1.25), center_range=(0.3, 0.7
     tw = S * scale * min(1.0, w / h)
     th = tw * h / w
     cx, cy = random.uniform(*center_range) * S, random.uniform(*center_range) * S
-    quad = np.float32([[cx - tw / 2, cy - th / 2], [cx + tw / 2, cy - th / 2], [cx + tw / 2, cy + th / 2], [cx - tw / 2, cy + th / 2]])
+    quad = np.float32(
+        [[cx - tw / 2, cy - th / 2], [cx + tw / 2, cy - th / 2], [cx + tw / 2, cy + th / 2], [cx - tw / 2, cy + th / 2]]
+    )
     quad += np.float32([[random.uniform(-0.12, 0.12) * tw, random.uniform(-0.12, 0.12) * th] for _ in range(4)])
     H = cv2.getPerspectiveTransform(np.float32([[0, 0], [w, 0], [w, h], [0, h]]), quad)
     frame = rand_bg(bgs)

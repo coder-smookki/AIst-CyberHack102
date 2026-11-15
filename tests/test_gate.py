@@ -1,4 +1,5 @@
 """Проверки чистых функций порога качества cv/gate.py."""
+
 import os
 import sys
 
@@ -37,8 +38,16 @@ def test_latency_check_allows_twenty_percent():
 
 def test_defect_and_part_checks_and_verdict():
     """Наборы проверок собираются из отчётов cv/delivered.py, итог FAIL при любой проваленной проверке."""
-    base = {"map50": 0.45, "conf_served": {"image_defect_found": 0.75, "false_alarm_rate": None, "box_precision": 0.6,
-                                          "defective_images": 8, "clean_images": 0}}
+    base = {
+        "map50": 0.45,
+        "conf_served": {
+            "image_defect_found": 0.75,
+            "false_alarm_rate": None,
+            "box_precision": 0.6,
+            "defective_images": 8,
+            "clean_images": 0,
+        },
+    }
     same = defect_checks("holdout", base, base)
     assert verdict(same) == "PASS" and len(same) == 4
     worse = {"map50": 0.45, "conf_served": dict(base["conf_served"], image_defect_found=0.5)}

@@ -2,6 +2,7 @@
 
 Вопросы задаёт сотрудник с правом «Вопросы помощнику».
 """
+
 from typing import Annotated
 
 from fastapi import APIRouter, Depends

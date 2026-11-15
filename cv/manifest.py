@@ -7,6 +7,7 @@
 читаются из самого файла ONNX, поэтому запись не может разойтись с моделью. Необязательный файл
 описания добавляет к записи сведения о семействе, лицензии весов, данных обучения и замерах.
 """
+
 import json
 import os
 import sys
@@ -26,10 +27,17 @@ def entry(folder: str, role: str, file: str, extra: dict | None = None) -> dict:
     meta = session.get_modelmeta().custom_metadata_map
     names = json.loads(meta["names"])
     classes = [names[str(index)] for index in range(len(names))]
-    row = {"file": file, "role": role, "classes": classes, "imgsz": int(meta["imgsz"]),
-           "defect_classes": [name for name in classes if name not in NODE_CLASSES],
-           "conf_check": CONF_CHECK, "conf_defect": CONF_DEFECT,
-           "input": session.get_inputs()[0].name, "size_mb": round(os.path.getsize(os.path.join(folder, file)) / 1e6, 1)}
+    row = {
+        "file": file,
+        "role": role,
+        "classes": classes,
+        "imgsz": int(meta["imgsz"]),
+        "defect_classes": [name for name in classes if name not in NODE_CLASSES],
+        "conf_check": CONF_CHECK,
+        "conf_defect": CONF_DEFECT,
+        "input": session.get_inputs()[0].name,
+        "size_mb": round(os.path.getsize(os.path.join(folder, file)) / 1e6, 1),
+    }
     row.update(extra or {})
     return row
 

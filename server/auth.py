@@ -10,6 +10,7 @@ Authorization: Bearer. Токен обновления лежит на теле�
 без повторного входа. Заблокированная учётная запись войти не может, а сотрудник с временным паролем
 до его смены может только сменить пароль, выйти и узнать сведения о себе.
 """
+
 import base64
 import hashlib
 import hmac
@@ -82,8 +83,9 @@ def _password_bytes(password: str) -> bytes:
 def hash_password(password: str) -> str:
     """Считает хэш пароля алгоритмом scrypt со случайной солью; параметры записаны в саму строку хэша."""
     salt = secrets.token_bytes(SALT_BYTES)
-    key = hashlib.scrypt(_password_bytes(password), salt=salt, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
-                         maxmem=SCRYPT_MAXMEM, dklen=KEY_BYTES)
+    key = hashlib.scrypt(
+        _password_bytes(password), salt=salt, n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P, maxmem=SCRYPT_MAXMEM, dklen=KEY_BYTES
+    )
     parts = ("scrypt", SCRYPT_N, SCRYPT_R, SCRYPT_P, base64.b64encode(salt).decode(), base64.b64encode(key).decode())
     return "$".join(str(part) for part in parts)
 
@@ -95,8 +97,15 @@ def verify_password(password: str, stored: str) -> bool:
         if scheme != "scrypt":
             return False
         expected = base64.b64decode(key, validate=True)
-        actual = hashlib.scrypt(_password_bytes(password), salt=base64.b64decode(salt, validate=True),
-                                n=int(n), r=int(r), p=int(p), maxmem=SCRYPT_MAXMEM, dklen=len(expected))
+        actual = hashlib.scrypt(
+            _password_bytes(password),
+            salt=base64.b64decode(salt, validate=True),
+            n=int(n),
+            r=int(r),
+            p=int(p),
+            maxmem=SCRYPT_MAXMEM,
+            dklen=len(expected),
+        )
     except ValueError:
         return False
     return hmac.compare_digest(actual, expected)
@@ -128,16 +137,24 @@ def _encode(user_id: int, family: str, kind: str, auth_time: int, lifetime: time
         expires = issued + config.ACCESS_TTL
     else:
         expires = datetime.fromtimestamp(auth_time, UTC) + lifetime
-    claims = {"sub": str(user_id), "sid": family, "typ": kind, "jti": secrets.token_urlsafe(16),
-              "iat": issued, "exp": expires, "auth_time": auth_time}
+    claims = {
+        "sub": str(user_id),
+        "sid": family,
+        "typ": kind,
+        "jti": secrets.token_urlsafe(16),
+        "iat": issued,
+        "exp": expires,
+        "auth_time": auth_time,
+    }
     return jwt.encode(claims, config.secret_key(), algorithm=ALGORITHM)
 
 
 def _decode(token: str, kind: str) -> dict | None:
     """Проверяет подпись, срок действия и вид токена; возвращает его содержимое или None."""
     try:
-        payload = jwt.decode(token, config.secret_key(), algorithms=[ALGORITHM],
-                             options={"require": ["exp", "sub", "sid", "typ"]})
+        payload = jwt.decode(
+            token, config.secret_key(), algorithms=[ALGORITHM], options={"require": ["exp", "sub", "sid", "typ"]}
+        )
     except jwt.PyJWTError:
         return None
     if payload["typ"] != kind or not str(payload["sub"]).isdigit() or not isinstance(payload["sid"], str):
@@ -182,8 +199,15 @@ def has_permission(user: User, code: str) -> bool:
 
 def user_view(user: User) -> dict:
     """Описывает сотрудника для ответа сервера: без хэша пароля, с названием роли по-русски и правами."""
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "role_title": role_title(user),
-            "permissions": permissions_of(user), "must_change_password": user.must_change_password}
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+        "role_title": role_title(user),
+        "permissions": permissions_of(user),
+        "must_change_password": user.must_change_password,
+    }
 
 
 def _issue(session: Session, user: User, family: str, device: str | None, auth_time: int) -> dict:
@@ -193,16 +217,23 @@ def _issue(session: Session, user: User, family: str, device: str | None, auth_t
     refresh_token = _encode(user.id, family, "refresh", auth_time, lifetime)
     session.add(RefreshToken(user_id=user.id, token_hash=_digest(refresh_token), family=family, device=device))
     view = user_view(user)
-    return {"access_token": _encode(user.id, family, "access", auth_time, lifetime), "refresh_token": refresh_token,
-            "token_type": "bearer", "expires_in": int(config.ACCESS_TTL.total_seconds()), "user": view,
-            "must_change_password": view["must_change_password"], "permissions": view["permissions"],
-            "biometrics_allowed": policy.biometrics_allowed}
+    return {
+        "access_token": _encode(user.id, family, "access", auth_time, lifetime),
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": int(config.ACCESS_TTL.total_seconds()),
+        "user": view,
+        "must_change_password": view["must_change_password"],
+        "permissions": view["permissions"],
+        "biometrics_allowed": policy.biometrics_allowed,
+    }
 
 
 def _session_user(session: Session, payload: dict) -> User | None:
     """Находит действующего сотрудника по содержимому токена доступа, если его сеанс не закрыт."""
-    alive = exists().where(RefreshToken.family == payload["sid"], RefreshToken.user_id == User.id,
-                           RefreshToken.revoked.is_(False))
+    alive = exists().where(
+        RefreshToken.family == payload["sid"], RefreshToken.user_id == User.id, RefreshToken.revoked.is_(False)
+    )
     return session.scalar(select(User).where(User.id == int(payload["sub"]), User.is_active.is_(True), alive))
 
 
@@ -220,8 +251,7 @@ def _claims(credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(
     return payload
 
 
-def signed_in_user(payload: Annotated[dict, Depends(_claims)],
-                   session: Annotated[Session, Depends(get_session)]) -> User:
+def signed_in_user(payload: Annotated[dict, Depends(_claims)], session: Annotated[Session, Depends(get_session)]) -> User:
     """Зависимость: вошедший сотрудник, даже если ему ещё нужно сменить временный пароль."""
     user = _session_user(session, payload)
     if user is None:
@@ -251,8 +281,11 @@ def require_permission(*codes: str, any_of: bool = False) -> Callable[..., User]
     if not codes or wrong:
         raise ValueError(f"Права должны быть из перечня server/permissions.py, получено {codes}")
     names = ", ".join(f"«{permission_title(code)}»" for code in codes)
-    detail = f"Недостаточно прав - нужно право {names}" if len(codes) == 1 else (
-        f"Недостаточно прав - нужно одно из прав: {names}" if any_of else f"Недостаточно прав - нужны права: {names}")
+    detail = (
+        f"Недостаточно прав - нужно право {names}"
+        if len(codes) == 1
+        else (f"Недостаточно прав - нужно одно из прав: {names}" if any_of else f"Недостаточно прав - нужны права: {names}")
+    )
 
     def checker(user: Annotated[User, Depends(current_user)], session: Annotated[Session, Depends(get_session)]) -> User:
         """Проверяет права сотрудника по роли в базе и возвращает его."""
@@ -295,8 +328,11 @@ def _throttle(session: Session, key: tuple[str, str]) -> tuple[int, int]:
     attempts, window = policy.lockout_attempts, policy.lockout_minutes * 60
     blocked = _seconds_blocked(key, attempts, window)
     if blocked:
-        raise HTTPException(status_code=429, detail=f"Слишком много неудачных попыток входа - повторите через {blocked} с",
-                            headers={"Retry-After": str(blocked)})
+        raise HTTPException(
+            status_code=429,
+            detail=f"Слишком много неудачных попыток входа - повторите через {blocked} с",
+            headers={"Retry-After": str(blocked)},
+        )
     return attempts, window
 
 
@@ -305,8 +341,9 @@ def _failed(session: Session, key: tuple[str, str], attempts: int, window: int, 
     count = _note_failure(key, window)
     security.record(session, event, email=key[0], ip=key[1], **fields)
     if count == attempts:
-        security.record(session, "login_locked", email=key[0], ip=key[1],
-                        details={"attempts": attempts, "minutes": window // 60}, **fields)
+        security.record(
+            session, "login_locked", email=key[0], ip=key[1], details={"attempts": attempts, "minutes": window // 60}, **fields
+        )
     session.commit()
 
 
@@ -330,11 +367,20 @@ def login(body: LoginBody, request: Request, session: Annotated[Session, Depends
         raise HTTPException(status_code=403, detail=BLOCKED_ACCOUNT)
     with _failures_lock:
         _failures.pop(key, None)
-    session.execute(delete(RefreshToken).where(RefreshToken.created_at < now() - max(_lifetime(session), config.REFRESH_TTL))
-                    .execution_options(synchronize_session=False))
+    session.execute(
+        delete(RefreshToken)
+        .where(RefreshToken.created_at < now() - max(_lifetime(session), config.REFRESH_TTL))
+        .execution_options(synchronize_session=False)
+    )
     user.last_login_at = now()
-    security.record(session, "login_success", actor=user, target_user=user, ip=key[1],
-                    details={"device": body.device} if body.device else None)
+    security.record(
+        session,
+        "login_success",
+        actor=user,
+        target_user=user,
+        ip=key[1],
+        details={"device": body.device} if body.device else None,
+    )
     tokens = _issue(session, user, secrets.token_hex(16), body.device, int(time.time()))
     session.commit()
     return tokens
@@ -366,8 +412,12 @@ def refresh(body: RefreshBody, session: Annotated[Session, Depends(get_session)]
         ).first()
     user = session.get(User, spent.user_id) if spent else None
     if user is None or not user.is_active:
-        session.execute(update(RefreshToken).where(RefreshToken.family == payload["sid"]).values(revoked=True)
-                        .execution_options(synchronize_session=False))
+        session.execute(
+            update(RefreshToken)
+            .where(RefreshToken.family == payload["sid"])
+            .values(revoked=True)
+            .execution_options(synchronize_session=False)
+        )
         session.commit()
         if expired:
             raise _unauthorized("Срок сеанса истёк - войдите по паролю")
@@ -375,15 +425,24 @@ def refresh(body: RefreshBody, session: Annotated[Session, Depends(get_session)]
     tokens = _issue(session, user, spent.family, spent.device, auth_time)
     if body.biometric:
         user.last_login_at = now()
-        security.record(session, "login_biometric", actor=user, target_user=user, ip=_client_ip(request) if request else None,
-                        details={"device": spent.device} if spent.device else None)
+        security.record(
+            session,
+            "login_biometric",
+            actor=user,
+            target_user=user,
+            ip=_client_ip(request) if request else None,
+            details={"device": spent.device} if spent.device else None,
+        )
     session.commit()
     return tokens
 
 
 @router.post("/logout")
-def logout(payload: Annotated[dict, Depends(_claims)], user: Annotated[User, Depends(signed_in_user)],
-           session: Annotated[Session, Depends(get_session)]) -> dict:
+def logout(
+    payload: Annotated[dict, Depends(_claims)],
+    user: Annotated[User, Depends(signed_in_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Завершает сеанс: его токен обновления и выданные токены доступа перестают действовать сразу."""
     security.revoke_sessions(session, user.id, family=payload["sid"])
     session.commit()
@@ -397,9 +456,13 @@ def me(user: Annotated[User, Depends(signed_in_user)]) -> dict:
 
 
 @router.post("/password")
-def change_password(body: PasswordBody, request: Request, payload: Annotated[dict, Depends(_claims)],
-                    user: Annotated[User, Depends(signed_in_user)],
-                    session: Annotated[Session, Depends(get_session)]) -> dict:
+def change_password(
+    body: PasswordBody,
+    request: Request,
+    payload: Annotated[dict, Depends(_claims)],
+    user: Annotated[User, Depends(signed_in_user)],
+    session: Annotated[Session, Depends(get_session)],
+) -> dict:
     """Меняет пароль: проверяет действующий пароль и соответствие нового политике, закрывает прочие сеансы.
 
     Неверный действующий пароль считается неудачной попыткой входа - так пароль не подобрать перебором.
@@ -418,7 +481,8 @@ def change_password(body: PasswordBody, request: Request, payload: Annotated[dic
     user.must_change_password = False
     user.password_changed_at = now()
     closed = security.revoke_sessions(session, user.id, keep=payload["sid"])
-    security.record(session, "password_changed", actor=user, target_user=user, ip=key[1],
-                    details={"other_sessions_closed": closed})
+    security.record(
+        session, "password_changed", actor=user, target_user=user, ip=key[1], details={"other_sessions_closed": closed}
+    )
     session.commit()
     return {"ok": True, "user": user_view(user)}

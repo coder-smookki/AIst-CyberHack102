@@ -9,6 +9,7 @@
     оставляет в /kaggle/working/runs/<опыт> только best.pt, last.pt, журналы и сводку обучения.
 Эпоха и лучшие веса выбираются только по части val; порог уверенности здесь не подбирается.
 """
+
 import glob
 import json
 import os
@@ -69,22 +70,30 @@ def prepare(source: str, name: str, screen: bool) -> str:
     path = os.path.join(root, "data.yaml")
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(f"path: {root}\ntrain: images/train\nval: images/val\nnames:\n")
-        handle.writelines(f"  {index}: {label}\n" for index, label in
-                          enumerate(("corrosion", "leak", "terminal_box_burnt", "damage")))
+        handle.writelines(
+            f"  {index}: {label}\n" for index, label in enumerate(("corrosion", "leak", "terminal_box_burnt", "damage"))
+        )
     return path
 
 
 def launch(experiment: dict, source: str, gpu: int) -> tuple:
     """Запускает опыт в отдельном процессе на указанной видеокарте и возвращает процесс и журнал."""
     name = experiment["name"]
-    config = {"data": prepare(source, name, experiment.get("screen", True)), "project": os.path.join(OUT, "runs"),
-              "name": name, "exist_ok": True, "device": "0", "workers": experiment.get("workers", 2)}
+    config = {
+        "data": prepare(source, name, experiment.get("screen", True)),
+        "project": os.path.join(OUT, "runs"),
+        "name": name,
+        "exist_ok": True,
+        "device": "0",
+        "workers": experiment.get("workers", 2),
+    }
     config.update({key: value for key, value in experiment.items() if key not in ("name", "screen", "minutes", "workers")})
     os.makedirs(os.path.join(OUT, "runs", name), exist_ok=True)
     log = open(os.path.join(OUT, "runs", name, "kaggle_train.log"), "w", encoding="utf-8")
     env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), PYTHONUNBUFFERED="1")
-    process = subprocess.Popen([sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env,
-                               stdout=log, stderr=subprocess.STDOUT)
+    process = subprocess.Popen(
+        [sys.executable, "-c", CHILD, json.dumps(config)], cwd=WORK, env=env, stdout=log, stderr=subprocess.STDOUT
+    )
     return process, log, time.time() + experiment.get("minutes", 180) * 60
 
 
@@ -101,6 +110,7 @@ def main() -> None:
     os.makedirs(WORK, exist_ok=True)
     source = unpack()
     import torch
+
     gpus = max(1, torch.cuda.device_count())
     queue = list(EXPERIMENTS)
     running = {}

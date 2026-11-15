@@ -1,4 +1,5 @@
 """Проверки чистых функций набора и оценки детектора типа оборудования (cv/build_equipment.py, cv/eval_equipment.py)."""
+
 import os
 import sys
 
@@ -36,8 +37,15 @@ def record(predicted, truth):
 
 def test_filtered_thresholds_and_min_area():
     """Рамки ниже порога класса, мелкие рамки и классы без порога отбрасываются."""
-    rec = record([("valve", (0, 0, 50, 50), 0.6), ("valve", (0, 0, 5, 5), 0.9), ("compressor", (0, 0, 50, 50), 0.9),
-                  ("motor", (0, 0, 50, 50), 0.2)], [])
+    rec = record(
+        [
+            ("valve", (0, 0, 50, 50), 0.6),
+            ("valve", (0, 0, 5, 5), 0.9),
+            ("compressor", (0, 0, 50, 50), 0.9),
+            ("motor", (0, 0, 50, 50), 0.2),
+        ],
+        [],
+    )
     kept = filtered(rec, {"valve": 0.5, "compressor": None, "motor": 0.3}, 0.01)
     assert kept == [("valve", (0, 0, 50, 50), 0.6)]
 
@@ -45,8 +53,10 @@ def test_filtered_thresholds_and_min_area():
 def test_class_stats_and_pick_thresholds():
     """Порог класса поднимается до первой точки сетки, где точность на val не ниже цели."""
     truth = [("motor", (0, 0, 50, 50))]
-    records = [record([("motor", (0, 0, 50, 50), 0.8), ("motor", (60, 60, 95, 95), 0.3)], truth),
-               record([("motor", (0, 0, 50, 50), 0.7)], truth)]
+    records = [
+        record([("motor", (0, 0, 50, 50), 0.8), ("motor", (60, 60, 95, 95), 0.3)], truth),
+        record([("motor", (0, 0, 50, 50), 0.7)], truth),
+    ]
     loose = class_stats(records, {"motor": 0.1}, 0.0)["motor"]
     assert loose["tp"] == 2 and loose["fp"] == 1 and loose["recall"] == 1.0
     chosen = pick_thresholds(records, 0.9, 0.0)

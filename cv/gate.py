@@ -16,6 +16,7 @@
     время вывода - не больше чем на LATENCY_SLACK (20%).
 Итог PASS только если прошли все проверки; отчёт runs/reports/gate_<название>.json с таблицей.
 """
+
 import argparse
 import glob
 import json
@@ -42,24 +43,46 @@ def check(name: str, base: float | None, cand: float | None, higher_better: bool
     if cand is None or base is None:
         return {"check": name, "baseline": base, "candidate": cand, "tolerance": tol, "result": "FAIL"}
     worse = (base - cand) if higher_better else (cand - base)
-    return {"check": name, "baseline": round(base, 4), "candidate": round(cand, 4), "tolerance": round(tol, 4),
-            "result": "FAIL" if worse > tol + 1e-9 else "PASS"}
+    return {
+        "check": name,
+        "baseline": round(base, 4),
+        "candidate": round(cand, 4),
+        "tolerance": round(tol, 4),
+        "result": "FAIL" if worse > tol + 1e-9 else "PASS",
+    }
 
 
 def latency_check(name: str, base_ms: float, cand_ms: float, slack: float = LATENCY_SLACK) -> dict:
     """Проверяет, что медианное время вывода кандидата не больше базового более чем на slack."""
     limit = base_ms * (1 + slack)
-    return {"check": name, "baseline": round(base_ms, 1), "candidate": round(cand_ms, 1), "tolerance": f"+{int(slack * 100)}%",
-            "result": "PASS" if cand_ms <= limit else "FAIL"}
+    return {
+        "check": name,
+        "baseline": round(base_ms, 1),
+        "candidate": round(cand_ms, 1),
+        "tolerance": f"+{int(slack * 100)}%",
+        "result": "PASS" if cand_ms <= limit else "FAIL",
+    }
 
 
 def defect_checks(set_name: str, base: dict, cand: dict) -> list[dict]:
     """Проверки набора дефектов: найденные дефектные снимки, точность рамок, mAP50 и ложные тревоги."""
     b, c = base[LEVEL], cand[LEVEL]
-    rows = [check(f"{set_name}: найден дефект", b.get("image_defect_found"), c.get("image_defect_found"), True,
-                  tolerance(b.get("defective_images"))),
-            check(f"{set_name}: ложные тревоги", b.get("false_alarm_rate"), c.get("false_alarm_rate"), False,
-                  tolerance(b.get("clean_images")))]
+    rows = [
+        check(
+            f"{set_name}: найден дефект",
+            b.get("image_defect_found"),
+            c.get("image_defect_found"),
+            True,
+            tolerance(b.get("defective_images")),
+        ),
+        check(
+            f"{set_name}: ложные тревоги",
+            b.get("false_alarm_rate"),
+            c.get("false_alarm_rate"),
+            False,
+            tolerance(b.get("clean_images")),
+        ),
+    ]
     if b.get("box_precision") is not None or c.get("box_precision") is not None:
         rows.append(check(f"{set_name}: точность рамок", b.get("box_precision"), c.get("box_precision"), True, NOISE_ABS))
     if base.get("map50") is not None:
@@ -70,9 +93,11 @@ def defect_checks(set_name: str, base: dict, cand: dict) -> list[dict]:
 def part_checks(set_name: str, base: dict, cand: dict) -> list[dict]:
     """Проверки набора узлов: точность и полнота рамок и mAP50."""
     b, c = base[LEVEL], cand[LEVEL]
-    return [check(f"{set_name}: точность узлов", b.get("box_precision"), c.get("box_precision"), True, NOISE_ABS),
-            check(f"{set_name}: полнота узлов", b.get("box_recall"), c.get("box_recall"), True, NOISE_ABS),
-            check(f"{set_name}: mAP50 узлов", base.get("map50"), cand.get("map50"), True, NOISE_ABS)]
+    return [
+        check(f"{set_name}: точность узлов", b.get("box_precision"), c.get("box_precision"), True, NOISE_ABS),
+        check(f"{set_name}: полнота узлов", b.get("box_recall"), c.get("box_recall"), True, NOISE_ABS),
+        check(f"{set_name}: mAP50 узлов", base.get("map50"), cand.get("map50"), True, NOISE_ABS),
+    ]
 
 
 def clean_rate(alarms: int, total: int) -> float | None:
@@ -91,6 +116,7 @@ def clean_alarms(entries: list[dict], models_dir: str, folder: str) -> tuple[int
 
     from delivered import served
     from protocol import DEFECT_CLASSES, predict, read_frame
+
     models = [LibreYOLO(os.path.join(models_dir, entry["file"])) for entry in entries]
     files = sorted(glob.glob(os.path.join(folder, "*.jpg")) + glob.glob(os.path.join(folder, "*.png")))
     alarms = 0
@@ -98,8 +124,10 @@ def clean_alarms(entries: list[dict], models_dir: str, folder: str) -> tuple[int
         frame = read_frame(path)
         if frame is None:
             continue
-        per_model = [predict([model], frame, tuple(model.names.values()) if isinstance(model.names, dict) else tuple(model.names))
-                     for model in models]
+        per_model = [
+            predict([model], frame, tuple(model.names.values()) if isinstance(model.names, dict) else tuple(model.names))
+            for model in models
+        ]
         boxes = served(per_model, entries)
         alarms += any(name in DEFECT_CLASSES for name, _, _ in boxes)
     return alarms, len(files)
@@ -108,6 +136,7 @@ def clean_alarms(entries: list[dict], models_dir: str, folder: str) -> tuple[int
 def median_latency(path: str) -> float:
     """Медианное время вывода файла ONNX на процессоре по cv/latency.py."""
     from latency import measure
+
     return measure(path, "CPUExecutionProvider", 40)["median_ms"]
 
 
@@ -122,6 +151,7 @@ def main() -> None:
     parser.add_argument("--part-sets", default="parts,blender")
     args = parser.parse_args()
     from delivered import evaluate
+
     base_entries = json.load(open(os.path.join(args.baseline, "models.json"), encoding="utf-8"))
     cand_entries = json.load(open(os.path.join(args.candidate, "models.json"), encoding="utf-8"))
     rows = []
@@ -132,8 +162,15 @@ def main() -> None:
         cand = evaluate(cand_entries, args.candidate, defect_sets, "defects")
         for name in defect_sets:
             if "missing" in base.get(name, {}) or "missing" in cand.get(name, {}):
-                rows.append({"check": f"{name}: набор недоступен", "baseline": None, "candidate": None,
-                             "tolerance": None, "result": "FAIL"})
+                rows.append(
+                    {
+                        "check": f"{name}: набор недоступен",
+                        "baseline": None,
+                        "candidate": None,
+                        "tolerance": None,
+                        "result": "FAIL",
+                    }
+                )
             else:
                 rows += defect_checks(name, base[name], cand[name])
     if part_sets:
@@ -141,26 +178,53 @@ def main() -> None:
         cand = evaluate(cand_entries, args.candidate, part_sets, "parts")
         for name in part_sets:
             if "missing" in base.get(name, {}) or "missing" in cand.get(name, {}):
-                rows.append({"check": f"{name}: набор недоступен", "baseline": None, "candidate": None,
-                             "tolerance": None, "result": "FAIL"})
+                rows.append(
+                    {
+                        "check": f"{name}: набор недоступен",
+                        "baseline": None,
+                        "candidate": None,
+                        "tolerance": None,
+                        "result": "FAIL",
+                    }
+                )
             else:
                 rows += part_checks(name, base[name], cand[name])
     if os.path.isdir(args.clean):
         base_alarms, total = clean_alarms(base_entries, args.baseline, args.clean)
         cand_alarms, _ = clean_alarms(cand_entries, args.candidate, args.clean)
-        rows.append(check("чистые снимки помещений: ложные тревоги", clean_rate(base_alarms, total),
-                          clean_rate(cand_alarms, total), False, tolerance(total) * 0.999))
+        rows.append(
+            check(
+                "чистые снимки помещений: ложные тревоги",
+                clean_rate(base_alarms, total),
+                clean_rate(cand_alarms, total),
+                False,
+                tolerance(total) * 0.999,
+            )
+        )
     else:
-        rows.append({"check": "чистые снимки помещений: набор недоступен", "baseline": None, "candidate": None,
-                     "tolerance": None, "result": "FAIL"})
+        rows.append(
+            {
+                "check": "чистые снимки помещений: набор недоступен",
+                "baseline": None,
+                "candidate": None,
+                "tolerance": None,
+                "result": "FAIL",
+            }
+        )
     base_files = {entry["file"]: entry for entry in base_entries}
     for entry in cand_entries:
         cand_path = os.path.realpath(os.path.join(args.candidate, entry["file"]))
         base_path = os.path.realpath(os.path.join(args.baseline, entry["file"])) if entry["file"] in base_files else None
         if base_path and os.path.exists(base_path) and base_path != cand_path:
             rows.append(latency_check(f"время вывода {entry['file']}, мс", median_latency(base_path), median_latency(cand_path)))
-    report = {"name": args.name, "baseline": args.baseline, "candidate": args.candidate, "date": time.strftime("%Y-%m-%d %H:%M"),
-              "verdict": verdict(rows), "checks": rows}
+    report = {
+        "name": args.name,
+        "baseline": args.baseline,
+        "candidate": args.candidate,
+        "date": time.strftime("%Y-%m-%d %H:%M"),
+        "verdict": verdict(rows),
+        "checks": rows,
+    }
     out = os.path.join(ROOT, "runs", "reports", f"gate_{args.name}.json")
     json.dump(report, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     for row in rows:

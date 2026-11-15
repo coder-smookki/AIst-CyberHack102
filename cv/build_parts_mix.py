@@ -20,6 +20,7 @@ valve из parts_real отбрасываются: в обучающей част
 Разметка parts_real неполная: на снимке размечены только классы из manifest.csv, остальные узлы
 на нём (например, шильдик на двигателе) при обучении считаются фоном. Это известная слабость набора.
 """
+
 import argparse
 import csv
 import glob
@@ -84,13 +85,15 @@ def main() -> None:
         for path in sorted(glob.glob(os.path.join(BLENDER, "images", split, "*.jpg"))):
             stem = os.path.splitext(os.path.basename(path))[0]
             name = "bl_" + stem
-            add_counts(boxes[split], copy_pair(path, os.path.join(BLENDER, "labels", split, stem + ".txt"),
-                                               out, split, name, len(PART_CLASSES)))
+            add_counts(
+                boxes[split],
+                copy_pair(path, os.path.join(BLENDER, "labels", split, stem + ".txt"), out, split, name, len(PART_CLASSES)),
+            )
             images[split]["blender"] += 1
-            manifest.append((f"images/{split}/{name}.jpg", split, "blender", os.path.relpath(path, ROOT),
-                             "собственные данные проекта"))
-    rows = [row for row in csv.DictReader(open(os.path.join(REAL, "manifest.csv"), encoding="utf-8"))
-            if row["split"] == "train"]
+            manifest.append(
+                (f"images/{split}/{name}.jpg", split, "blender", os.path.relpath(path, ROOT), "собственные данные проекта")
+            )
+    rows = [row for row in csv.DictReader(open(os.path.join(REAL, "manifest.csv"), encoding="utf-8")) if row["split"] == "train"]
     rows.sort(key=lambda row: row["file"])
     for index, row in enumerate(rows):
         path = os.path.join(REAL, row["file"])
@@ -103,11 +106,14 @@ def main() -> None:
         split = "val" if index % args.val_every == args.val_every - 1 else "train"
         stem = os.path.splitext(os.path.basename(path))[0]
         name = "real_" + stem
-        add_counts(boxes[split], copy_pair(path, os.path.join(REAL, "labels", "train", stem + ".txt"),
-                                           out, split, name, len(PART_CLASSES)))
+        add_counts(
+            boxes[split],
+            copy_pair(path, os.path.join(REAL, "labels", "train", stem + ".txt"), out, split, name, len(PART_CLASSES)),
+        )
         images[split]["real"] += 1
-        manifest.append((f"images/{split}/{name}{os.path.splitext(path)[1].lower()}", split, row["source"],
-                         row["page_url"], row["licence"]))
+        manifest.append(
+            (f"images/{split}/{name}{os.path.splitext(path)[1].lower()}", split, row["source"], row["page_url"], row["licence"])
+        )
     names = "".join(f"  {index}: {label}\n" for index, label in enumerate(PART_CLASSES))
     with open(os.path.join(out, "data.yaml"), "w", encoding="utf-8") as handle:
         handle.write(f"path: {out}\ntrain: images/train\nval: images/val\nnames:\n{names}")
@@ -115,10 +121,21 @@ def main() -> None:
         handle.write(f"train: images/train\nval: images/val\nnames:\n{names}")
     with open(os.path.join(out, "manifest.csv"), "w", encoding="utf-8", newline="") as handle:
         csv.writer(handle).writerows(manifest)
-    json.dump({"dropped": dropped, "review": review, "drop_bits": DROP_BITS, "review_bits": REVIEW_BITS},
-              open(os.path.join(out, "dedup.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    summary = {"date": time.strftime("%Y-%m-%d"), "classes": list(PART_CLASSES), "images": images, "boxes": boxes,
-               "dropped_near_test": len(dropped), "review_pairs": len(review), "val_every": args.val_every}
+    json.dump(
+        {"dropped": dropped, "review": review, "drop_bits": DROP_BITS, "review_bits": REVIEW_BITS},
+        open(os.path.join(out, "dedup.json"), "w", encoding="utf-8"),
+        ensure_ascii=False,
+        indent=1,
+    )
+    summary = {
+        "date": time.strftime("%Y-%m-%d"),
+        "classes": list(PART_CLASSES),
+        "images": images,
+        "boxes": boxes,
+        "dropped_near_test": len(dropped),
+        "review_pairs": len(review),
+        "val_every": args.val_every,
+    }
     json.dump(summary, open(os.path.join(out, "summary.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(json.dumps(summary, ensure_ascii=False))
 

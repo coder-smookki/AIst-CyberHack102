@@ -4,6 +4,7 @@
 
 Проверки собранных файлов пропускаются, если сборки web/out нет (тесты без Node).
 """
+
 import json
 import re
 import shutil
@@ -22,7 +23,12 @@ WEB = ROOT / "web"
 OUT = WEB / "out"
 SOURCES = ("app", "components", "types", "src")
 EXTERNAL = re.compile(r"(?:https?:)?//[a-z0-9.-]+\.[a-z]{2,}/[^\s\"'`)]*", re.IGNORECASE)
-KNOWN_TEXT_URLS = ("http://www.w3.org/", "https://react.dev/errors/", "https://nextjs.org/docs/", "https://github.com/zloirock/core-js")
+KNOWN_TEXT_URLS = (
+    "http://www.w3.org/",
+    "https://react.dev/errors/",
+    "https://nextjs.org/docs/",
+    "https://github.com/zloirock/core-js",
+)
 built = pytest.mark.skipif(not (OUT / "web" / "index.html").is_file(), reason="нет сборки web/out (npm run build)")
 
 
@@ -54,7 +60,7 @@ def test_sources_offline_and_commented_in_russian():
         assert not EXTERNAL.search(text), (path, EXTERNAL.search(text))
         if path.suffix in (".ts", ".tsx"):
             plain = re.sub(r"/\*\*.*?\*/", "", text, flags=re.DOTALL)
-            plain = re.sub(r"`(?:\\.|[^`\\])*`|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", "\"\"", plain)
+            plain = re.sub(r"`(?:\\.|[^`\\])*`|\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'", '""', plain)
             assert not re.search(r"(?<![:\\])//|/\*(?!\*)", plain), path
     skip = ("node_modules", ".next", "out")
     assert not [p for p in WEB.rglob("*.md") if not set(p.relative_to(WEB).parts) & set(skip)]
@@ -71,7 +77,9 @@ def test_panel_modules_match_classic():
     copy = (WEB / "src" / "panel" / "panel.js").read_text(encoding="utf-8").rstrip()
     start = 'document.addEventListener("DOMContentLoaded", main);'
     assert classic.endswith(start) and copy.startswith(classic[: -len(start)])
-    assert copy.endswith('if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);\nelse main();')
+    assert copy.endswith(
+        'if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);\nelse main();'
+    )
 
 
 def test_export_dir_needs_build(tmp_path, monkeypatch):

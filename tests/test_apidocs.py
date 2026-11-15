@@ -1,4 +1,5 @@
 """Проверки описания API: схема OpenAPI, страница /docs без внешних адресов, файл схемы в репозитории."""
+
 import json
 import re
 
@@ -52,9 +53,16 @@ def test_schema_is_published_in_russian(client):
     schema = response.json()
     assert schema["info"]["title"] == apidocs.API_TITLE and "Authorize" in schema["info"]["description"]
     tags = {tag["name"]: tag["description"] for tag in schema["tags"]}
-    assert "Осмотры, находки и звук" in tags and "/ws/inspect/{inspection_id}" in tags["Распознавание в реальном времени (WebSocket)"]
+    assert (
+        "Осмотры, находки и звук" in tags
+        and "/ws/inspect/{inspection_id}" in tags["Распознавание в реальном времени (WebSocket)"]
+    )
     assert schema["components"]["securitySchemes"]["bearerAuth"] == {
-        "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Токен доступа из ответа POST /auth/login"}
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Токен доступа из ответа POST /auth/login",
+    }
     assert schema["components"]["securitySchemes"]["appKey"]["name"] == "X-KST-App"
     operations = [(path, method, operation) for path, item in schema["paths"].items() for method, operation in item.items()]
     assert len(operations) > 70
@@ -125,11 +133,13 @@ def test_documented_models_validate_real_responses(client):
     apidocs.RuleEvaluation.model_validate(client.get("/equipment/AMS-1/rules/R01", headers=engineer).json())
     started = client.post("/inspections", json={"equipment_id": "AMS-1", "identified_by": "manual"}, headers=engineer)
     inspection = apidocs.InspectionView.model_validate(started.json())
-    created = client.post(f"/inspections/{inspection.id}/findings", headers=engineer,
-                          data={"kind": "defect", "sign": "leak", "node": "seal"})
+    created = client.post(
+        f"/inspections/{inspection.id}/findings", headers=engineer, data={"kind": "defect", "sign": "leak", "node": "seal"}
+    )
     finding = apidocs.FindingView.model_validate(created.json())
-    rejected = client.post(f"/inspections/findings/{finding.id}/state", headers=master,
-                           json={"state": "rejected", "comment": "проверка схемы"})
+    rejected = client.post(
+        f"/inspections/findings/{finding.id}/state", headers=master, json={"state": "rejected", "comment": "проверка схемы"}
+    )
     assert apidocs.FindingView.model_validate(rejected.json()).rejected is True
     apidocs.InspectionView.model_validate(client.post(f"/inspections/{inspection.id}/finish", headers=engineer).json())
     listed = client.get("/inspections", headers=engineer).json()

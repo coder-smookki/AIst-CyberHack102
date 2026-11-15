@@ -3,6 +3,7 @@
 
 Проверяются предварительный запрос OPTIONS и заголовки обычного ответа; база и модели для этого не нужны.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -22,8 +23,10 @@ class NoDetector:
 
 def preflight(client: TestClient, origin: str):
     """Предварительный запрос браузера перед входом с заголовком Content-Type: application/json."""
-    return client.options("/auth/login", headers={"Origin": origin, "Access-Control-Request-Method": "POST",
-                                                  "Access-Control-Request-Headers": "content-type"})
+    return client.options(
+        "/auth/login",
+        headers={"Origin": origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"},
+    )
 
 
 def make_client(monkeypatch, value: str | None) -> TestClient:
@@ -47,8 +50,17 @@ def test_default_allows_local_pages(monkeypatch, origin):
     assert simple.headers[ALLOW] == origin
 
 
-@pytest.mark.parametrize("origin", ["https://evil.example", "http://localhost.evil.example", "http://192.168.1.10:8765",
-                                    "https://localhost:5173", "http://127.0.0.1.evil.example:80", "nullx"])
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://evil.example",
+        "http://localhost.evil.example",
+        "http://192.168.1.10:8765",
+        "https://localhost:5173",
+        "http://127.0.0.1.evil.example:80",
+        "nullx",
+    ],
+)
 def test_default_rejects_other_pages(monkeypatch, origin):
     """Чужие сайты, адреса локальной сети и похожие на localhost имена не получают разрешения."""
     client = make_client(monkeypatch, None)

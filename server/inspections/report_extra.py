@@ -4,6 +4,7 @@
 текущий момент ленты у идущего), графики - за 24 часа и 7 суток до этого момента с уставками параметров.
 Правила, сработавшие по датчикам, пересчитываются на тот же момент только по датчикам и ресурсу.
 """
+
 from datetime import datetime
 from typing import Any
 
@@ -64,9 +65,18 @@ def sensors_section(inspection: Inspection, telemetry_at: str | None) -> dict:
         if meta is None:
             continue
         value = readings.get(code)
-        current.append({"code": code, "name": meta["name"], "unit": meta["unit"], "value": value,
-                        "warn": meta.get("warn"), "alarm": meta.get("alarm"), "level": _level(value, meta),
-                        "source": meta.get("source")})
+        current.append(
+            {
+                "code": code,
+                "name": meta["name"],
+                "unit": meta["unit"],
+                "value": value,
+                "warn": meta.get("warn"),
+                "alarm": meta.get("alarm"),
+                "level": _level(value, meta),
+                "source": meta.get("source"),
+            }
+        )
     series: dict[str, Any] = {}
     for key, title, hours, step in WINDOWS:
         series[key] = {"title": title, "hours": hours, "codes": {}}
@@ -79,23 +89,40 @@ def sensors_section(inspection: Inspection, telemetry_at: str | None) -> dict:
         if slope is not None:
             trends[code] = slope
     card = equipment_card(inspection.equipment)
-    fired = [found for found in diagnose(card, readings, trends, {})["findings"]
-             if any(line["source"] in ("sensor", "resource") and line["met"] for line in found["evidence"])]
-    rules = [{"rule_id": found["rule_id"], "title": found["title"], "status": found["status"],
-              "severity": found["severity"], "diagnosis": found["diagnosis"],
-              "evidence": [line for line in found["evidence"] if line["source"] in ("sensor", "resource")]}
-             for found in fired]
-    return {"available": True, "at": _stamp(at), "current": current, "series": series, "groups": [
-        {"code": code, "title": title, "params": [entry for entry in params if entry in metas]}
-        for code, title, params in CHART_GROUPS], "meta": {code: metas[code] for code in CHART_CODES if code in metas},
-        "rules": rules}
+    fired = [
+        found
+        for found in diagnose(card, readings, trends, {})["findings"]
+        if any(line["source"] in ("sensor", "resource") and line["met"] for line in found["evidence"])
+    ]
+    rules = [
+        {
+            "rule_id": found["rule_id"],
+            "title": found["title"],
+            "status": found["status"],
+            "severity": found["severity"],
+            "diagnosis": found["diagnosis"],
+            "evidence": [line for line in found["evidence"] if line["source"] in ("sensor", "resource")],
+        }
+        for found in fired
+    ]
+    return {
+        "available": True,
+        "at": _stamp(at),
+        "current": current,
+        "series": series,
+        "groups": [
+            {"code": code, "title": title, "params": [entry for entry in params if entry in metas]}
+            for code, title, params in CHART_GROUPS
+        ],
+        "meta": {code: metas[code] for code in CHART_CODES if code in metas},
+        "rules": rules,
+    }
 
 
 def sound_section(session: Session, inspection_id: int) -> list[dict]:
     """Записи звука осмотра с показателями, спектром и кандидатами, в порядке записи."""
     rows = session.scalars(select(SoundRecord).where(SoundRecord.inspection_id == inspection_id).order_by(SoundRecord.id))
-    return [{"id": row.id, "created_at": _stamp(row.created_at), "normal": row.normal, **(row.summary or {})}
-            for row in rows]
+    return [{"id": row.id, "created_at": _stamp(row.created_at), "normal": row.normal, **(row.summary or {})} for row in rows]
 
 
 def walk_section(nodes: list[dict], coverage: dict | None, findings: list[Finding]) -> list[dict]:
@@ -106,8 +133,15 @@ def walk_section(nodes: list[dict], coverage: dict | None, findings: list[Findin
     for node in nodes:
         state = covered.get(node["code"]) or {}
         inspected = bool(state.get("inspected") or state.get("manual") or node["code"] in marked)
-        rows.append({"code": node["code"], "name": node["name"], "inspected": inspected,
-                     "status": node["actual"]["status"], "title": node["actual"].get("title")})
+        rows.append(
+            {
+                "code": node["code"],
+                "name": node["name"],
+                "inspected": inspected,
+                "status": node["actual"]["status"],
+                "title": node["actual"].get("title"),
+            }
+        )
     return rows
 
 
@@ -119,8 +153,15 @@ def recommendations(findings: list[dict]) -> list[dict]:
         text = (view.get("recommendation") or "").strip()
         if text and text not in seen:
             seen.add(text)
-            rows.append({"finding_id": view["id"], "node_name": view["node_name"], "title": view["title"],
-                         "severity": view.get("severity"), "text": text})
+            rows.append(
+                {
+                    "finding_id": view["id"],
+                    "node_name": view["node_name"],
+                    "title": view["title"],
+                    "severity": view.get("severity"),
+                    "text": text,
+                }
+            )
     return rows
 
 
@@ -129,13 +170,23 @@ def next_maintenance(card: dict, run_hours: float | None, nodes: list[dict]) -> 
     known = [entry for entry in maintenance_intervals(card, run_hours) if entry.get("remaining_hours") is not None]
     if known:
         entry = min(known, key=lambda item: item["remaining_hours"])
-        return {"kind": "maintenance", "name": entry["name"], "work": entry.get("work"),
-                "remaining_hours": entry["remaining_hours"], "state": entry["state"]}
+        return {
+            "kind": "maintenance",
+            "name": entry["name"],
+            "work": entry.get("work"),
+            "remaining_hours": entry["remaining_hours"],
+            "state": entry["state"],
+        }
     dated = [node for node in nodes if (node.get("calculated") or {}).get("forecast_date")]
     if dated:
         node = min(dated, key=lambda item: item["calculated"]["forecast_date"])
-        return {"kind": "resource", "name": node["name"], "work": "Замена или ревизия узла по ресурсу",
-                "forecast_date": node["calculated"]["forecast_date"], "state": node["calculated"]["state"]}
+        return {
+            "kind": "resource",
+            "name": node["name"],
+            "work": "Замена или ревизия узла по ресурсу",
+            "forecast_date": node["calculated"]["forecast_date"],
+            "state": node["calculated"]["state"],
+        }
     return None
 
 
@@ -146,8 +197,16 @@ def signatures(session: Session, inspection: Inspection, findings: list[Finding]
     if rejecters:
         master = session.get(User, rejecters[-1])
     if master is None:
-        master = next((user for user in session.scalars(select(User).where(User.is_active.is_(True)).order_by(User.id))
-                       if has_permission(user, "findings.confirm")), None)
+        master = next(
+            (
+                user
+                for user in session.scalars(select(User).where(User.is_active.is_(True)).order_by(User.id))
+                if has_permission(user, "findings.confirm")
+            ),
+            None,
+        )
     engineer = inspection.user
-    return [{"role": "Инженер", "name": engineer.name if engineer else None},
-            {"role": "Мастер", "name": master.name if master else None}]
+    return [
+        {"role": "Инженер", "name": engineer.name if engineer else None},
+        {"role": "Мастер", "name": master.name if master else None},
+    ]
