@@ -22,7 +22,7 @@
   <a href="#проверка-качества"><img alt="Тесты сервера" src="https://img.shields.io/badge/%D1%82%D0%B5%D1%81%D1%82%D1%8B%20%D1%81%D0%B5%D1%80%D0%B2%D0%B5%D1%80%D0%B0-552-2EA043?style=flat-square"></a>
   <a href="#проверка-качества"><img alt="Тесты приложения" src="https://img.shields.io/badge/%D1%82%D0%B5%D1%81%D1%82%D1%8B%20%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F-3271-2EA043?style=flat-square"></a>
   <a href="#проверка-качества"><img alt="ruff, black, mypy" src="https://img.shields.io/badge/ruff%20%C2%B7%20black%20%C2%B7%20mypy-%D0%B1%D0%B5%D0%B7%20%D0%B7%D0%B0%D0%BC%D0%B5%D1%87%D0%B0%D0%BD%D0%B8%D0%B9-2EA043?style=flat-square"></a>
-  <img alt="Лицензии моделей" src="https://img.shields.io/badge/%D0%BC%D0%BE%D0%B4%D0%B5%D0%BB%D0%B8-MIT%20%7C%20Apache--2.0-92B6FF?style=flat-square">
+  <a href="#лицензия"><img alt="Лицензия: все права защищены" src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-%D0%B2%D1%81%D0%B5%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B0%20%D0%B7%D0%B0%D1%89%D0%B8%D1%89%D0%B5%D0%BD%D1%8B-B31D28?style=flat-square"></a>
 </p>
 
 <p align="center">
@@ -225,7 +225,7 @@ APK подписан отладочным ключом сборки. Новая 
 | Текст шильдика | RapidOCR, модели PP-OCR | | | Apache-2.0 |
 | Помощник на телефоне | Qwen3-0.6B GGUF, Q8_0 и Q4_K_M | | 639 и 397 МБ | Apache-2.0 |
 
-Узлы: `motor`, `pump_casing`, `flange`, `coupling_guard`, `coupling_no_guard`, `terminal_box`, `terminal_box_burnt`, `nameplate`, `gauge`, `leak`, `corrosion`. Дефекты: `corrosion`, `leak`, `terminal_box_burnt`, `damage` (трещина, излом, повреждение изоляции). Код обучения и вывода тоже под MIT и Apache-2.0: Ultralytics не используется, потому что её код и веса под AGPL-3.0.
+Узлы: `motor`, `pump_casing`, `flange`, `coupling_guard`, `coupling_no_guard`, `terminal_box`, `terminal_box_burnt`, `nameplate`, `gauge`, `leak`, `corrosion`. Дефекты: `corrosion`, `leak`, `terminal_box_burnt`, `damage` (трещина, излом, повреждение изоляции). Библиотеки обучения и вывода (libreyolo, ONNX Runtime) тоже под MIT и Apache-2.0: Ultralytics не используется, потому что её код и веса под AGPL-3.0.
 
 Пороги сервера: узлы 0,25, дефекты 0,15. Модели узлов и дефектов работают вместе, рамки объединяются.
 
@@ -375,3 +375,16 @@ cd mobile && flutter analyze && flutter test
 3. Новые типы оборудования (задвижки, редукторы, теплообменники, промышленные компрессоры) и новые виды дефектов: последствия пожара и замыкания, отсутствующие и сломанные детали
 4. Подпись сборок ключом команды, публикация в магазины приложений
 5. Ускорение сервера: настройка потоков ONNX Runtime и запуск моделей на GPU, если он есть на объекте
+
+## Лицензия
+
+© 2026 Ильин Кирилл Русланович. Все права защищены.
+
+«КСТ Визор» распространяется под проприетарной лицензией, полный текст - в [LICENSE](LICENSE). Коротко:
+
+- можно смотреть код на GitHub и запускать опубликованные сборки только для личного ознакомления
+- нельзя использовать решение в коммерции и в собственных целях, копировать, изменять, распространять, переносить код в другие проекты и обучать на нём модели без письменного разрешения автора
+- условия действуют бессрочно, весь срок действия исключительного права
+- сторонние библиотеки, исходные веса моделей и наборы данных остаются под своими лицензиями (MIT, Apache-2.0 и другими, см. разделы «Модели» и «Данные»)
+
+Для разрешения на использование - [@coder-smookki](https://github.com/coder-smookki).
